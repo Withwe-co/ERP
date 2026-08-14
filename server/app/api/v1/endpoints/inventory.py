@@ -12,14 +12,30 @@ from io import BytesIO
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
+import re
 
 
 
 from app.core.config import settings  # 설정 파일에서 이미지 저장 경로 가져오기 가정
 from app import crud, schemas
 from app.api.deps import get_db
+from app.models.unified_inventory import UnifiedInventory
 
 router = APIRouter()
+
+def generate_next_item_code(db: Session) -> str:
+    """구매 완료와 동일한 ITM-YYYYMMDD-NNNN 형식의 다음 코드를 계산한다."""
+    code_prefix = f"ITM-{datetime.now().strftime('%Y%m%d')}-"
+    existing_codes = db.query(UnifiedInventory.item_code).filter(
+        UnifiedInventory.item_code.like(f"{code_prefix}%")
+    ).all()
+    sequence_pattern = re.compile(rf"^{re.escape(code_prefix)}(\d{{4}})$")
+    used_sequences = [
+        int(match.group(1))
+        for (code,) in existing_codes
+        if code and (match := sequence_pattern.match(code))
+    ]
+    return f"{code_prefix}{max(used_sequences, default=0) + 1:04d}"
 
 
 # 기본 CRUD 엔드포인트들
@@ -45,6 +61,7 @@ def read_inventories(
     min_quantity: Optional[int] = Query(None),
     max_quantity: Optional[int] = Query(None),
     has_images: Optional[bool] = Query(None),
+    include_receipt_only: bool = Query(False, description="수령 관리 전용 품목 포함 여부"),
 ):
     """통합 재고 목록 조회"""
     
@@ -58,13 +75,15 @@ def read_inventories(
             location=location,
             warehouse=warehouse,
             stock_status=stock_status,
+            is_active=is_active,
             is_consumable=is_consumable,
             requires_approval=requires_approval,
             last_received_from=last_received_from,
             last_received_to=last_received_to,
             min_quantity=min_quantity,
             max_quantity=max_quantity,
-            has_images=has_images
+            has_images=has_images,
+            is_receipt_only=None if include_receipt_only else False
         )
         
         items = crud.inventory.get_multi_with_filter(
@@ -143,14 +162,66 @@ def create_inventory(
     db: Session = Depends(get_db)
 ):
     """새 품목 생성"""
-    existing_item = crud.inventory.get_by_item_code(db=db, item_code=inventory_in.item_code)
-    if existing_item:
+    initial_received_quantity = inventory_in.initial_received_quantity
+    reuse_item_code = inventory_in.reuse_item_code and bool(inventory_in.item_code.strip())
+    if reuse_item_code:
+        generated_code = inventory_in.item_code.strip()
+    elif inventory_in.purchase_request_id:
+        generated_code = (
+            f"ITM-{datetime.now().strftime('%Y%m%d')}-"
+            f"{inventory_in.purchase_request_id:04d}"
+        )
+    else:
+        generated_code = generate_next_item_code(db)
+    inventory_in = inventory_in.model_copy(update={"item_code": generated_code})
+    existing_item = crud.inventory.get_by_item_code(db=db, item_code=generated_code)
+    if existing_item and not reuse_item_code:
         raise HTTPException(
             status_code=400, 
             detail=f"품목 코드 '{inventory_in.item_code}'가 이미 존재합니다."
         )
     
     inventory = crud.inventory.create(db=db, obj_in=inventory_in)
+    if initial_received_quantity > 0:
+        received_at = datetime.now()
+        receipt_number = f"RC{received_at.strftime('%Y%m%d')}{inventory.id:04d}001"
+        inventory.total_received = initial_received_quantity
+        inventory.current_quantity = initial_received_quantity
+        inventory.reserved_quantity = 0
+        inventory.condition_quantities = {
+            "excellent": 0, "good": initial_received_quantity, "damaged": 0, "defective": 0
+        }
+        inventory.receipt_history = [{
+            "receipt_number": receipt_number,
+            "item_name": inventory.item_name,
+            "item_code": inventory.item_code,
+            "expected_quantity": initial_received_quantity,
+            "received_quantity": initial_received_quantity,
+            "receiver_name": "수령관리 등록",
+            "department": "수령관리",
+            "received_date": received_at.isoformat(),
+            "condition": "good",
+            "notes": "수령 등록 화면에서 초기 수령 수량으로 등록",
+            "image_urls": [],
+        }]
+        inventory.last_received_date = received_at
+        inventory.last_received_by = "수령관리 등록"
+        inventory.last_received_department = "수령관리"
+        inventory.total_value = initial_received_quantity * inventory.unit_price if inventory.unit_price else 0
+        db.commit()
+        db.refresh(inventory)
+    # 구매 완료는 입고가 아니므로 수령 전 재고와 총수령량은 항상 0이다.
+    if inventory.purchase_request_id:
+        inventory.total_received = 0
+        inventory.current_quantity = 0
+        inventory.reserved_quantity = 0
+        inventory.condition_quantities = {
+            "excellent": 0, "good": 0, "damaged": 0, "defective": 0
+        }
+        inventory.receipt_history = []
+        inventory.total_value = 0
+        db.commit()
+        db.refresh(inventory)
     return inventory
 
 @router.get("/", response_model=schemas.UnifiedInventoryList)
@@ -190,6 +261,7 @@ def read_inventories(
             location=location,
             warehouse=warehouse,
             stock_status=stock_status,
+            is_active=is_active,
             is_consumable=is_consumable,
             requires_approval=requires_approval,
             last_received_from=last_received_from,
@@ -218,6 +290,7 @@ def read_inventories(
                 item_dict = {
                     "id": item.id,
                     "item_code": item.item_code,
+                    "purchase_request_id": item.purchase_request_id,
                     "item_name": item.item_name,
                     "category": item.category,
                     "brand": item.brand,
@@ -239,6 +312,7 @@ def read_inventories(
                     "total_received": item.total_received,
                     "current_quantity": item.current_quantity,
                     "reserved_quantity": item.reserved_quantity,
+                    "quantity_history": item.quantity_history or [],
                     "condition_quantities": item.condition_quantities or {},
                     "total_value": item.total_value,
                     "last_received_date": item.last_received_date,
@@ -389,6 +463,14 @@ def read_inventory_stats(db: Session = Depends(get_db)):
     stats = crud.inventory.get_inventory_stats(db=db)
     return stats
 
+
+@router.get("/next-item-code")
+def read_next_item_code(
+    db: Session = Depends(get_db),
+):
+    """품목 추가 화면에 표시할 다음 예상 품목코드를 반환한다."""
+    return {"item_code": generate_next_item_code(db)}
+
 @router.get("/categories", response_model=List[str])
 def read_categories(db: Session = Depends(get_db)):
     """모든 카테고리 목록 조회"""
@@ -484,6 +566,7 @@ async def complete_receipt_with_images(
     db: Session = Depends(get_db)
 ):
     """수령 완료 처리 (이미지 필수 포함)"""
+    saved_files = []
     try:
         print(f"📥 수령완료 요청 받음 - 품목 ID: {item_id}")
         print(f"📝 폼 데이터: quantity={received_quantity}, receiver={receiver_name}, dept={department}")
@@ -508,8 +591,6 @@ async def complete_receipt_with_images(
             raise HTTPException(status_code=500, detail=f"디렉토리 생성 실패: {str(dir_error)}")
         
         image_urls = []
-        saved_files = []  # 오류 시 정리용
-        
         # 이미지 파일들 저장
         for i, image in enumerate(images):
             try:
@@ -540,8 +621,9 @@ async def complete_receipt_with_images(
                     saved_files.append(file_path)
                     
                     # 상대 경로로 URL 생성
-                    # image_url = f"http://211.197.16.248:8000/uploads/inventory_images/{unique_filename}"
-                    image_url = f"http://localhost:8000/uploads/inventory_images/{unique_filename}"
+                    #image_url = f"http://211.197.16.248:8000/uploads/inventory_images/{unique_filename}"
+                    image_url = f"/uploads/inventory_images/{unique_filename}"
+                    
                     # image_url = f"http://211.44.183.165:8000/uploads/inventory_images/{unique_filename}"
                     # image_url = f"http://192.168.0.16:8000/uploads/inventory_images/{unique_filename}"
                     image_urls.append(image_url)
@@ -572,57 +654,24 @@ async def complete_receipt_with_images(
             print(f"⚠️ 날짜 파싱 실패: {date_error}, 현재 시간 사용")
             parsed_received_date = datetime.now()
         
-        # 🔥 수령번호 생성
-        receipt_number = f"REC-{datetime.now().strftime('%Y%m%d')}-{item_id:04d}"
-        
-        # 수령 이력 데이터 생성
+        receipt_number = (
+            f"REC-{datetime.now().strftime('%Y%m%d%H%M%S')}-"
+            f"{item_id:04d}-{len(inventory.receipt_history or []) + 1:03d}"
+        )
+
+        # 이미지, 수령 이력, 재고와 완료 상태를 한 트랜잭션으로 저장
         try:
-            receipt_data = schemas.ReceiptHistoryCreate(
-                receipt_number=receipt_number,
-                received_quantity=received_quantity,
-                receiver_name=receiver_name,
-                receiver_email=receiver_email,
-                department=department,
-                received_date=parsed_received_date.isoformat(),  # ISO 형식으로 변환
-                location=location,
-                condition=condition,
-                notes=notes,
-                image_urls=image_urls
-            )
-            
-            print(f"📋 수령 데이터 생성 완료: {receipt_data}")
-            
-        except Exception as data_error:
-            print(f"❌ 수령 데이터 생성 실패: {data_error}")
-            raise HTTPException(status_code=400, detail=f"수령 데이터 생성 실패: {str(data_error)}")
-        
-        # 수령 이력 추가 및 재고 업데이트
-        try:
-            # 수령 이력 추가
-            updated_inventory = crud.inventory.add_receipt(db=db, item_id=item_id, receipt_in=receipt_data)
-            
-            if not updated_inventory:
-                raise HTTPException(status_code=500, detail="재고 업데이트 실패")
-            
-            # 🔥 수령 완료 상태 업데이트
-            updated_inventory.is_active = True
-            
-            # 🔥 수령 이력 처리 개선
-            if not updated_inventory.receipt_history:
-                updated_inventory.receipt_history = []
-            
-            # 🔥 완전한 수령 이력 객체 생성 (모든 필수 필드 포함)
             complete_receipt_history = {
-                "id": len(updated_inventory.receipt_history) + 1,
+                "id": len(inventory.receipt_history or []) + 1,
                 "receipt_number": receipt_number,
-                "item_name": updated_inventory.item_name or "Unknown Item",  # 필수 필드
-                "item_code": updated_inventory.item_code or "",  # 필수 필드
-                "expected_quantity": received_quantity,  # 필수 필드
+                "item_name": inventory.item_name or "Unknown Item",
+                "item_code": inventory.item_code or "",
+                "expected_quantity": received_quantity,
                 "received_quantity": received_quantity,
                 "receiver_name": receiver_name,
                 "receiver_email": receiver_email,
                 "department": department,
-                "received_date": parsed_received_date.isoformat(),  # 🔥 datetime ISO 형식
+                "received_date": parsed_received_date.isoformat(),
                 "location": location,
                 "condition": condition,
                 "notes": notes,
@@ -631,33 +680,43 @@ async def complete_receipt_with_images(
                 "is_complete": True,
                 "quality_check_passed": True
             }
-            
-            updated_inventory.receipt_history.append(complete_receipt_history)
-            
-            # 🔥 마지막 수령 정보 업데이트
-            updated_inventory.last_received_date = parsed_received_date
-            updated_inventory.last_received_by = receiver_name
-            updated_inventory.last_received_department = department
-            
-            # 이미지 URL 업데이트
-            if not updated_inventory.main_image_url and image_urls:
-                updated_inventory.main_image_url = image_urls[0]
-            
-            if updated_inventory.image_urls is None:
-                updated_inventory.image_urls = []
-            updated_inventory.image_urls.extend(image_urls)
-            
-            # 데이터베이스 커밋
+
+            inventory.receipt_history = [
+                *(inventory.receipt_history or []),
+                complete_receipt_history,
+            ]
+            inventory.total_received = (inventory.total_received or 0) + received_quantity
+            inventory.current_quantity = (inventory.current_quantity or 0) + received_quantity
+            inventory.last_received_date = parsed_received_date
+            inventory.last_received_by = receiver_name
+            inventory.last_received_department = department
+            inventory.is_active = True
+            inventory.purchase_request_id = None
+            inventory.updated_at = datetime.now()
+
+            condition_values = dict(inventory.condition_quantities or {})
+            condition_values[condition] = condition_values.get(condition, 0) + received_quantity
+            inventory.condition_quantities = condition_values
+
+            inventory.image_urls = [*(inventory.image_urls or []), *image_urls]
+            if not inventory.main_image_url and image_urls:
+                inventory.main_image_url = image_urls[0]
+            if location:
+                inventory.location = location
+            if inventory.unit_price:
+                inventory.total_value = inventory.current_quantity * inventory.unit_price
+
+            db.add(inventory)
             db.commit()
-            db.refresh(updated_inventory)
+            db.refresh(inventory)
             
             print(f"🎉 수령 완료 처리 성공 - 품목 ID: {item_id}")
             
             # 🔥 응답 전에 로깅 추가
-            print(f"📤 응답 데이터 타입: {type(updated_inventory)}")
-            print(f"📤 수령 이력 개수: {len(updated_inventory.receipt_history) if updated_inventory.receipt_history else 0}")
+            print(f"📤 응답 데이터 타입: {type(inventory)}")
+            print(f"📤 수령 이력 개수: {len(inventory.receipt_history) if inventory.receipt_history else 0}")
             
-            return updated_inventory
+            return inventory
             
         except HTTPException:
             raise
@@ -667,6 +726,12 @@ async def complete_receipt_with_images(
             import traceback
             print(f"❌ 스택 트레이스: {traceback.format_exc()}")
             db.rollback()
+            for saved_file in saved_files:
+                try:
+                    if os.path.exists(saved_file):
+                        os.remove(saved_file)
+                except OSError:
+                    pass
             raise HTTPException(status_code=500, detail=f"데이터베이스 업데이트 실패: {str(db_error)}")
         
     except HTTPException:
@@ -1396,7 +1461,8 @@ def export_inventory_excel(
             category=category,
             brand=brand,
             supplier_name=supplier_name,
-            is_active=is_active
+            is_active=is_active,
+            is_receipt_only=False
         )
         
         # 모든 품목 조회 (제한 없음)

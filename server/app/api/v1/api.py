@@ -1,5 +1,11 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import inventory, dashboard, upload, purchase_request
+from app.api.v1.endpoints import (
+    dashboard,
+    email_notifications,
+    inventory,
+    purchase_request,
+    upload,
+)
 
 api_router = APIRouter()
 
@@ -29,4 +35,11 @@ api_router.include_router(
     purchase_request.router,
     prefix="/purchase-requests",
     tags=["purchase-requests"]
+)
+
+# 이메일 발송 엔드포인트
+api_router.include_router(
+    email_notifications.router,
+    prefix="/email-notifications",
+    tags=["email-notifications"],
 )

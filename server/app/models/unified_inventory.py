@@ -10,7 +10,7 @@ class UnifiedInventory(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # 품목 기본 정보
-    item_code = Column(String(50), unique=True, index=True, nullable=False)
+    item_code = Column(String(50), index=True, nullable=False)
     item_name = Column(String(200), nullable=False, index=True)
     category = Column(String(100), nullable=True)
     brand = Column(String(100), nullable=True)
@@ -32,6 +32,7 @@ class UnifiedInventory(Base):
     
     # 수령 이력 (JSON으로 저장)
     receipt_history = Column(JSON, default=[], nullable=False)
+    quantity_history = Column(JSON, default=[], nullable=False)
     
     # 가격 정보
     unit_price = Column(Float, nullable=True)
@@ -62,6 +63,8 @@ class UnifiedInventory(Base):
     
     # 상태 정보
     is_active = Column(Boolean, default=True)
+    deactivation_reason = Column(Text, nullable=True)
+    is_receipt_only = Column(Boolean, default=False, nullable=False)
     is_consumable = Column(Boolean, default=False)
     requires_approval = Column(Boolean, default=False)
     

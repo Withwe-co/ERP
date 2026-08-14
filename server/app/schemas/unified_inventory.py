@@ -65,7 +65,11 @@ class UnifiedInventoryBase(BaseModel):
     transaction_uploaded_by: Optional[str] = Field(None, description="거래명세서 업로드자")
 
 class UnifiedInventoryCreate(UnifiedInventoryBase):
-    item_code: str = Field(..., max_length=50, description="품목 코드")
+    item_code: str = Field(default="", max_length=50, description="서버에서 자동 생성되는 품목 코드")
+    reuse_item_code: bool = Field(default=False, exclude=True, description="선택한 기존 품목코드 재사용 여부")
+    initial_received_quantity: int = Field(default=0, ge=0, exclude=True, description="수령 등록 시 초기 수령 수량")
+    is_receipt_only: bool = Field(default=False, description="수령 관리 전용 품목 여부")
+    purchase_request_id: Optional[int] = Field(None, description="연결된 구매 요청 ID")
     receipt_history: Optional[List[ReceiptHistoryCreate]] = Field(default=[], description="수령 이력")
 
 class UnifiedInventoryUpdate(BaseModel):
@@ -73,6 +77,7 @@ class UnifiedInventoryUpdate(BaseModel):
     category: Optional[str] = Field(None, max_length=100, description="카테고리")
     brand: Optional[str] = Field(None, max_length=100, description="브랜드")
     specifications: Optional[str] = Field(None, description="사양")
+    unit: Optional[str] = Field(None, max_length=20, description="단위")
     unit_price: Optional[float] = Field(None, ge=0, description="단가")
     currency: Optional[str] = Field(None, max_length=10, description="통화")
     location: Optional[str] = Field(None, max_length=200, description="위치")
@@ -87,6 +92,11 @@ class UnifiedInventoryUpdate(BaseModel):
     notes: Optional[str] = Field(None, description="비고")
     tags: Optional[List[str]] = Field(None, description="태그")
 
+    is_active: Optional[bool] = Field(None, description="사용 상태")
+    deactivation_reason: Optional[str] = Field(None, description="사용중지 사유")
+    purchase_request_id: Optional[int] = Field(None, description="수령 대기 구매 요청 ID")
+    updated_by: Optional[str] = Field(None, max_length=100, description="수정자")
+
 class InventoryQuantityUpdate(BaseModel):
     quantity_change: int = Field(..., description="변경할 수량 (양수: 입고, 음수: 출고)")
     user_name: str = Field(..., description="처리자명")
@@ -97,12 +107,14 @@ class InventoryQuantityUpdate(BaseModel):
 class UnifiedInventoryInDB(UnifiedInventoryBase):
     id: int
     item_code: str
+    purchase_request_id: Optional[int] = None
     total_received: int
     current_quantity: int
     reserved_quantity: int
     condition_quantities: Dict[str, int]
     total_value: Optional[float]
     receipt_history: List[ReceiptHistoryInDB]
+    quantity_history: List[Dict[str, Any]] = Field(default=[])
     last_received_date: Optional[datetime]
     last_received_by: Optional[str]
     last_received_department: Optional[str]
@@ -110,6 +122,8 @@ class UnifiedInventoryInDB(UnifiedInventoryBase):
     main_image_url: Optional[str]
     image_urls: List[str]
     is_active: bool
+    deactivation_reason: Optional[str] = None
+    is_receipt_only: bool = False
     created_at: datetime
     updated_at: Optional[datetime]
     created_by: Optional[str]
@@ -178,6 +192,8 @@ class UnifiedInventoryFilter(BaseModel):
     location: Optional[str] = None
     warehouse: Optional[str] = None
     stock_status: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_receipt_only: Optional[bool] = None
     is_consumable: Optional[bool] = None
     requires_approval: Optional[bool] = None
     last_received_from: Optional[datetime] = None

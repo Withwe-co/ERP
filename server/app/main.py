@@ -6,12 +6,32 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api.v1.api import api_router
 from app.core.database import engine, Base
+from sqlalchemy import text
 
 import os
 
 # 데이터베이스 테이블 생성
 try:
     Base.metadata.create_all(bind=engine)
+    # 선택한 기존 품목코드로 복수의 등록/수령 기록을 남길 수 있게 한다.
+    with engine.begin() as connection:
+        connection.execute(text("DROP INDEX IF EXISTS ix_unified_inventory_item_code"))
+        connection.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_unified_inventory_item_code "
+            "ON unified_inventory (item_code)"
+        ))
+        connection.execute(text(
+            "ALTER TABLE unified_inventory "
+            "ADD COLUMN IF NOT EXISTS quantity_history JSON DEFAULT '[]' NOT NULL"
+        ))
+        connection.execute(text(
+            "ALTER TABLE unified_inventory "
+            "ADD COLUMN IF NOT EXISTS is_receipt_only BOOLEAN DEFAULT FALSE NOT NULL"
+        ))
+        connection.execute(text(
+            "ALTER TABLE unified_inventory "
+            "ADD COLUMN IF NOT EXISTS deactivation_reason TEXT"
+        ))
     print("✅ 데이터베이스 테이블 생성 완료")
 except Exception as e:
     print(f"⚠️ 데이터베이스 연결 오류: {e}")
