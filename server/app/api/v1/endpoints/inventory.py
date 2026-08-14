@@ -173,6 +173,8 @@ def read_inventories(
     min_quantity: Optional[int] = Query(None),
     max_quantity: Optional[int] = Query(None),
     has_images: Optional[bool] = Query(None),
+    sort_by: Optional[str] = Query(default="item_code", description="정렬 기준 (item_code, item_name, created_at, current_quantity)"),
+    sort_order: Optional[str] = Query(default="desc", description="정렬 순서 (asc, desc)"),
 ):
     """통합 재고 목록 조회 - 날짜 형식 완전 수정"""
     
@@ -196,9 +198,13 @@ def read_inventories(
             max_quantity=max_quantity,
             has_images=has_images
         )
+        sort_options = {
+            'sort_by': sort_by,
+            'sort_order': sort_order
+        }
         
         items = crud.inventory.get_multi_with_filter(
-            db=db, skip=skip, limit=limit, filters=filters
+            db=db, skip=skip, limit=limit, filters=filters, sort_options=sort_options
         )
         total = crud.inventory.count_with_filter(db=db, filters=filters)
         
@@ -534,7 +540,9 @@ async def complete_receipt_with_images(
                     saved_files.append(file_path)
                     
                     # 상대 경로로 URL 생성
-                    image_url = f"http://localhost:8000/uploads/inventory_images/{unique_filename}"
+                    image_url = f"http://211.197.16.248:8000/uploads/inventory_images/{unique_filename}"
+                    # image_url = f"http://211.44.183.165:8000/uploads/inventory_images/{unique_filename}"
+                    # image_url = f"http://192.168.0.16:8000/uploads/inventory_images/{unique_filename}"
                     image_urls.append(image_url)
                     print(f"🔗 이미지 URL 생성: {image_url}")
                     
@@ -1571,4 +1579,70 @@ def export_inventory_excel(
         raise HTTPException(
             status_code=500,
             detail=f"Excel 내보내기에 실패했습니다: {str(e)}"
+        )
+        
+@router.post("/{item_id}/transaction-document", response_model=schemas.UnifiedInventoryInDB)
+async def upload_transaction_document(
+    item_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """거래명세서 업로드 처리 로직"""
+    try:
+        print(f"📄 거래명세서 업로드 시작 - 품목 ID: {item_id}")
+        
+        # 품목 존재 확인
+        inventory = crud.inventory.get(db=db, id=item_id)
+        if not inventory:
+            raise HTTPException(status_code=404, detail="재고 항목을 찾을 수 없습니다.")
+        
+        # 파일 검증
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="파일명이 없습니다.")
+        
+        allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+        if file.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="PDF 또는 이미지 파일만 업로드 가능합니다.")
+        
+        # 파일 크기 제한 (10MB)
+        if file.size > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="파일 크기는 10MB를 초과할 수 없습니다.")
+
+        # 업로드 디렉토리 생성
+        upload_dir = os.path.join(os.getcwd(), 'uploads', 'transaction_documents')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # 고유 파일명 생성
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{inventory.id}_transaction_document{file_extension}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # 파일 저장
+        contents = await file.read()
+        with open(file_path, 'wb') as f:
+            f.write(contents)
+        
+        # URL 생성
+        file_url = f"/uploads/transaction_documents/{unique_filename}"
+
+        # DB 업데이트
+        inventory.transaction_document_url = file_url
+        inventory.transaction_upload_date = datetime.now()
+        inventory.transaction_uploaded_by = "관리자"
+        
+        db.commit()
+        db.refresh(inventory)
+        
+        print(f"📁 거래 명세서 업로드 완료: {file_url}")
+
+        return inventory
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ 거래명세서 업로드 실패: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"거래명세서 업로드에 실패했습니다: {str(e)}"
         )

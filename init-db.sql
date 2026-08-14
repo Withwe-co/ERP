@@ -1,0 +1,53 @@
+-- 테이블 생성 (이미 존재하면 스킵하거나 에러 발생 방지 위해 IF NOT EXISTS 추가)
+CREATE TABLE IF NOT EXISTS purchase_requests (
+    id SERIAL PRIMARY KEY,
+    request_number VARCHAR(50) UNIQUE NOT NULL,
+    item_name VARCHAR(200) NOT NULL,
+    specifications TEXT,
+    quantity INTEGER DEFAULT 1,
+    unit VARCHAR(20) DEFAULT '개',
+    estimated_unit_price FLOAT DEFAULT 0.0,
+    total_budget FLOAT NOT NULL,
+    currency VARCHAR(10) DEFAULT 'KRW',
+    category VARCHAR DEFAULT 'other',
+    urgency VARCHAR DEFAULT 'normal',
+    purchase_method VARCHAR DEFAULT 'direct',
+    requester_name VARCHAR(100) NOT NULL,
+    requester_email VARCHAR(255),
+    department VARCHAR(100) NOT NULL,
+    position VARCHAR(100),
+    phone_number VARCHAR(20),
+    project VARCHAR(200),
+    budget_code VARCHAR(50),
+    cost_center VARCHAR(50),
+    preferred_supplier VARCHAR(200),
+    supplier_contact VARCHAR(255),
+    expected_delivery_date TIMESTAMP WITH TIME ZONE,
+    required_by_date TIMESTAMP WITH TIME ZONE,
+    justification TEXT NOT NULL,
+    business_case TEXT,
+    notes TEXT,
+    status VARCHAR DEFAULT 'submitted',
+    approval_level INTEGER DEFAULT 1,
+    current_approver VARCHAR(100),
+    approved_date TIMESTAMP WITH TIME ZONE,
+    approved_by VARCHAR(100),
+    rejected_date TIMESTAMP WITH TIME ZONE,
+    rejected_by VARCHAR(100),
+    rejection_reason TEXT,
+    attachment_urls TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    priority_score INTEGER DEFAULT 0,
+    estimated_approval_time INTEGER,
+    actual_approval_time INTEGER,
+    request_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 데이터 삽입 (이미 존재하면 무시하거나 에러 방지 위해 ON CONFLICT 추가)
+INSERT INTO purchase_requests (request_number, item_name, quantity, total_budget, requester_name, department, justification, status, category)
+VALUES ('PR202507000001', 'Test Purchase', 5, 500000, '김철수', '개발팀', '테스트 구매', 'draft', 'electronics')
+ON CONFLICT (request_number) DO NOTHING;  -- 중복 request_number 시 무시

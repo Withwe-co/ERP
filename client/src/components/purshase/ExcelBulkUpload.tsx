@@ -351,7 +351,7 @@ const requiredColumns = [
   { name: '구매사유', required: true, description: '구매가 필요한 이유' },
   { name: '사양', required: false, description: '제품 사양 및 요구사항' },
   { name: '예상단가', required: false, description: '예상 단가 (원)' },
-  { name: '공급업체', required: false, description: '선호 공급업체' },
+  { name: '공급업체', required: false, description: '구매처' },
   { name: '긴급도', required: false, description: '낮음/보통/높음/긴급' },
   { name: '희망납기일', required: false, description: 'YYYY-MM-DD 형식' },
   { name: '프로젝트명', required: false, description: '관련 프로젝트' },

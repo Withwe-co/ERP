@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import styled from 'styled-components';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { Plus, Download, Filter, RefreshCw, Edit, Trash2, Package, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Plus, Download, Filter, RefreshCw, Edit, Trash2, Package, X, ZoomIn, ZoomOut, FileText, CheckCircle  } from 'lucide-react';
 
 // Components
 import Table from '../common/Table';
@@ -16,11 +16,13 @@ import InventoryFilters from './InventoryFilters';
 import InventoryForm from './InventoryForm';
 import ReceiptModal from './ReceiptModal';
 
-import { inventoryApi } from '../../services/api';
 import InventoryExcelUpload from './InventoryExcelUpload';
+import TransactionDocumentModal from './TransactionDocumentModal';
 
 // Services
 import api from '../../services/api';
+import { inventoryApi } from '../../services/api';
+import { UnifiedInventoryItem as InventoryItem } from '../../services/api';
 
 // Types
 import { TableColumn, SearchFilters } from '../../types';
@@ -53,6 +55,9 @@ interface InventoryItem {
   updated_at?: string;
   image_urls?: string[];
   main_image_url?: string;
+  transaction_document_url?: string;
+  transaction_upload_date?: string;
+  transaction_uploaded_by?: string;
 }
 
 interface ReceiptHistory {
@@ -325,6 +330,48 @@ const ViewerImage = styled.img<{ zoom: number }>`
   }
 `;
 
+const TransactionDocumentPreview = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+`;
+const TransactionStatusBadge = styled.div<{ hasDocument: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: ${props => props.hasDocument ? 'pointer' : 'default'};
+  transition: all 0.2s ease;
+  
+  ${props => props.hasDocument ? `
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    
+    &:hover {
+      background: #bbf7d0;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(22, 101, 52, 0.15);
+    }
+  ` : `
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+  `}
+`;
+
+const TransactionButtonGroup = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+`;
+
 const ZoomButton = styled.button`
   display: flex;
   align-items: center;
@@ -393,14 +440,20 @@ const InventoryPage: React.FC = () => {
   const [filters, setFilters] = useState<SearchFilters>({});
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [editingItem, setEditingItem] = useState<UnifiedInventoryItem  | null>(null);
+  const [selectedItem, setSelectedItem] = useState<UnifiedInventoryItem  | null>(null);
   const [isReceiptWithImagesModalOpen, setIsReceiptWithImagesModalOpen] = useState(false);
-  const [selectedItemForReceipt, setSelectedItemForReceipt] = useState<InventoryItem | null>(null);
+  const [selectedItemForReceipt, setSelectedItemForReceipt] = useState<UnifiedInventoryItem  | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [selectedImageName, setSelectedImageName] = useState<string>('');
   const [imageZoom, setImageZoom] = useState(1);
   const [isExcelUploadModalOpen, setIsExcelUploadModalOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('created_at'); // 생성일 기준
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // 최신순
+  const [isTransactionUploadModalOpen, setIsTransactionUploadModalOpen] = useState(false);
+  const [selectedItemForTransaction, setSelectedItemForTransaction] = useState<UnifiedInventoryItem  | null>(null);
+  const [selectedTransactionUrl, setSelectedTransactionUrl] = useState<string | null>(null);
+  const [selectedTransactionName, setSelectedTransactionName] = useState<string>('');
 
   // 재고 목록 조회
   const { 
@@ -410,11 +463,15 @@ const InventoryPage: React.FC = () => {
     refetch 
   } = useQuery({
     queryKey: ['unified-inventory', currentPage, filters],
-    queryFn: () => api.inventory.getItems(currentPage, 20, filters),
+    queryFn: () => api.inventory.getItems(currentPage, 20, filters, {
+      sort_by: 'item_code',  // 품목코드 기준
+      sort_order: 'desc'     // 내림차순
+    }),
     keepPreviousData: true,
     staleTime: 5 * 60 * 1000,
     retry: 3,
   });
+
 
   // 재고 통계 조회
   const { data: statsData } = useQuery({
@@ -448,7 +505,9 @@ const InventoryPage: React.FC = () => {
       });
       
       // API 호출
-      const response = await fetch(`http://localhost:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
+      const response = await fetch(`http://211.197.16.248:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
+      // const response = await fetch(`http://211.44.183.165:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
+      // const response = await fetch(`http://192.168.0.16:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
         method: 'POST',
         body: formData
       });
@@ -555,6 +614,27 @@ const InventoryPage: React.FC = () => {
     },
   });
 
+  const uploadTransactionDocumentMutation = useMutation({
+    mutationFn: ({ itemId, file }: { itemId: number; file: File }) =>
+      api.inventory.uploadTransactionDocument(itemId, file),
+    onSuccess: (responseData) => {
+      
+      queryClient.invalidateQueries({ queryKey: ['unified-inventory'] });
+      if (responseData.transaction_document_url && selectedItemForTransaction) {
+        setSelectedItemForTransaction({
+          ...selectedItemForTransaction,
+          transaction_document_url: responseData.transaction_document_url
+        });
+      }
+      toast.success('거래명세서가 업로드되었습니다.');
+      setIsTransactionUploadModalOpen(false);
+      setSelectedItemForTransaction(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || '거래명세서 업로드 중 오류가 발생했습니다.');
+    },
+  });
+
   // 🔥 수정: 수령 상태 판단 함수
   const hasReceipts = (item: InventoryItem): boolean => {
     // 1. receipt_history 배열 확인
@@ -607,15 +687,24 @@ const InventoryPage: React.FC = () => {
     }
   };
   const getFullImageUrl = (imageUrl) => {
+    console.log('🔍 getFullImageUrl 입력:', JSON.stringify(imageUrl));
+    
     if (!imageUrl) return null;
     
     // 이미 전체 URL인 경우
     if (imageUrl.startsWith('http')) {
+      console.log('🔍 이미 완전한 URL:', imageUrl);
       return imageUrl;
     }
     
-    // 상대 경로인 경우 전체 URL로 변환
-    return `http://localhost:8000${imageUrl}`;
+    // URL 정리 - 불필요한 슬래시 제거
+    const cleanUrl = imageUrl.replace(/^\/+/, ''); // 앞의 모든 슬래시 제거
+    const fullUrl = `http://211.197.16.248:8000/${cleanUrl}`;
+    // const fullUrl = `http://211.44.183.165:8000/${cleanUrl}`;
+    // const fullUrl = `http://192.168.0.16:8000/${cleanUrl}`;
+    
+    console.log('🔍 생성된 URL:', fullUrl);
+    return fullUrl;
   };
   const handleImageClick = (imageUrl: string, itemName: string, imageIndex: number) => {
     setSelectedImageUrl(getFullImageUrl(imageUrl));
@@ -669,6 +758,36 @@ const InventoryPage: React.FC = () => {
     setImageZoom(1);
   };
 
+  const sortedItems = useMemo(() => {
+    if (!inventoryData?.data?.items) return [];
+    
+    const items = [...inventoryData.data.items];
+    
+    return items.sort((a, b) => {
+      // 품목코드에서 마지막 4자리 숫자만 추출
+      const getLastFourDigits = (code: string) => {
+        const match = code.match(/-(\d{4})$/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+      
+      const aNum = getLastFourDigits(a.item_code);
+      const bNum = getLastFourDigits(b.item_code);
+      
+      // 내림차순 정렬 (큰 숫자가 먼저)
+      return bNum - aNum;
+    });
+  }, [inventoryData?.data?.items]);
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      // 같은 컬럼 클릭시 정렬 순서 변경
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 다른 컬럼 클릭시 해당 컬럼으로 정렬
+      setSortBy(column);
+      setSortOrder('desc'); // 기본적으로 내림차순
+    }
+  };
   // ESC 키로 모달 닫기
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -683,17 +802,57 @@ const InventoryPage: React.FC = () => {
     }
   }, [selectedImageUrl]);
 
+  const handleTransactionDocumentUpload = (item: InventoryItem) => {
+    console.log('🔍 거래명세서 업로드 버튼 클릭됨:', item);
+    console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
+    // console.log('🔍 API 베이스 URL:', 'http://211.44.183.165:8000');
+    
+    setSelectedItemForTransaction(item);
+    setIsTransactionUploadModalOpen(true);
+    
+    console.log('🔍 모달 상태 변경 완료');
+  };
+
+  const handleTransactionDocumentSubmit = (file: File) => {
+    if (selectedItemForTransaction) {
+      uploadTransactionDocumentMutation.mutate({
+        itemId: selectedItemForTransaction.id,
+        file
+      });
+    }
+  };
+  const handleTransactionDocumentClick = (transactionUrl: string, itemName: string) => {
+    setSelectedTransactionUrl(getFullImageUrl(transactionUrl)); // 기존 이미지 URL 처리 함수 재사용
+    setSelectedTransactionName(`${itemName}_거래명세서`);
+  };
+
+  const handleCloseTransactionViewer = () => {
+    setSelectedTransactionUrl(null);
+    setSelectedTransactionName('');
+  };
+
   // 🔥 수정: 테이블 컬럼 정의 - 상태 표시 로직 변경
-  const columns: TableColumn<InventoryItem>[] = useMemo(() => [
+  // const columns: TableColumn<InventoryItem>[] = useMemo(() => [
+  const columns: TableColumn<UnifiedInventoryItem>[] = useMemo(() => [
     {
       key: 'item_code',
       label: '품목코드',
       sortable: true,
       width: '160px',
       style: { verticalAlign: 'middle' },
+      // render: (value) => (
+      //   <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
+      //     {value}
+      //   </span>
       render: (value) => (
         <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
           {value}
+          {/* 정렬 표시 아이콘 */}
+          {sortBy === 'item_code' && (
+            <span style={{ marginLeft: '4px', fontSize: '0.8rem' }}>
+              {sortOrder === 'desc' ? '↓' : '↑'}
+            </span>
+          )}
         </span>
       ),
     },
@@ -803,6 +962,86 @@ const InventoryPage: React.FC = () => {
               <div className="more-images">+{allImageUrls.length - 3}</div>
             )}
           </ImagePreviewGrid>
+        );
+      },
+    },
+    {
+      key: 'transaction_document',
+      label: '거래명세서',
+      width: '140px',
+      style: { verticalAlign: 'middle' },
+      render: (_, item) => {
+        const hasDocument = Boolean(item.transaction_document_url);
+        
+        return (
+          <TransactionDocumentPreview>
+            <TransactionStatusBadge 
+              hasDocument={hasDocument}
+              onClick={hasDocument ? () => handleTransactionDocumentClick(item.transaction_document_url!, item.item_name) : undefined}
+            >
+              {hasDocument ? (
+                <>
+                  <CheckCircle size={14} />
+                  업로드 완료
+                </>
+              ) : (
+                <>
+                  <FileText size={14} />
+                  업로드 대기
+                </>
+              )}
+            </TransactionStatusBadge>
+            
+            <TransactionButtonGroup>
+              {hasDocument ? (
+                <>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => handleTransactionDocumentClick(item.transaction_document_url!, item.item_name)}
+                    title="거래명세서 보기"
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '3px 8px',
+                      height: '24px'
+                    }}
+                  >
+                    보기
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => handleTransactionDocumentUpload(item)}
+                    title="새 파일로 교체"
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '3px 8px',
+                      height: '24px'
+                    }}
+                  >
+                    교체
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => handleTransactionDocumentUpload(item)}
+                  title="거래명세서 업로드"
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '3px 8px',
+                    height: '24px',
+                    background: '#fef3c7',
+                    color: '#92400e',
+                    border: '1px solid #fcd34d'
+                  }}
+                >
+                  업로드
+                </Button>
+              )}
+            </TransactionButtonGroup>
+          </TransactionDocumentPreview>
         );
       },
     },
@@ -1055,6 +1294,7 @@ const InventoryPage: React.FC = () => {
         {/* 테이블 */}
         <Table
           columns={columns}
+          // data={sortedItems}
           data={items}
           loading={isLoading}
           emptyMessage="등록된 품목이 없습니다."
@@ -1193,6 +1433,84 @@ const InventoryPage: React.FC = () => {
           refetch();
         }}
       />
+      {/* 거래명세서 업로드 모달 */}
+      {isTransactionUploadModalOpen && selectedItemForTransaction && (
+        <TransactionDocumentModal
+          isOpen={isTransactionUploadModalOpen}
+          item={selectedItemForTransaction}
+          onClose={() => {
+            setIsTransactionUploadModalOpen(false);
+            setSelectedItemForTransaction(null);
+          }}
+          onSubmit={handleTransactionDocumentSubmit}
+          loading={uploadTransactionDocumentMutation.isPending}
+        />
+      )}
+
+      {/* 거래명세서 뷰어 모달 */}
+      {selectedTransactionUrl && (
+        <ImageViewerModal onClick={handleCloseTransactionViewer}>
+          <ImageViewerContainer onClick={(e) => e.stopPropagation()}>
+            <ImageViewerHeader>
+              <h3>{selectedTransactionName}</h3>
+              <ImageViewerControls>
+                <DownloadButton
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(selectedTransactionUrl);
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `${selectedTransactionName}.${getFileExtension(selectedTransactionUrl)}`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                      
+                      toast.success('거래명세서가 다운로드되었습니다.');
+                    } catch (error) {
+                      toast.error('다운로드에 실패했습니다.');
+                    }
+                  }}
+                  title="거래명세서 다운로드"
+                >
+                  <Download size={16} />
+                  다운로드
+                </DownloadButton>
+                
+                <CloseButton
+                  onClick={handleCloseTransactionViewer}
+                  title="닫기"
+                >
+                  <X size={16} />
+                </CloseButton>
+              </ImageViewerControls>
+            </ImageViewerHeader>
+            
+            <ImageViewerContent>
+              {selectedTransactionUrl.toLowerCase().includes('.pdf') ? (
+                <iframe
+                  src={selectedTransactionUrl}
+                  style={{
+                    width: '100%',
+                    height: '600px',
+                    border: 'none'
+                  }}
+                  title={selectedTransactionName}
+                />
+              ) : (
+                <ViewerImage
+                  src={selectedTransactionUrl}
+                  alt={selectedTransactionName}
+                  zoom={imageZoom}
+                />
+              )}
+            </ImageViewerContent>
+          </ImageViewerContainer>
+        </ImageViewerModal>
+      )}
     </Container>
   );
 };

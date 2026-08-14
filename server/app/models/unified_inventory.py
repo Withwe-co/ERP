@@ -78,6 +78,11 @@ class UnifiedInventory(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(String(100), nullable=True)
     updated_by = Column(String(100), nullable=True)
+    
+    # 거래명세서 관련 컬럼들
+    transaction_document_url = Column(String(500), nullable=True)
+    transaction_upload_date = Column(DateTime, nullable=True)  
+    transaction_uploaded_by = Column(String(100), nullable=True)
 
     
     def __repr__(self):

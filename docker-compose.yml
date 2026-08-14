@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: inventory_password
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./logs/postgres:/var/log/postgresql
@@ -20,14 +20,14 @@ services:
     networks:
       - inventory-network
     # 시놀로지 NAS 최적화 설정
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.3'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 256M
+    #       cpus: '0.3'
+    #     reservations:
+    #       memory: 128M
+    #       cpus: '0.1'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_db"]
       interval: 30s
@@ -62,8 +62,8 @@ services:
     
       
       # CORS 설정
-      - ALLOWED_HOSTS=["http://localhost:*", "http://localhost:80", "http://localhost:3001", "http://nas-ip:*", "http://*.example.com", "127.0.0.1:*"]
-      
+      - ALLOWED_HOSTS=["http://localhost:*", "http://localhost:80", "http://localhost:3001", "http://nas-ip:*", "http://*.example.com", "127.0.0.1:*", "http://211.197.16.248:*", "http://192.168.0.16:*"]
+
       # 파일 업로드 설정
       - UPLOAD_DIR=/app/uploads
       - MAX_FILE_SIZE=52428800  # 50MB
@@ -75,14 +75,14 @@ services:
       - inventory-network
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
     # 시놀로지 NAS 최적화 설정
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 512M
+    #       cpus: '0.5'
+    #     reservations:
+    #       memory: 256M
+    #       cpus: '0.25'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -98,28 +98,31 @@ services:
     container_name: inventory-web
     restart: unless-stopped
     ports:
-      - "8080:8080"
-      - "443:443"  # HTTPS 지원 (선택사항)
+      - "18080:80"
+      - "18443:443"  # HTTPS 지원 (선택사항)
     volumes:
       - ./client/dist:/usr/share/nginx/html
       - ./logs/nginx:/var/log/nginx
       # - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro  # 커스텀 nginx 설정
     environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
+      # - VITE_API_URL=http://localhost:8000/api/v1
+      # - VITE_API_URL=http://211.44.183.165:8000/api/v1
+      - VITE_API_URL=http://211.197.16.248:8000/api/v1
+      # - VITE_API_URL=http://192.168.0.16:8000/api/v1
       - VITE_APP_TITLE=Inventory Management System
     depends_on:
       api-server:
         condition: service_healthy
     networks:
       - inventory-network
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.2'
-        reservations:
-          memory: 64M
-          cpus: '0.1'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 128M
+    #       cpus: '0.2'
+    #     reservations:
+    #       memory: 64M
+    #       cpus: '0.1'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s
@@ -146,14 +149,14 @@ services:
         condition: service_healthy
     networks:
       - inventory-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.2'
-        reservations:
-          memory: 128M
-          cpus: '0.1'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 256M
+    #       cpus: '0.2'
+    #     reservations:
+    #       memory: 128M
+    #       cpus: '0.1'
     profiles:
       - tools  # 선택적 서비스 (docker-compose --profile tools up)
 

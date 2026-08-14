@@ -2,7 +2,9 @@
 import axios from 'axios';
 
 // API 기본 설정
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
+// const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
+const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -243,6 +245,9 @@ export interface UnifiedInventoryItem {
   updated_at?: string;
   created_by?: string;
   updated_by?: string;
+  transaction_document_url?: string;
+  transaction_upload_date?: string;
+  transaction_uploaded_by?: string;
 }
 
 export interface ReceiptHistory {
@@ -367,12 +372,45 @@ export const purchaseApi = {
   },
 
   // 구매 요청 삭제
-  deleteRequest: async (id: number): Promise<{ message: string }> => {
+  deleteRequest: async (id: number): Promise<{ 
+    success: boolean; 
+    message: string; 
+    deleted_id: number;
+    deleted_item?: string;
+    method?: string;
+  }> => {
     try {
+      console.log(`🗑️ 구매 요청 삭제 API 호출: ID=${id}`);
+      console.log(`📍 요청 URL: ${API_BASE_URL}/purchase-requests/${id}`);
+      
       const response = await apiRequest.delete(`/purchase-requests/${id}`);
-      return response;
-    } catch (error) {
-      console.error('구매 요청 삭제 실패:', error);
+      
+      console.log('✅ 삭제 API 성공 응답:', response);
+      
+      // 🔥 응답 데이터 구조 확인 및 정규화
+      if (response.success !== undefined) {
+        // 백엔드가 올바른 응답을 반환한 경우
+        return response;
+      } else {
+        // 기본 응답인 경우
+        return {
+          success: true,
+          message: '구매 요청이 삭제되었습니다.',
+          deleted_id: id,
+          deleted_item: '구매 요청',
+          method: 'delete'
+        };
+      }
+    } catch (error: any) {
+      console.error('❌ 삭제 API 실패:', error);
+      console.error('❌ 에러 상세 정보:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      
       throw error;
     }
   },
@@ -637,39 +675,43 @@ export const purchaseApi = {
 
 // Unified Inventory API - 새로운 통합 재고 관리
 export const inventoryApi = {
-  // // 품목 목록 조회
-  // getItems: async (page = 1, limit = 20, filters: SearchFilters = {}): Promise<{
-  //   data: {
-  //     items: UnifiedInventoryItem[];
-  //     total: number;
-  //     pages: number;
-  //     page: number;
-  //     size: number;
-  //   };
-  // }> => {
+
+  // getItems: async (page = 1, limit = 20, filters: any = {}): Promise<any> => {
   //   try {
   //     const params = {
   //       skip: (page - 1) * limit,
   //       limit,
-  //       ...Object.fromEntries(
-  //         Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
-  //       )
+  //       ...filters
   //     };
-      
-  //     const response = await apiRequest.get('/inventory', params); // unified_inventory 엔드포인트
+  //     const response = await apiRequest.get('/inventory/', params);
   //     return { data: response };
   //   } catch (error) {
-  //     console.error('품목 조회 실패:', error);
+  //     console.error('재고 조회 실패:', error);
   //     throw error;
   //   }
   // },
-  getItems: async (page = 1, limit = 20, filters: any = {}): Promise<any> => {
+
+  getItems: async (
+    page = 1, 
+    limit = 20, 
+    filters: any = {}, 
+    sortOptions?: {  // 🔥 새로 추가
+      sort_by?: string;
+      sort_order?: 'asc' | 'desc';
+    }
+  ): Promise<any> => {
     try {
       const params = {
         skip: (page - 1) * limit,
         limit,
-        ...filters
+        ...filters,
+        // 🔥 정렬 파라미터 추가
+        sort_by: sortOptions?.sort_by || 'item_code',
+        sort_order: sortOptions?.sort_order || 'desc'
       };
+      
+      console.log('📋 API 요청 파라미터:', params);
+      
       const response = await apiRequest.get('/inventory/', params);
       return { data: response };
     } catch (error) {
@@ -677,7 +719,6 @@ export const inventoryApi = {
       throw error;
     }
   },
-
   // 🔥 stats API 경로 수정
   getStats: async (): Promise<any> => {
     try {
@@ -1223,6 +1264,100 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
       return updatedItem;
     } catch (error) {
       console.error('품목 업데이트 실패:', error);
+      throw error;
+    }
+  },
+  uploadTransactionDocument: async (itemId: number, file: File): Promise<{
+    success: boolean;
+    message: string;
+    document_url: string;
+    uploaded_by: string;
+    upload_date: string;
+  }> => {
+    try {
+      console.log(`거래명세서 업로드 시작: 품목 ID=${itemId}, 파일명=${file.name}`);
+      
+      // 파일 유효성 검사
+      if (!file) {
+        throw new Error('파일이 선택되지 않았습니다.');
+      }
+      
+      // 지원되는 파일 형식 확인
+      const allowedTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png', 
+        'image/jpg',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+        'application/vnd.ms-excel' // xls
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('PDF, 이미지 파일 또는 Excel 파일만 업로드 가능합니다.');
+      }
+      
+      // 파일 크기 검증 (10MB)
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        throw new Error('파일 크기는 10MB를 초과할 수 없습니다.');
+      }
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await api.post(`/inventory/${itemId}/transaction-document`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 180000, // 3분 타임아웃
+      });
+      
+      console.log('거래명세서 업로드 성공:', response.data);
+      
+      return {
+        success: response.data.success || true,
+        message: response.data.message || '거래명세서가 업로드되었습니다.',
+        document_url: response.data.document_url,
+        uploaded_by: response.data.uploaded_by,
+        upload_date: response.data.upload_date
+      };
+      
+    } catch (error: any) {
+      console.error('거래명세서 업로드 실패:', error);
+      
+      if (error.response?.data) {
+        throw new Error(error.response.data.detail || error.response.data.message || '업로드 중 오류가 발생했습니다.');
+      }
+      throw new Error(error.message || '업로드 중 알 수 없는 오류가 발생했습니다.');
+    }
+  },
+
+  // 거래명세서 상태 확인 함수
+  checkTransactionDocumentStatus: async (itemId: number): Promise<{
+    has_document: boolean;
+    document_url?: string;
+    upload_date?: string;
+    uploaded_by?: string;
+  }> => {
+    try {
+      const response = await apiRequest.get(`/inventory/${itemId}/transaction-document/status`);
+      return response;
+    } catch (error) {
+      console.error('거래명세서 상태 확인 실패:', error);
+      return { has_document: false };
+    }
+  },
+
+  // 거래명세서 삭제 함수
+  deleteTransactionDocument: async (itemId: number): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    try {
+      const response = await apiRequest.delete(`/inventory/${itemId}/transaction-document`);
+      return response;
+    } catch (error) {
+      console.error('거래명세서 삭제 실패:', error);
       throw error;
     }
   },

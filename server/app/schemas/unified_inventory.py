@@ -59,6 +59,10 @@ class UnifiedInventoryBase(BaseModel):
     description: Optional[str] = Field(None, description="설명")
     notes: Optional[str] = Field(None, description="비고")
     tags: List[str] = Field(default=[], description="태그")
+    # 거래명세서 컬럼들
+    transaction_document_url: Optional[str] = Field(None, description="거래명세서 URL")
+    transaction_upload_date: Optional[datetime] = Field(None, description="거래명세서 업로드일")
+    transaction_uploaded_by: Optional[str] = Field(None, description="거래명세서 업로드자")
 
 class UnifiedInventoryCreate(UnifiedInventoryBase):
     item_code: str = Field(..., max_length=50, description="품목 코드")

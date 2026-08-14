@@ -426,6 +426,33 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({
   const canEdit = request.status === 'submitted';
   const canApprove = request.status === 'PENDING_APPROVAL';
 
+  const renderWithLinks = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.split(urlRegex).map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a 
+            key={index} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ 
+              color: '#f59e0b', 
+              textDecoration: 'underline',
+              fontWeight: '600',
+              transition: 'color 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#d97706'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#f59e0b'}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -527,6 +554,17 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({
 
             <InfoCard>
               <div className="info-header">
+                <Package className="info-icon" size={16} />
+                <span className="info-label">요청자</span>
+              </div>
+              <div className="info-value">
+                <CategoryBadge $category={request.requester_name}>
+                  {categoryLabels[request.requester_name] || request.requester_name}
+                </CategoryBadge>
+              </div>
+            </InfoCard>
+            <InfoCard>
+              <div className="info-header">
                 <AlertTriangle className="info-icon" size={16} />
                 <span className="info-label">긴급도</span>
               </div>
@@ -536,25 +574,21 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({
                 </UrgencyBadge>
               </div>
             </InfoCard>
-
             <InfoCard>
               <div className="info-header">
-                <Package className="info-icon" size={16} />
-                <span className="info-label">카테고리</span>
+                <Building className="info-icon" size={16} />
+                <span className="info-label">구매처</span>
               </div>
-              <div className="info-value">
-                <CategoryBadge $category={request.category}>
-                  {categoryLabels[request.category] || request.category}
-                </CategoryBadge>
-              </div>
+              <div className="info-value">{request.preferred_supplier || '정보없음'}</div>
             </InfoCard>
+
             
 
             {request.preferred_supplier && (
               <InfoCard>
                 <div className="info-header">
                   <Building className="info-icon" size={16} />
-                  <span className="info-label">선호 공급업체</span>
+                  <span className="info-label">구매처</span>
                 </div>
                 <div className="info-value">{request.preferred_supplier}</div>
               </InfoCard>
@@ -577,10 +611,11 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({
           <JustificationSection>
             <div className="justification-header">
               <AlertTriangle className="justification-icon" size={20} />
-              <h3>구매 사유</h3>
+              <h3>              구매 사유 및 링크 <span style={{ color: 'red' }}>*</span>
+</h3>
             </div>
             <div className="justification-content">
-              {request.justification}
+              {renderWithLinks(request.justification)}
             </div>
           </JustificationSection>
         )}

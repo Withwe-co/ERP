@@ -1,7 +1,7 @@
-// client/src/components/inventory/ReceiptModal.tsx - 수정된 버전
-import React, { useState, useRef } from 'react';
+// client/src/components/inventory/ReceiptModal.tsx - 개선된 버전
+import React, { useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
-import { Upload, X, ChevronDown } from 'lucide-react';
+import { Upload, X, ChevronDown, Image } from 'lucide-react';
 import Button from '../common/Button';
 
 const FormContainer = styled.div`
@@ -41,7 +41,7 @@ const ButtonGroup = styled.div`
   border-top: 1px solid #e5e7eb;
 `;
 
-// 🔥 부서 선택을 위한 Select 컴포넌트 스타일
+// 부서 선택을 위한 Select 컴포넌트 스타일
 const SelectContainer = styled.div`
   position: relative;
   display: flex;
@@ -105,7 +105,6 @@ const DropdownMenu = styled.div<{ isOpen: boolean }>`
   overflow-y: auto;
   display: ${props => props.isOpen ? 'block' : 'none'};
   
-  /* 스크롤바 스타일링 */
   &::-webkit-scrollbar {
     width: 6px;
   }
@@ -141,35 +140,73 @@ const OptionItem = styled.div<{ isSelected: boolean }>`
   }
 `;
 
-// 간단한 이미지 업로드 섹션
-const ImageUploadSection = styled.div`
-  border: 2px dashed #d1d5db;
+// 🔥 개선된 이미지 업로드 섹션
+const ImageUploadSection = styled.div<{ isDragging: boolean }>`
+  border: 2px dashed ${props => props.isDragging ? '#3b82f6' : '#d1d5db'};
   border-radius: 8px;
-  padding: 20px;
+  padding: 30px 20px;
   text-align: center;
-  background: #f9fafb;
+  background: ${props => props.isDragging ? '#eff6ff' : '#f9fafb'};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  position: relative;
   
   &:hover {
     border-color: #3b82f6;
     background: #eff6ff;
+    transform: translateY(-2px);
   }
+  
+  /* 드래그 중일 때 효과 */
+  ${props => props.isDragging && `
+    border-color: #1d4ed8;
+    background: #dbeafe;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  `}
+`;
+
+const DragOverlay = styled.div<{ isDragging: boolean }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 6px;
+  display: ${props => props.isDragging ? 'flex' : 'none'};
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #1d4ed8;
+  font-size: 18px;
+  z-index: 10;
 `;
 
 const ImagePreviewGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 `;
 
 const ImagePreviewItem = styled.div`
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 2px solid #e5e7eb;
   aspect-ratio: 1;
+  background: white;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: #3b82f6;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
   
   .preview-image {
     width: 100%;
@@ -181,8 +218,8 @@ const ImagePreviewItem = styled.div`
     position: absolute;
     top: 4px;
     right: 4px;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: rgba(239, 68, 68, 0.9);
     color: white;
@@ -192,10 +229,61 @@ const ImagePreviewItem = styled.div`
     align-items: center;
     justify-content: center;
     font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  &:hover .remove-button {
+    opacity: 1;
   }
 `;
 
-// 🔥 부서 옵션 (PurchaseRequestForm과 동일)
+const ImageCounter = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border: 1px solid #0ea5e9;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #0c4a6e;
+  
+  .icon {
+    color: #0ea5e9;
+  }
+`;
+
+const ProcessingIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 14px;
+  margin-top: 12px;
+  
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f59e0b;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+// 부서 옵션
 const DEPARTMENT_OPTIONS = [
   { value: 'H/W 개발팀', label: 'H/W 개발팀' },
   { value: 'S/W 개발팀', label: 'S/W 개발팀' },
@@ -240,26 +328,64 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
   // 이미지 관련 상태
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
 
-  // 외부 클릭 감지 (부서 선택용)
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (departmentSelectRef.current && !departmentSelectRef.current.contains(event.target as Node)) {
-        setIsDepartmentOpen(false);
+  // 🔥 드래그 이벤트 핸들러 개선
+  const handleDragEvents = useCallback({
+    onDragEnter: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
+    },
+    
+    onDragLeave: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // 실제로 영역을 벗어났는지 확인
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX;
+      const y = e.clientY;
+      
+      if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+        setIsDragging(false);
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    },
+    
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
+    },
+    
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileSelect(files);
+      }
+    }
   }, []);
+
+  // 클린업 함수
+  React.useEffect(() => {
+    return () => {
+      imagePreviewUrls.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [imagePreviewUrls]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // 🔥 부서 선택 핸들러
+  // 부서 선택 핸들러
   const handleDepartmentSelect = (departmentValue: string) => {
     handleInputChange('department', departmentValue);
     setIsDepartmentOpen(false);
@@ -269,27 +395,84 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
     setIsDepartmentOpen(!isDepartmentOpen);
   };
 
-  // 이미지 처리 함수들
-  const handleFileSelect = (files: FileList | null) => {
-    if (!files) return;
+  // 🔥 개선된 이미지 처리 함수
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
     
-    const imageFiles = Array.from(files).filter(file => 
-      file.type.startsWith('image/')
-    );
+    console.log('🔥 파일 선택됨:', files.length, '개');
     
-    setSelectedImages(prev => [...prev, ...imageFiles]);
+    setIsProcessingImages(true);
+
+    // 이미지 파일만 필터링 (크기 제한 포함)
+    const imageFiles = Array.from(files).filter(file => {
+      const isImage = file.type.startsWith('image/');
+      const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
+      
+      if (!isImage) {
+        console.warn('🚫 이미지가 아닌 파일 제외:', file.name);
+      }
+      if (!isValidSize) {
+        console.warn('🚫 크기 초과 파일 제외:', file.name, file.size);
+      }
+      
+      return isImage && isValidSize;
+    });
     
-    // 미리보기 URL 생성
-    const newPreviewUrls = imageFiles.map(file => URL.createObjectURL(file));
-    setImagePreviewUrls(prev => [...prev, ...newPreviewUrls]);
+    if (imageFiles.length === 0) {
+      alert('유효한 이미지 파일이 없습니다.\n(JPG, PNG 등 이미지 파일, 10MB 이하만 가능)');
+      setIsProcessingImages(false);
+      return;
+    }
+
+    console.log('✅ 처리할 이미지 파일:', imageFiles.length, '개');
+
+    // 🔥 FileReader를 사용하여 base64로 변환
+    const promises = imageFiles.map((file, index) => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          console.log(`✅ 이미지 ${index + 1} 로딩 완료:`, file.name);
+          resolve(reader.result as string);
+        };
+        reader.onerror = () => {
+          console.error(`❌ 이미지 ${index + 1} 로딩 실패:`, file.name);
+          reject(new Error(`파일 읽기 실패: ${file.name}`));
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    try {
+      const newPreviewUrls = await Promise.all(promises);
+      
+      // 상태 업데이트
+      setSelectedImages(prev => [...prev, ...imageFiles]);
+      setImagePreviewUrls(prev => [...prev, ...newPreviewUrls]);
+      
+      console.log('🎉 모든 이미지 처리 완료! 총', newPreviewUrls.length, '개');
+      
+    } catch (error) {
+      console.error('❌ 이미지 처리 중 오류:', error);
+      alert(`이미지 처리 중 오류가 발생했습니다:\n${error.message}`);
+    } finally {
+      setIsProcessingImages(false);
+    }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📁 파일 입력 변경됨');
     handleFileSelect(e.target.files);
   };
 
   const removeImage = (index: number) => {
-    URL.revokeObjectURL(imagePreviewUrls[index]);
+    console.log('🗑️ 이미지 제거:', index);
+    
+    // base64 URL은 revoke 불필요하지만, blob URL인 경우 처리
+    const urlToRemove = imagePreviewUrls[index];
+    if (urlToRemove && urlToRemove.startsWith('blob:')) {
+      URL.revokeObjectURL(urlToRemove);
+    }
+    
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
@@ -299,7 +482,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
     
     // 이미지 필수 체크
     if (requireImages && selectedImages.length === 0) {
-      alert('이미지는 필수입니다. 최소 1개의 이미지를 업로드해주세요.');
+      alert('이미지 업로드가 필수입니다.\n최소 1개의 이미지를 업로드해주세요.');
       return;
     }
     
@@ -308,6 +491,11 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       alert('수령자명과 부서는 필수 입력 항목입니다.');
       return;
     }
+    
+    console.log('📤 폼 제출:', {
+      formData,
+      imageCount: selectedImages.length
+    });
     
     onSubmit(formData, selectedImages);
   };
@@ -319,7 +507,6 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
     { value: 'defective', label: '불량' }
   ];
 
-  // 디버깅: 렌더링 확인
   if (!item) {
     return (
       <FormContainer>
@@ -401,12 +588,10 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             />
           </FormGroup>
 
-          {/* 🔥 부서 선택 드롭다운 */}
+          {/* 부서 선택 드롭다운 */}
           <FormGroup>
             <SelectContainer ref={departmentSelectRef}>
-              <SelectLabel>
-                부서 *
-              </SelectLabel>
+              <SelectLabel>부서 *</SelectLabel>
               
               <SelectButton
                 type="button"
@@ -503,20 +688,30 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
           />
         </FormGroup>
 
-        {/* 이미지 업로드 섹션 */}
+        {/* 🔥 개선된 이미지 업로드 섹션 */}
         <FormGroup>
           <label>
             수령 이미지 {requireImages && <span style={{ color: '#ef4444' }}>*</span>}
           </label>
           
-          <ImageUploadSection onClick={() => fileInputRef.current?.click()}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-              <Upload size={32} style={{ color: '#6b7280' }} />
-              <div style={{ fontSize: '16px', fontWeight: '500' }}>
-                이미지를 클릭하여 선택하세요
-              </div>
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                JPG, PNG 파일 지원 (최대 10MB)
+          <ImageUploadSection
+            isDragging={isDragging}
+            onClick={() => fileInputRef.current?.click()}
+            {...handleDragEvents}
+          >
+            <DragOverlay isDragging={isDragging}>
+              📷 이미지를 놓아주세요!
+            </DragOverlay>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <Upload size={40} style={{ color: isDragging ? '#1d4ed8' : '#6b7280' }} />
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
+                  {isDragging ? '여기에 이미지를 놓아주세요' : '이미지를 업로드하세요'}
+                </div>
+                <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                  클릭하거나 드래그앤드롭으로 업로드 • JPG, PNG (최대 10MB)
+                </div>
               </div>
             </div>
             
@@ -530,32 +725,49 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             />
           </ImageUploadSection>
 
-          {/* 이미지 미리보기 */}
-          {selectedImages.length > 0 && (
-            <ImagePreviewGrid>
-              {imagePreviewUrls.map((url, index) => (
-                <ImagePreviewItem key={index}>
-                  <img src={url} alt={`Preview ${index + 1}`} className="preview-image" />
-                  <button
-                    type="button"
-                    className="remove-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeImage(index);
-                    }}
-                    title="이미지 제거"
-                  >
-                    ×
-                  </button>
-                </ImagePreviewItem>
-              ))}
-            </ImagePreviewGrid>
+          {/* 🔥 처리 중 표시 */}
+          {isProcessingImages && (
+            <ProcessingIndicator>
+              <div className="spinner"></div>
+              이미지를 처리하고 있습니다...
+            </ProcessingIndicator>
           )}
 
+          {/* 🔥 개선된 이미지 미리보기 */}
           {selectedImages.length > 0 && (
-            <div style={{ marginTop: '8px', fontSize: '14px', color: '#6b7280' }}>
-              {selectedImages.length}개 이미지 선택됨
-            </div>
+            <>
+              <ImageCounter>
+                <Image size={16} className="icon" />
+                <strong>{selectedImages.length}개</strong> 이미지가 선택되었습니다
+              </ImageCounter>
+              
+              <ImagePreviewGrid>
+                {imagePreviewUrls.map((url, index) => (
+                  <ImagePreviewItem key={index}>
+                    <img 
+                      src={url}
+                      alt={`Preview ${index + 1}`} 
+                      className="preview-image"
+                      onError={(e) => {
+                        console.error(`❌ 이미지 로딩 실패 (index: ${index}):`, url.substring(0, 50));
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      onLoad={() => {
+                        console.log(`✅ 이미지 로딩 성공 (index: ${index})`);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="remove-button"
+                      onClick={() => removeImage(index)}
+                      title="이미지 제거"
+                    >
+                      <X size={14} />
+                    </button>
+                  </ImagePreviewItem>
+                ))}
+              </ImagePreviewGrid>
+            </>
           )}
         </FormGroup>
 
@@ -571,13 +783,13 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
           <Button 
             type="submit" 
             variant="primary"
-            disabled={loading || (requireImages && selectedImages.length === 0)}
+            disabled={loading || isProcessingImages || (requireImages && selectedImages.length === 0)}
             style={{
-              opacity: loading || (requireImages && selectedImages.length === 0) ? 0.5 : 1,
-              cursor: loading || (requireImages && selectedImages.length === 0) ? 'not-allowed' : 'pointer'
+              opacity: loading || isProcessingImages || (requireImages && selectedImages.length === 0) ? 0.5 : 1,
+              cursor: loading || isProcessingImages || (requireImages && selectedImages.length === 0) ? 'not-allowed' : 'pointer'
             }}
           >
-            {loading ? '처리 중...' : (requireImages ? '수령 완료' : '수령 추가')}
+            {loading ? '처리 중...' : isProcessingImages ? '이미지 처리 중...' : (requireImages ? '수령 완료' : '수령 추가')}
           </Button>
         </ButtonGroup>
       </form>

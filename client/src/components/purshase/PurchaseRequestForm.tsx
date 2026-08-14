@@ -21,6 +21,7 @@ interface PurchaseRequestFormData {
   justification: string;
   department: string;
   project?: string;
+  requester_name?: string;
   budgetCode?: string;
   expectedDeliveryDate?: string;
   purchaseMethod: string;
@@ -39,6 +40,7 @@ interface PurchaseRequest {
   justification: string;
   department: string;
   project?: string;
+  requester_name?: string;
   budget_code?: string;
   expected_delivery_date?: string;
   purchase_method?: string;
@@ -193,6 +195,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
         justification: '',
         department: 'S/W 개발팀',
         project: '',
+        requester_name: '',
         budgetCode: '',
         expectedDeliveryDate: '',
         purchaseMethod: 'DIRECT',
@@ -211,6 +214,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
       justification: initialData.justification || '',
       department: initialData.department || '',
       project: initialData.project || '',
+      request_name: initialData.project || '',
       budgetCode: initialData.budget_code || '',
       expectedDeliveryDate: initialData.expected_delivery_date 
         ? new Date(initialData.expected_delivery_date).toISOString().split('T')[0] 
@@ -337,10 +341,11 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
       category: formData.category,
       urgency: formData.urgency,
       purchase_method: formData.purchaseMethod || 'DIRECT',
-      requester_name: '현재사용자',
+      requester_name: formData.requester_name,
       requester_email: "current_user@company.com",
       department: formData.department,
       position: null,
+      budgetCode: formData.budgetCode || '',
       justification: formData.justification,
       expected_delivery_date: formData.expectedDeliveryDate || null,
     };
@@ -459,10 +464,10 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
             />
             
             <Input
-              label="선호 공급업체"
+              label="구매처"
               value={formData.preferredSupplier}
               onChange={(e) => handleChange('preferredSupplier', e.target.value)}
-              placeholder="선호하는 공급업체가 있다면 입력하세요"
+              placeholder="구매처를 입력하세요"
             />
             
             <Select
@@ -472,12 +477,12 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
               onChange={(value) => handleChange('purchaseMethod', value)}
             />
             
-            <Input
+            {/* <Input
               label="링크"
               value={formData.budgetCode}
               onChange={(e) => handleChange('budgetCode', e.target.value)}
               placeholder="링크 (선택사항)"
-            />
+            /> */}
           </FormGrid>
         </FormSection>
 
@@ -504,6 +509,12 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
               onChange={(e) => handleChange('project', e.target.value)}
               placeholder="관련 프로젝트명 (선택사항)"
             />
+            <Input
+              label="요청자"
+              value={formData.requester_name}
+              onChange={(e) => handleChange('requester_name', e.target.value)}
+              required
+            />
             
             <Input
               label="희망 납기일"
@@ -515,7 +526,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
           
           <FormRow style={{ marginTop: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-              구매 사유 <span style={{ color: 'red' }}>*</span>
+              구매 사유 및 링크 <span style={{ color: 'red' }}>*</span>
             </label>
             <TextArea
               value={formData.justification}
