@@ -9,6 +9,7 @@ import Select from '../common/Select';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import { purchaseApi } from '../../services/api';
+import { INVENTORY_CATEGORY_OPTIONS } from '../../constants/inventoryOptions';
 
 interface PurchaseRequestFormData {
   itemName: string;
@@ -140,15 +141,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
   isEdit = false
 }) => {
   // 카테고리 옵션 (백엔드 enum과 일치)
-  const categoryOptions = [
-    { value: 'OFFICE_SUPPLIES', label: '사무 용품' },
-    { value: 'ELECTRONICS', label: '전자제품/IT 장비' },
-    { value: 'FURNITURE', label: '가구' },
-    { value: 'SOFTWARE', label: '소프트웨어' },
-    { value: 'MAINTENANCE', label: '유지보수' },
-    { value: 'SERVICES', label: '서비스' },
-    { value: 'OTHER', label: '기타' }
-  ];
+  const categoryOptions = [...INVENTORY_CATEGORY_OPTIONS];
 
   // 긴급도 옵션 (백엔드 enum과 일치)
   const urgencyOptions = [

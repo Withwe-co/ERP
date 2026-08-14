@@ -1,8 +1,9 @@
 // client/src/components/inventory/ReceiptModal.tsx - 개선된 버전
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import { Upload, X, ChevronDown, Image } from 'lucide-react';
 import Button from '../common/Button';
+import { purchaseApi } from '../../services/api';
 
 const FormContainer = styled.div`
   display: flex;
@@ -330,6 +331,24 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+
+  useEffect(() => {
+    if (!item?.purchase_request_id) return;
+
+    let cancelled = false;
+    purchaseApi.getRequest(item.purchase_request_id)
+      .then(request => {
+        if (!cancelled && Number(request.quantity) > 0) {
+          setFormData(previous => ({
+            ...previous,
+            received_quantity: Number(request.quantity),
+          }));
+        }
+      })
+      .catch(error => console.error('구매 수량 조회 실패:', error));
+
+    return () => { cancelled = true; };
+  }, [item?.purchase_request_id]);
 
   // 🔥 드래그 이벤트 핸들러 개선
   const handleDragEvents = useCallback({

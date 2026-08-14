@@ -30,6 +30,7 @@ export interface SearchFilters {
   dateFrom?: string;
   dateTo?: string;
   is_active?: boolean;
+  stock_status?: 'normal' | 'low_stock' | 'out_of_stock' | 'overstocked';
   min_budget?: number;
   max_budget?: number;
   requester_name?: string;

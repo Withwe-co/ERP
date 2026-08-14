@@ -8,14 +8,15 @@
     "@tanstack/react-query": "^4.32.0",
     "axios": "^1.4.0",
     "date-fns": "^2.30.0",
+    "exceljs": "^3.4.0",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.45.2",
     "react-router-dom": "^6.14.2",
     "react-toastify": "^9.1.3",
+    "recharts": "^3.10.1",
     "styled-components": "^6.0.7",
-    "xlsx": "^0.18.5",
     "zustand": "^4.4.1"
   },
   "devDependencies": {
@@ -23,15 +24,15 @@
     "@types/react-dom": "^18.2.7",
     "@types/styled-components": "^5.1.26",
     "@types/xlsx": "^0.0.35",
-    "@typescript-eslint/eslint-plugin": "^6.2.0",
-    "@typescript-eslint/parser": "^6.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
     "@vitejs/plugin-react": "^4.0.3",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
     "typescript": "^5.1.6",
-    "vite": "^4.4.7",
-    "vitest": "^0.34.1"
+    "vite": "^7.3.6",
+    "vitest": "^3.2.7"
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",

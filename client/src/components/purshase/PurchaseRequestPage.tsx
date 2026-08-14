@@ -38,7 +38,9 @@ import RequestDetailModal from './RequestDetailModal';
 import { useNavigate } from 'react-router-dom';
 
 // Services
-import api, { purchaseApi, inventoryApi } from '../../services/api';
+import api, { purchaseApi, inventoryApi, UnifiedInventoryItem } from '../../services/api';
+import { normalizeInventoryName } from '../../utils/inventoryGrouping';
+import { ExcelExportService } from '@/services/excelExport';
 
 // SearchFilters 타입 정의
 interface SearchFilters {
@@ -191,6 +193,7 @@ const FilterSection = styled.div`
 
 const FilterContainer = styled.div`
   display: flex;
+  flex-direction: column;
   gap: 16px;
   align-items: flex-start;
   justify-content: space-between;
@@ -203,6 +206,8 @@ const FilterContainer = styled.div`
 
 const ActionButtons = styled.div`
   display: flex;
+  align-self: flex-start;
+  justify-content: flex-start;
   gap: 8px;
   flex-shrink: 0;
   
@@ -461,6 +466,10 @@ const PurchaseRequestPage: React.FC = () => {
   const [viewingRequest, setViewingRequest] = useState<PurchaseRequest | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [confirmingItem, setConfirmingItem] = useState<PurchaseRequest | null>(null);
+  const [pendingCompletionRequest, setPendingCompletionRequest] = useState<PurchaseRequest | null>(null);
+  const [similarInventoryItems, setSimilarInventoryItems] = useState<UnifiedInventoryItem[]>([]);
+  const [isCheckingSimilarItems, setIsCheckingSimilarItems] = useState(false);
+  const [selectedRequests,setSelectedRequests] = useState<PurchaseRequest[]>([]);
 
   // 구매 요청 목록 조회
   const { 
@@ -485,9 +494,10 @@ const PurchaseRequestPage: React.FC = () => {
 
   // 🔥 안정적인 구매완료 처리 (첫 번째 코드의 로직 사용)
   const completePurchaseMutation = useMutation({
-    mutationFn: async ({ requestId, requestData }: { 
+    mutationFn: async ({ requestId, requestData, existingItem }: {
       requestId: number; 
       requestData: PurchaseRequest;
+      existingItem?: UnifiedInventoryItem;
     }) => {
       console.log('🚀 구매완료 + 품목 등록 시작:', { requestId, requestData });
       
@@ -501,16 +511,13 @@ const PurchaseRequestPage: React.FC = () => {
         });
         console.log('✅ 구매 요청 상태 업데이트 성공:', updateResult);
 
-        // 2️⃣ 품목관리에 새 품목 등록
-        console.log('📦 2단계: 품목관리에 등록');
-        
-        // 구매 요청 데이터를 품목관리용 데이터로 변환
         const inventoryData = {
           item_code: `ITM-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${requestId.toString().padStart(4, '0')}`,
           item_name: requestData.item_name || '품목명 없음',
+          specifications: requestData.specifications || undefined,
           category: requestData.category || 'OTHER',
           description: requestData.specifications || `구매요청 #${requestId}에서 자동 생성`,
-          current_stock: Number(requestData.quantity) || 0,
+          current_stock: 0,
           minimum_stock: Math.max(1, Math.ceil((Number(requestData.quantity) || 0) * 0.2)),
           maximum_stock: (Number(requestData.quantity) || 0) * 2,
           unit: requestData.unit || '개',
@@ -526,6 +533,27 @@ const PurchaseRequestPage: React.FC = () => {
           department: requestData.department
         };
 
+        if (existingItem) {
+          const newInventoryItem = await inventoryApi.createItem({
+            ...inventoryData,
+            item_code: existingItem.item_code,
+            reuse_item_code: true,
+            notes: `${inventoryData.notes}\n수령관리 묶음 기준 품목: ${existingItem.item_code}`,
+          });
+          return {
+            success: true,
+            purchase_update: updateResult,
+            inventory_created: newInventoryItem,
+            inventory_merged: true,
+            inventory_item_id: newInventoryItem.id,
+            inventory_item_code: newInventoryItem.item_code,
+            message: '구매완료 및 새 품목 등록 성공 (수령관리에서 동일 품목 누적)'
+          };
+        }
+
+        // 2️⃣ 품목관리에 새 품목 등록
+        console.log('📦 2단계: 품목관리에 등록');
+        
         console.log('📤 품목 등록 데이터:', inventoryData);
         
         // 품목관리 API 호출 (inventoryApi 사용)
@@ -536,8 +564,8 @@ const PurchaseRequestPage: React.FC = () => {
           success: true,
           purchase_update: updateResult,
           inventory_created: inventoryResult,
-          inventory_item_id: inventoryResult.data?.id,
-          inventory_item_code: inventoryData.item_code,
+          inventory_item_id: inventoryResult.id,
+          inventory_item_code: inventoryResult.item_code,
           message: '구매완료 및 품목 등록 성공'
         };
 
@@ -583,6 +611,8 @@ const PurchaseRequestPage: React.FC = () => {
 
     onSuccess: async (result, variables) => {
       console.log('🎉 구매완료 처리 결과:', result);
+      setPendingCompletionRequest(null);
+      setSimilarInventoryItems([]);
       
       try {
         // 캐시 업데이트
@@ -614,7 +644,9 @@ const PurchaseRequestPage: React.FC = () => {
         if (result.inventory_created !== false) {
           // 완전 성공
           toast.success(
-            `🎉 구매완료! 품목코드: ${result.inventory_item_code}로 등록되었습니다!`,
+            result.inventory_merged
+              ? `구매완료! 새 품목(${result.inventory_item_code})으로 등록되며 수령관리에서는 동일 품목으로 누적됩니다.`
+              : `🎉 구매완료! 품목코드: ${result.inventory_item_code}로 등록되었습니다.`,
             { autoClose: 5000, position: 'top-center' }
           );
           
@@ -637,6 +669,8 @@ const PurchaseRequestPage: React.FC = () => {
         
         await queryClient.invalidateQueries({ queryKey: ['purchase-requests-stats'] });
         await new Promise(resolve => setTimeout(resolve, 200));
+        await queryClient.invalidateQueries({ queryKey: ['unified-inventory'] });
+        await queryClient.invalidateQueries({ queryKey: ['receipt-inventory-items'] });
         
         await queryClient.invalidateQueries({ queryKey: ['inventory'] });
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -856,9 +890,9 @@ const deleteMutation = useMutation({
       width: '120px',
       render: (value) => {
         const statusMap: Record<string, string> = {
-          'SUBMITTED': '요청됨',
+          'SUBMITTED': '구매요청',
           'COMPLETED': '구매완료', 
-          'CANCELLED': '취소됨'
+          'CANCELLED': '구매반려'
         };
         return <StatusBadge $status={value}>{statusMap[value] || value}</StatusBadge>;
       },
@@ -891,7 +925,23 @@ const deleteMutation = useMutation({
         return (
           <ActionButtonGroup>
             {/* 🔥 완료 상태와 품목 등록 여부에 따른 버튼 표시 */}
-            {isCompleted ? (
+            {item.status === 'CANCELLED' ? (
+              // ❌ 취소됨 (버튼 비활성화)
+              <Button
+                size="sm"
+                variant="outline"
+                title="반려된 구매 요청입니다."
+                disabled
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  color: '#dc2626',
+                  border: '1px solid rgba(220, 38, 38, 0.45)',
+                }}
+              >
+                <X size={14} />
+                구매반려
+              </Button>
+            ) : isCompleted ? (
               hasInventoryItem ? (
                 // ✅ 완전 완료 (품목까지 등록됨)
                 <Button
@@ -920,11 +970,6 @@ const deleteMutation = useMutation({
                   variant="outline"
                   title="구매완료됨 (품목 등록 실패)"
                   disabled
-                  style={{
-                    background: '#f3f4f6',
-                    color: '#6b7280',
-                    border: '1px solid #6b7280'
-                  }}
                 >
                   <Check size={14} />
                   구매완료
@@ -937,11 +982,6 @@ const deleteMutation = useMutation({
                 variant="success"
                 onClick={() => handlePurchaseComplete(item)}
                 title="구매완료 + 품목등록"
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                  color: 'white',
-                  fontWeight: '600'
-                }}
               >
                 <CheckCircle2 size={14} />
                 구매완료
@@ -1027,10 +1067,97 @@ const handleDelete = async (requestId: number) => {
     });
   }
 };
+const handleBulkDelete = async () => {
+  if (selectedRequests.length === 0) return;
+
+  const confirmed = window.confirm(
+    `선택한 구매 요청 ${selectedRequests.length}건을 삭제하시겠습니까?\n\n` +
+    '이 작업은 되돌릴 수 없습니다.'
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await Promise.all(
+      selectedRequests.map((request) =>
+        deleteMutation.mutateAsync(request.id)
+      )
+    );
+
+    setSelectedRequests([]);
+  } catch (error) {
+    console.error('일괄 삭제 실패:', error);
+    toast.error('일부 구매 요청을 삭제하지 못했습니다.');
+  }
+  };
 
   const handleExport = () => {
-    exportMutation.mutate();
+    const selectedIds = selectedRequests.map(request => request.id);
+
+    purchaseApi.exportRequests({
+      ...filters,
+      ids: selectedIds,
+    });
+    if(selectedRequests.length > 0)
+      toast.success(`${selectedRequests.length}건을 Excel로 다운로드했습니다.`);
+    else
+      toast.success(`모든 구매 요청을 Excel로 다운로드했습니다.`);
   };
+
+const handleBulkApprove = async () => {
+  const requestIds = selectedRequests.map((request) => request.id);
+
+  if(!window.confirm(`${requestIds.length}건을 일괄 승인하시겠습니까?`))
+    return;
+
+  try{
+    const result = await purchaseApi.bulkUpdateStatus({request_ids: requestIds,status: 'COMPLETED'});
+
+    toast.success(result.message || `${result.updated_count}건이 일괄 승인되었습니다.`);
+    setSelectedRequests([]);
+    refetch();
+  } catch (error:any) {
+    console.error('일괄 승인 실패:', error.response?.data || error);
+    toast.error(error.response?.data?.detail ||'일부 구매 요청을 승인하지 못했습니다.',{style:{whiteSpace: 'pre-line'}});
+  }
+};
+
+const handleBulkReject = async () => {
+  const requestIds = selectedRequests.map((request) => request.id);
+
+  if(!window.confirm(`${requestIds.length}건을 일괄 거부하시겠습니까?`))
+    return;
+
+  try{
+    const result = await purchaseApi.bulkUpdateStatus({request_ids: requestIds,status: 'CANCELLED'});
+
+    toast.success(result.message || `${result.updated_count}건이 일괄 반려되었습니다.`);
+    setSelectedRequests([]);
+    refetch();
+  } catch (error:any) {
+    console.error('일괄 반려 실패:', error.response?.data || error);
+    toast.error(error.response?.data?.detail ||'일부 구매 요청을 반려하지 못했습니다.',{style:{whiteSpace: 'pre-line'}});
+  }
+};
+
+// 구매완료,구매반려 상태를 다시 구매요청 상태로 변경
+const handleBulkReset = async () => {
+  const requestIds = selectedRequests.map((request) => request.id);
+
+  if(!window.confirm(`${requestIds.length}건을 일괄 재상신하시겠습니까?`))
+    return;
+
+  try{
+    const result = await purchaseApi.bulkStatusReset({request_ids: requestIds, status: 'SUBMITTED'});
+
+    toast.success(result.message || `${result.updated_count}건이 일괄 재상신되었습니다.`);
+    setSelectedRequests([]);
+    refetch();
+  } catch (error:any) {
+    console.error('일괄 재상신 실패:', error.response?.data || error);
+    toast.error(error.response?.data?.detail ||'일부 구매 요청을 재상신하지 못했습니다.',{style:{whiteSpace: 'pre-line'}});
+  }
+};
 
   // 🔥 개선된 새로고침 함수
   const handleRefresh = async () => {
@@ -1088,15 +1215,45 @@ const handleDelete = async (requestId: number) => {
         return;
       }
       
-      // 구매 요청 데이터와 함께 전달
+      setIsCheckingSimilarItems(true);
+      const response = await inventoryApi.getItems(1, 1000, {}, {
+        sort_by: 'item_name',
+        sort_order: 'asc',
+      });
+      const inventoryItems: UnifiedInventoryItem[] = response?.data?.items || [];
+      const matchingItems = inventoryItems.filter(item =>
+        Boolean(normalizeInventoryName(confirmingItem.item_name))
+        && normalizeInventoryName(item.item_name) === normalizeInventoryName(confirmingItem.item_name)
+      );
+      const candidates = Array.from(matchingItems.reduce((byCode, item) => {
+        const code = (item.item_code || '').trim().toLocaleUpperCase('en-US');
+        const existing = byCode.get(code);
+        if (!existing) byCode.set(code, { ...item });
+        else {
+          existing.current_quantity = (Number(existing.current_quantity) || 0) + (Number(item.current_quantity) || 0);
+          existing.total_received = (Number(existing.total_received) || 0) + (Number(item.total_received) || 0);
+        }
+        return byCode;
+      }, new Map<string, UnifiedInventoryItem>()).values());
+
+      if (candidates.length > 0) {
+        setPendingCompletionRequest(confirmingItem);
+        setSimilarInventoryItems(candidates);
+        setConfirmingItem(null);
+        return;
+      }
+
       await completePurchaseMutation.mutateAsync({
         requestId: confirmingItem.id,
-        requestData: confirmingItem
+        requestData: confirmingItem,
       });
       
     } catch (error) {
       // 이미 onError에서 처리됨
       console.log('구매완료 처리가 실패했습니다.');
+      toast.error('기존 품목 확인 중 오류가 발생했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsCheckingSimilarItems(false);
     }
   };
 
@@ -1210,8 +1367,65 @@ const handleDelete = async (requestId: number) => {
         <FilterSection>
           <FilterContainer>
             <PurchaseRequestFilters onFilter={handleFilterChange} />
-            
+
             <ActionButtons>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  style={{ opacity: 1}}
+                >
+                선택 {selectedRequests.length}건
+                </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={selectedRequests.length === 0}
+                onClick={handleBulkDelete}
+              >
+                선택 삭제
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={requests.length === 0}
+                onClick={() => setSelectedRequests(previous => [...previous, ...requests.filter(req => !previous.some(selected => selected.id === req.id))])}
+              >
+                전체 선택
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectedRequests.length === 0}
+                 onClick={() => setSelectedRequests([])}
+              >
+                선택 해제
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectedRequests.length === 0}
+                onClick={handleBulkApprove}
+              >
+                승인
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectedRequests.length === 0}
+                onClick={handleBulkReject}
+              >
+                반려
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={requests.length === 0}
+                onClick={handleBulkReset}
+              >
+                재상신
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleRefresh}
@@ -1225,8 +1439,9 @@ const handleDelete = async (requestId: number) => {
               <Button
                 variant="secondary"
                 onClick={handleExport}
-                disabled={exportMutation.isPending}
-                loading={exportMutation.isPending}
+                //disabled={selectedRequests.length === 0}
+                //disabled={exportMutation.isPending}
+                //loading={exportMutation.isPending}
                 size="sm"
                 title="Excel 다운로드"
               >
@@ -1286,6 +1501,9 @@ const handleDelete = async (requestId: number) => {
                 data={requests}
                 loading={isLoading}
                 emptyMessage="검색 조건에 맞는 구매 요청이 없습니다."
+                selectable
+                selectedItems={selectedRequests}
+                onSelectItems={setSelectedRequests}
               />
 
               {/* 페이지네이션 */}
@@ -1342,6 +1560,71 @@ const handleDelete = async (requestId: number) => {
       )}
 
       {/* 🔥 구매완료 확인 다이얼로그 (첫 번째 코드 스타일) */}
+      <Modal
+        isOpen={Boolean(pendingCompletionRequest)}
+        onClose={() => {
+          setPendingCompletionRequest(null);
+          setSimilarInventoryItems([]);
+        }}
+        title="동일 품목 확인"
+        size="lg"
+      >
+        <div style={{ marginBottom: '18px', color: '#4b5563', lineHeight: 1.6 }}>
+          같은 품목명으로 등록된 모든 품목코드입니다. 수령관리에서 재고를 누적할 품목코드를 선택하세요.
+          선택하면 품목관리에도 해당 품목코드로 새 등록 기록이 추가됩니다.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {similarInventoryItems.map(item => {
+            const exactMatch = true;
+            return (
+              <div key={item.id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px',
+                padding: '16px', border: exactMatch ? '2px solid #3b82f6' : '1px solid #d1d5db',
+                borderRadius: '8px', background: exactMatch ? '#eff6ff' : '#fff'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: '6px' }}>
+                    {item.item_name}{' '}
+                    {exactMatch && <span style={{ color: '#2563eb', fontSize: '0.8rem' }}>(동일 품목)</span>}
+                  </div>
+                  <div style={{ color: '#6b7280', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                    코드: {item.item_code} · 브랜드: {item.brand || '-'}<br />
+                    규격/모델: {item.specifications || '-'} · 단위: {item.unit}<br />
+                    현재 재고: {(item.current_quantity || 0).toLocaleString()} / 구매 수량:{' '}
+                    {(pendingCompletionRequest?.quantity || 0).toLocaleString()}
+                  </div>
+                </div>
+                <Button
+                  onClick={() => pendingCompletionRequest && completePurchaseMutation.mutate({
+                    requestId: pendingCompletionRequest.id,
+                    requestData: pendingCompletionRequest,
+                    existingItem: item,
+                  })}
+                  loading={completePurchaseMutation.isPending}
+                  disabled={completePurchaseMutation.isPending}
+                >
+                  이 품목코드로 등록
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
+          <Button variant="secondary" onClick={() => {
+            setPendingCompletionRequest(null);
+            setSimilarInventoryItems([]);
+          }} disabled={completePurchaseMutation.isPending}>
+            취소
+          </Button>
+          <Button variant="outline" onClick={() => pendingCompletionRequest && completePurchaseMutation.mutate({
+            requestId: pendingCompletionRequest.id,
+            requestData: pendingCompletionRequest,
+          })} loading={completePurchaseMutation.isPending} disabled={completePurchaseMutation.isPending}>
+            별도 새 품목으로 등록
+          </Button>
+        </div>
+      </Modal>
+
       {confirmingItem && (
         <ConfirmDialog onClick={cancelPurchaseComplete}>
           <ConfirmContent onClick={(e) => e.stopPropagation()}>
@@ -1404,8 +1687,8 @@ const handleDelete = async (requestId: number) => {
               <Button 
                 onClick={confirmPurchaseComplete}
                 size="lg"
-                loading={completePurchaseMutation.isPending}
-                disabled={completePurchaseMutation.isPending}
+                loading={completePurchaseMutation.isPending || isCheckingSimilarItems}
+                disabled={completePurchaseMutation.isPending || isCheckingSimilarItems}
                 style={{
                   background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
                   border: 'none'

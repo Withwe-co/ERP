@@ -12,8 +12,9 @@ import DashboardPage from './components/dashboard/DashboardPage';  // pages가 �
 import InventoryPage from './components/inventory/InventoryPage';
 import ReceiptPage from './components/receipt/ReceiptPage';
 import PurchaseRequestPage from './components/purshase/PurchaseRequestPage';  // purshase (오타) 폴더명 그대로
-// import KakaoPage from './components/kakao/KakaoPage';
+import KakaoPage from './components/kakao/KakaoPage';
 import UploadPage from './components/upload/UploadPage';
+import WbsPage from './components/wbs/WbsPage';
 import StatisticsPage from './components/statistics/StatisticsPage';
 import LogsPage from './components/logs/LogsPage';
 
@@ -36,7 +37,8 @@ const App: React.FC = () => {
                 <Route path="inventory" element={<InventoryPage />} />
                 <Route path="receipts" element={<ReceiptPage />} />
                 <Route path="purchase-requests" element={<PurchaseRequestPage />} />
-                {/* <Route path="kakao" element={<KakaoPage />} /> */}
+                <Route path="/wbs" element={<WbsPage />} />
+                <Route path="kakao" element={<KakaoPage />} />
                 <Route path="upload" element={<UploadPage />} />
                 {/* <Route path="statistics" element={<StatisticsPage />} /> */}
                 {/* <Route path="logs" element={<LogsPage />} /> */}

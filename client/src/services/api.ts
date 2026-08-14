@@ -4,8 +4,10 @@ import axios from 'axios';
 // API 기본 설정
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
 // const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
+
 //const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
 const API_BASE_URL = 'http://localhost:8000/api/v1';
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -38,6 +40,11 @@ const apiRequest = {
   
   put: async (url: string, data?: any) => {
     const response = await api.put(url, data);
+    return response.data;
+  },
+
+  patch: async (url: string, data?: any) => {
+    const response = await api.patch(url, data);
     return response.data;
   },
   
@@ -136,6 +143,7 @@ export interface SearchFilters {
   max_quantity?: number;
   has_images?: boolean;
   tags?: string[];
+  ids?: number[];
 }
 export interface PurchaseRequestFormData {
   item_name: string;
@@ -204,6 +212,7 @@ export interface UploadResult {
 // Unified Inventory 타입 정의
 export interface UnifiedInventoryItem {
   id: number;
+  purchase_request_id?: number;
   item_code: string;
   item_name: string;
   category?: string;
@@ -226,6 +235,17 @@ export interface UnifiedInventoryItem {
   maximum_stock?: number;
   reorder_point?: number;
   receipt_history: ReceiptHistory[];
+  quantity_history?: Array<{
+    type: 'outbound' | 'adjustment' | string;
+    quantity_change: number;
+    previous_quantity?: number;
+    result_quantity?: number;
+    user_name?: string;
+    department?: string;
+    purpose?: string;
+    notes?: string;
+    created_at?: string;
+  }>;
   last_received_date?: string;
   last_received_by?: string;
   last_received_department?: string;
@@ -233,6 +253,8 @@ export interface UnifiedInventoryItem {
   main_image_url?: string;
   image_urls: string[];
   is_active: boolean;
+  deactivation_reason?: string;
+  is_receipt_only?: boolean;
   is_consumable: boolean;
   requires_approval: boolean;
   description?: string;
@@ -263,10 +285,14 @@ export interface ReceiptHistory {
   location?: string;
   condition?: string;
   notes?: string;
+  image_urls?: string[];
 }
 
 export interface UnifiedInventoryFormData {
-  item_code: string;
+  item_code?: string;
+  initial_received_quantity?: number;
+  is_receipt_only?: boolean;
+  purchase_request_id?: number;
   item_name: string;
   category?: string;
   brand?: string;
@@ -308,6 +334,10 @@ export interface UnifiedInventoryStats {
 
 // 구매 요청 API - 실제 백엔드 연결
 export const purchaseApi = {
+  getRequest: async (id: number): Promise<PurchaseRequest> => {
+    return apiRequest.get(`/purchase-requests/${id}`);
+  },
+
   // 구매 요청 목록 조회
   getRequests: async (params: {
     page: number;
@@ -518,6 +548,7 @@ export const purchaseApi = {
       console.log('📊 구매요청 Excel 내보내기 시작...');
       
       const params = filters ? {
+        ids: filters?.ids?.join(','),
         search: filters.search,
         status: filters.status,
         urgency: filters.urgency,
@@ -672,7 +703,35 @@ export const purchaseApi = {
       throw error;
     }
   },
+
+  //구매 요청 일괄 승인 or 반려
+  bulkUpdateStatus: async (data: {
+    request_ids: number[];
+    status: 'COMPLETED' | 'CANCELLED';
+    rejection_reason?: string;
+  }) => {
+    return apiRequest.patch('/purchase-requests/bulk-status', data);
+  },
+
+  //구매 요청 일괄 승인 or 반려
+  bulkStatusReset: async (data: {
+    request_ids: number[];
+    status: 'SUBMITTED';
+    rejection_reason?: string;
+  }) => {
+    return apiRequest.patch('/purchase-requests/bulk-reset', data);
+  },
+
+  //구매 완료,구매 반려 일괄 재상신
+  bulkResetStatus: async (data: {
+    request_ids: number[];
+    status: 'SUBMITTED';
+    //rejection_reason?: string;
+  }) => {
+    return apiRequest.patch('/purchase-requests/bulk-status', data);
+  },
 };
+  
 
 // Unified Inventory API - 새로운 통합 재고 관리
 export const inventoryApi = {
@@ -750,6 +809,11 @@ export const inventoryApi = {
       console.error('품목 생성 실패:', error);
       throw error;
     }
+  },
+
+  getNextItemCode: async (): Promise<string> => {
+    const response = await apiRequest.get('/inventory/next-item-code');
+    return response.item_code;
   },
 
   updateItem: async (id: number, data: any): Promise<any> => {
@@ -896,6 +960,25 @@ export const inventoryApi = {
       return response;
     } catch (error) {
       console.error('재고 수량 업데이트 실패:', error);
+      throw error;
+    }
+  },
+
+  adjustQuantity: async (
+    itemId: number,
+    data: {
+      quantity_change: number;
+      user_name: string;
+      department: string;
+      purpose?: string;
+      notes?: string;
+    }
+  ): Promise<UnifiedInventoryItem> => {
+    try {
+      const response = await apiRequest.patch(`/inventory/${itemId}/quantity`, data);
+      return response;
+    } catch (error) {
+      console.error('재고 수량 조정 실패:', error);
       throw error;
     }
   },
@@ -1205,35 +1288,23 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
     notes?: string;
   }, images?: File[]): Promise<any> => {
     try {
-      // 1. 수령 이력 먼저 추가
-      const receipt = await apiRequest.post(`/inventory/${itemId}/receipts`, receiptData);
-      
-      // 2. 이미지가 있으면 업로드 (명시적 체크 강화)
-      if (images && images.length > 0) {
-        const uploadPromises = images.map(async (file, index) => {
-          console.log(`${successfulUploads.length}개 이미지 업로드 완료`);
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('image_type', 'receipt');
-          
-          return api.post(`/inventory/${itemId}/images`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-        });
-        
-        const imageResults = await Promise.allSettled(uploadPromises);
-        const successfulUploads = imageResults
-          .filter(result => result.status === 'fulfilled')
-          .map(result => (result as PromiseFulfilledResult<any>).value.data);
-        
-        console.log(`${successfulUploads.length}개 이미지 업로드 완료`);
-      } else {
-        console.log('이미지 없음: 업로드 스킵');
-      }
-      
-      return receipt;
+      const formData = new FormData();
+      formData.append('received_quantity', String(receiptData.received_quantity));
+      formData.append('receiver_name', receiptData.receiver_name);
+      if (receiptData.receiver_email) formData.append('receiver_email', receiptData.receiver_email);
+      formData.append('department', receiptData.department);
+      formData.append('received_date', receiptData.received_date);
+      if (receiptData.location) formData.append('location', receiptData.location);
+      formData.append('condition', receiptData.condition || 'good');
+      if (receiptData.notes) formData.append('notes', receiptData.notes);
+      (images || []).forEach(file => formData.append('images', file));
+
+      const response = await api.post(
+        `/inventory/${itemId}/complete-receipt-with-images`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      return response.data;
     } catch (error) {
       console.log('오류 상세:', error.response?.data?.detail);
       console.error('수령 완료 처리 실패:', error);
@@ -1433,7 +1504,7 @@ export const receiptApi = {
 
 // 업로드 API - 실제 백엔드 연결
 export const uploadApi = {
-  uploadExcel: async (file: File): Promise<{ 
+  uploadExcel: async ({ file, uploader }: { file: File; uploader: string }): Promise<{ 
     success: boolean; 
     data?: { itemCount: number }; 
     message: string; 
@@ -1441,6 +1512,7 @@ export const uploadApi = {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('uploader', uploader);
       
       const response = await api.post('/upload/excel', formData, {
         headers: {
@@ -1458,6 +1530,33 @@ export const uploadApi = {
       console.error('파일 업로드 실패:', error);
       throw error;
     }
+  },
+
+  getHistory: async (): Promise<Array<{
+    id: number;
+    upload_date: string | null;
+    file_name: string;
+    uploader: string;
+    total_rows: number;
+    preview_items: Array<Record<string, string | null>>;
+    preview_error: string | null;
+  }>> => {
+    const response = await api.get('/upload/history');
+    return response.data;
+  },
+
+  downloadHistoryFile: async (historyId: number, filename: string): Promise<void> => {
+    const response = await api.get(`/upload/history/${historyId}/download`, {
+      responseType: 'blob',
+    });
+    const downloadUrl = window.URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
   },
 
   getUploadInfo: async (): Promise<{ data: any }> => {
@@ -1541,6 +1640,40 @@ export const dashboardApi = {
   },
 };
 
+export interface EmailNotificationLog {
+  id: number;
+  request_number?: string;
+  recipients: string[];
+  subject: string;
+  content: string;
+  html_content?: string;
+  status: 'SUCCESS' | 'FAILED';
+  error_message?: string;
+  sent_at: string;
+}
+
+export interface EmailNotificationLogResponse {
+  items: EmailNotificationLog[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export const emailNotificationApi = {
+  getLogs: async (params?: {
+    skip?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+  }): Promise<EmailNotificationLogResponse> => {
+    return apiRequest.get('/email-notifications/', params);
+  },
+
+  deleteLog: async (id: number): Promise<{ success: boolean; id: number }> => {
+    return apiRequest.delete(`/email-notifications/${id}`);
+  },
+};
+
 // API 연결 테스트
 export const apiUtils = {
   testConnection: async (): Promise<boolean> => {
@@ -1570,6 +1703,7 @@ export default {
   inventory: inventoryApi, // 새로운 통합 재고 API
   receipt: receiptApi, // deprecated
   // kakao: kakaoApi,
+  emailNotifications: emailNotificationApi,
   upload: uploadApi,
   utils: apiUtils,
 };
