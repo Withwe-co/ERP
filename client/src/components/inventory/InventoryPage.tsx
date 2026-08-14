@@ -505,7 +505,8 @@ const InventoryPage: React.FC = () => {
       });
       
       // API 호출
-      const response = await fetch(`http://211.197.16.248:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
+      //const response = await fetch(`http://211.197.16.248:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
+      const response = await fetch(`http://localhost:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
       // const response = await fetch(`http://211.44.183.165:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
       // const response = await fetch(`http://192.168.0.16:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
         method: 'POST',
@@ -699,7 +700,8 @@ const InventoryPage: React.FC = () => {
     
     // URL 정리 - 불필요한 슬래시 제거
     const cleanUrl = imageUrl.replace(/^\/+/, ''); // 앞의 모든 슬래시 제거
-    const fullUrl = `http://211.197.16.248:8000/${cleanUrl}`;
+    //const fullUrl = `http://211.197.16.248:8000/${cleanUrl}`;
+    const fullUrl = `http://localhost:8000/${cleanUrl}`;
     // const fullUrl = `http://211.44.183.165:8000/${cleanUrl}`;
     // const fullUrl = `http://192.168.0.16:8000/${cleanUrl}`;
     
@@ -804,7 +806,8 @@ const InventoryPage: React.FC = () => {
 
   const handleTransactionDocumentUpload = (item: InventoryItem) => {
     console.log('🔍 거래명세서 업로드 버튼 클릭됨:', item);
-    console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
+    //console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
+    console.log('🔍 API 베이스 URL:', 'http://localhost:8000');
     // console.log('🔍 API 베이스 URL:', 'http://211.44.183.165:8000');
     
     setSelectedItemForTransaction(item);

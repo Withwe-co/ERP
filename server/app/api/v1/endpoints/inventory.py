@@ -540,7 +540,8 @@ async def complete_receipt_with_images(
                     saved_files.append(file_path)
                     
                     # 상대 경로로 URL 생성
-                    image_url = f"http://211.197.16.248:8000/uploads/inventory_images/{unique_filename}"
+                    # image_url = f"http://211.197.16.248:8000/uploads/inventory_images/{unique_filename}"
+                    image_url = f"http://localhost:8000/uploads/inventory_images/{unique_filename}"
                     # image_url = f"http://211.44.183.165:8000/uploads/inventory_images/{unique_filename}"
                     # image_url = f"http://192.168.0.16:8000/uploads/inventory_images/{unique_filename}"
                     image_urls.append(image_url)
