@@ -41,12 +41,12 @@ function TaskManagementPage() {
 
 export default TaskManagementPage;
 
-
+// 태스크 관리 페이지 전체 영역
 const Container = styled.div`
   padding: 20px;
 `;
 
-
+// 페이지 제목
 const PageTitle = styled.h1`
   font-size: 2rem;
   font-weight: 600;
@@ -54,19 +54,19 @@ const PageTitle = styled.h1`
   color: ${props => props.theme.colors.text};
 `;
 
-
+// 페이지 제목 아래 설명 문구
 const PageSubtitle = styled.p`
   margin-bottom: 30px;
   font-size: 1rem;
   color: ${props => props.theme.colors.textSecondary};
 `;
 
-
+// 검색 및 필터를 배치할 카드 영역
 const SearchCard = styled(Card)`
   margin-bottom: 20px;
 `;
 
-
+// 보기 전환 버튼과 등록 버튼을 양쪽에 배치하는 영역
 const ActionArea = styled.div`
   display: flex;
   align-items: center;
@@ -74,13 +74,13 @@ const ActionArea = styled.div`
   margin-bottom: 20px;
 `;
 
-
+// 칸반 보기와 목록 보기 버튼을 묶는 영역
 const ViewArea = styled.div`
   display: flex;
   gap: 8px;
 `;
 
-
+// 태스크 칸반 또는 목록이 표시될 콘텐츠 영역
 const ContentCard = styled(Card)`
   min-height: 400px;
 `;
