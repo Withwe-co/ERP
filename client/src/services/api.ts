@@ -330,7 +330,52 @@ export interface UnifiedInventoryStats {
   pending_approvals: number;
 }
 
+export interface ProjectUploadFormData {
+    project_code: string;
+    project_name: string;
+    manager_name: string;
+    department: string;
+    start_date: string;
+    due_date: string;
+    status: string;
+    project_description: string;
+}
 
+export interface Project {
+    id: number;
+    project_code: string;
+    project_name: string;
+    manager_name: string;
+    department: string;
+    start_date: string;
+    due_date: string;
+    status: string;
+    project_description: string;
+}
+
+export const projectApi = {
+  //프로젝트 등록
+  createProject: async (data: ProjectUploadFormData): Promise<Project> => {
+    try {
+      const response = await apiRequest.post('/wbs/', data);
+      return response;
+    } catch (error) {
+      console.error('프로젝트 등록 실패:', error);
+      throw error;
+    }
+  },
+
+  //프로젝트 수정
+  updateProject: async (id: number, data: Partial<ProjectUploadFormData>): Promise<Project> => {
+    try {
+      const response = await apiRequest.put(`/wbs/${id}`, data);
+      return response;
+    } catch (error) {
+      console.error('API 오류 상세:', error.response?.data);
+      throw error;
+    }
+  },
+};
 
 // 구매 요청 API - 실제 백엔드 연결
 export const purchaseApi = {
@@ -1706,4 +1751,5 @@ export default {
   emailNotifications: emailNotificationApi,
   upload: uploadApi,
   utils: apiUtils,
+  wbs: projectApi,
 };

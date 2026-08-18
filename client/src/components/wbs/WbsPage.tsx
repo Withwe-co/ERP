@@ -7,12 +7,25 @@ import Table from '../common/Table';
 import Pagination from '../common/Pagination';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Button from '../common/Button';
+import Card from '../common/Card';
+import Modal from '../common/Modal';
 import { TableColumn } from '../../types';
 // 프로젝트 등록 폼 추가
 // 필터 import 추가
 import { useNavigate } from 'react-router-dom';
+import ProjectUploadForm from './ProjectUploadForm';
 
 interface ProjectList{
+  project_code: number;
+  manager_name: string;
+  department: string;
+  project_name: string;
+  start_date: string;
+  due_date: string;
+  status: string;
+}
+
+interface Project{
   project_code: number;
   manager_name: string;
   department: string;
@@ -36,6 +49,11 @@ const dummyProjects: ProjectList[] = [
 
 const Container = styled.div`
   padding: 20px;
+`;
+
+const ContentCard = styled(Card)`
+  padding: 0;
+  overflow: hidden;
 `;
 
 const PageTitle = styled.h1`
@@ -150,7 +168,8 @@ const WbsPage: React.FC = () => {
   const [items] = useState<ProjectList[]>(dummyProjects);
   const refetch = async () => {return Promise.resolve()};
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
-
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
+  const [editingRequest, setEditingRequest] = useState<ProjectList | null>(null);
   const handleRefresh = async () => {
       try {
         // 순차적으로 새로고침 (동시성 문제 방지)
@@ -169,6 +188,17 @@ const WbsPage: React.FC = () => {
         setIsLoading(false);
       }
     };
+  
+  const handleFormSuccess = () => {
+    setIsFormModalOpen(false);
+    setEditingRequest(null);
+    handleRefresh();
+  };
+  
+  const handleFormCancel = () => {
+    setIsFormModalOpen(false);
+    setEditingRequest(null);
+  };
 
   const columns: TableColumn<ProjectList>[] = useMemo(() => [
     {
@@ -256,48 +286,66 @@ const WbsPage: React.FC = () => {
   ], []);
 
   return(
-    <Container>
-      <PageTitle>프로젝트 관리</PageTitle>
-      <PageSubtitle>프로젝트를 등록하고 관리하세요.</PageSubtitle>
-      <FilterSection>
-        <FilterContainer>
-          <ActionButtons>
-            <Button
-              variant="outline"
-              size="sm"
-              title="보관 프로젝트"
-            >
-              <Archive size={16} />
-              <span>보관 프로젝트</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isLoading}
-              size="sm"
-              title="새로고침"
-            >
-              <RefreshCw size={16} />
-              <span>새로고침</span>
-            </Button>
-            <Button
-              size="sm"
-              title="프로젝트 추가"
-            >
-              <Plus size={16}/>
-              <span>프로젝트 등록</span>
-            </Button>
-          </ActionButtons>
-        </FilterContainer>
-      </FilterSection>
-      <Table
-        columns={columns}
-        data={items}
-        //loading={}
-        onRowClick={(item) => navigate('/wbs/project-page',{state: {project:item}})}
-        emptyMessage='등록된 프로젝트가 없습니다.'
+    <>
+    <ContentCard>
+      <Container>
+        <PageTitle>프로젝트 관리</PageTitle>
+        <PageSubtitle>프로젝트를 등록하고 관리하세요.</PageSubtitle>
+        <FilterSection>
+          <FilterContainer>
+            <ActionButtons>
+              <Button
+                variant="outline"
+                size="sm"
+                title="보관 프로젝트"
+              >
+                <Archive size={16} />
+                <span>보관 프로젝트</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isLoading}
+                size="sm"
+                title="새로고침"
+              >
+                <RefreshCw size={16} />
+                <span>새로고침</span>
+              </Button>
+              <Button
+                onClick={() => setIsFormModalOpen(true)}
+                size="sm"
+                title="프로젝트 추가"
+              >
+                <Plus size={16}/>
+                <span>프로젝트 등록</span>
+              </Button>
+            </ActionButtons>
+          </FilterContainer>
+        </FilterSection>
+        <Table
+          columns={columns}
+          data={items}
+          //loading={}
+          onRowClick={(item) => navigate('/wbs/project-page',{state: {project:item}})}
+          emptyMessage='등록된 프로젝트가 없습니다.'
+        />
+      </Container>
+    </ContentCard>
+    <Modal
+      isOpen={isFormModalOpen}
+      onClose={handleFormCancel}
+      title={editingRequest ? '구매 요청 수정' : '새 구매 요청 등록'}
+      size="xl"
+    >
+      <ProjectUploadForm
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+        initialData={editingRequest || undefined}
+        isEdit={!!editingRequest}
       />
-    </Container>
+    </Modal>
+    </>
     );
 };
 export default WbsPage;

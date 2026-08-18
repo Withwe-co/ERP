@@ -31,3 +31,4 @@ class PurchaseMethod(str, Enum):
     CONTRACT = "CONTRACT"
     FRAMEWORK = "FRAMEWORK"
     MARKETPLACE = "MARKETPLACE"
+    
