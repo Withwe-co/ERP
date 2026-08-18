@@ -257,8 +257,8 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
             status: formData.status,
             manager_name: formData.manager_name,
             department: formData.department,
-            start_date: formData.start_date,
-            due_date: formData.due_date,
+            start_date: formData.start_date? `${formData.start_date}T00:00:00` : null,
+            due_date: formData.due_date? `${formData.due_date}T23:59:59` : null,
             project_description: formData.project_description,
         };
         console.log('submitData:', JSON.stringify(submitData, null, 2));
