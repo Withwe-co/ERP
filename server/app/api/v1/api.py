@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     inventory,
     purchase_request,
     upload,
+    wbs,
 )
 
 api_router = APIRouter()
@@ -42,4 +43,11 @@ api_router.include_router(
     email_notifications.router,
     prefix="/email-notifications",
     tags=["email-notifications"],
+)
+
+# wbs페이지 엔드포인트
+api_router.include_router(
+    wbs.router,
+    prefix="/wbs",
+    tags=["wbs"],
 )
