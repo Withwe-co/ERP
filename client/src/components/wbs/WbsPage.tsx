@@ -156,7 +156,8 @@ const WbsPage: React.FC = () => {
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingRequest, setEditingRequest] = useState<ProjectList | null>(null);
-  
+  const [projectView, setProjectView] = useState<'all' | 'on_hold'>('all');
+
   const storeProjectMutation = useMutation({
       mutationFn: api.wbs.storeProject,
       onSuccess: () => {
@@ -204,8 +205,9 @@ const WbsPage: React.FC = () => {
 
   // 프로젝트 목록 조회
   const{data: projectsData, isLoading, error, refetch}=useQuery({
-    queryKey:['wbs',currentPage,filters],
-    queryFn: () => projectApi.getRequests({page: currentPage,limit: 20,... filters}),
+    queryKey:['wbs',projectView,currentPage,filters],
+    queryFn: () => {const params = {page: currentPage,limit: 20,... filters};
+      return projectView === 'on_hold'?projectApi.getOnHoldProjects(params):projectApi.getRequests(params)},
     keepPreviousData: true,
     staleTime: 5*60*1000,
     retry:2,
@@ -316,10 +318,10 @@ const WbsPage: React.FC = () => {
               size="sm"
               variant="outline"
               onClick={(event) => {event.stopPropagation();handleStore(item.id)}}
-              title="보관"
+              title="보류"
             >
               <Archive size={14} />
-              보관
+              보류
             </Button>
           </ActionButtonGroup>
         );
@@ -336,6 +338,21 @@ const WbsPage: React.FC = () => {
         <FilterContainer>
           <WbsFilters onFilter={handleSearch} />
           <ActionButtons>
+            <Button
+              variant="outline"
+              onClick={() => { setCurrentPage(1); setProjectView('on_hold'); }}       
+              title="보류 프로젝트 목록"
+            >
+              <Archive size={16}/>
+              보류 프로젝트
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setCurrentPage(1); setProjectView('all'); }}
+            >
+              <Archive size={16}/>
+              전체 프로젝트
+            </Button>
             <Button
               variant="outline"
               onClick={handleRefresh}

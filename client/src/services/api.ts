@@ -376,7 +376,7 @@ export const projectApi = {
     }
   },
 
-  // 구매 요청 목록 조회
+  // 프로젝트 목록 조회
   getRequests: async (params: {
     page: number;
     limit: number;
@@ -399,14 +399,48 @@ export const projectApi = {
       const queryParams = {
         skip: (page - 1) * limit,
         limit,
-        //date_from: dateFrom,
-        //date_to: dateTo,
         ...Object.fromEntries(
           Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
         )
       };
       
       const response = await apiRequest.get('/wbs/', queryParams);
+      return { data: response };
+    } catch (error) {
+      console.error('프로젝트 목록 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 보류(Status==ON_HOLD)인 프로젝트 목록 조회
+  getOnHoldProjects: async (params: {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+    department?: string;
+    [key: string]: any;
+  }): Promise<{
+    data: {
+      items: Project[];
+      total: number;
+      pages: number;
+      page: number;
+      size: number;
+    };
+  }> => {
+    const { page, limit, ...filters } = params;
+    
+    try {
+      const queryParams = {
+        skip: (page - 1) * limit,
+        limit,
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        )
+      };
+      
+      const response = await apiRequest.get('/wbs/on_hold', queryParams);
       return { data: response };
     } catch (error) {
       console.error('프로젝트 목록 조회 실패:', error);
@@ -428,6 +462,8 @@ export const projectApi = {
       throw error;
     }
   },
+
+
 };
 
 // 구매 요청 API - 실제 백엔드 연결
