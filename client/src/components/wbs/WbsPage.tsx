@@ -3,18 +3,26 @@ import styled from 'styled-components';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {toast} from 'react-toastify';
 import {Edit,Plus,RefreshCw,Archive} from 'lucide-react'
+import { useNavigate } from 'react-router-dom';
+
+// Components
 import Table from '../common/Table';
-import Pagination from '../common/Pagination';
-import LoadingSpinner from '../common/LoadingSpinner';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
-import { TableColumn } from '../../types';
-// 프로젝트 등록 폼 추가
-// 필터 import 추가
-import { useNavigate } from 'react-router-dom';
 import ProjectUploadForm from './ProjectUploadForm';
+import WbsFilters from '../wbs/WbsFilters';
+
+// Services
 import { projectApi, type Project } from '@/services/api';
+import api from '../../services/api';
+
+// Type
+import { TableColumn } from '../../types';
+
+
+
+
 
 interface ProjectList{
   id: number;
@@ -46,18 +54,6 @@ interface SearchFilters {
   department?: string;
 }
 
-const dummyProjects: ProjectList[] = [
-  {
-    project_code: 1004,
-    manager_name: '정지은',
-    department: '마케팅팀',
-    project_name: '글로벌 마케팅 캠페인 자동화',
-    start_date: '2026-05-01T09:00:00',
-    due_date: '2026-10-31T18:00:00',
-    status: 'IN_PROGRESS'
-  }
-];
-
 const Container = styled.div`
   padding: 20px;
 `;
@@ -88,45 +84,16 @@ const FilterSection = styled.div`
 
 const FilterContainer = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: space-between;
-  
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    gap: 16px;
-  }
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
 `;
 
 const ActionButtons = styled.div`
   display: flex;
-  align-self: flex-end;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-shrink: 0;
-  
-  @media (max-width: 1024px) {
-    width: 100%;
-    justify-content: flex-end;
-  }
-  
-  @media (max-width: 768px) {
-    justify-content: stretch;
-    
-    > button {
-      flex: 1;
-      min-width: 0;
-      
-      span {
-        display: none;
-      }
-      
-      svg {
-        margin: 0;
-      }
-    }
-  }
+  gap: 10px;
+  margin-left: auto;
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
@@ -173,14 +140,36 @@ const StatusBadge = styled.span<{ $status: string }>`
   }}
 `;
 
+const ActionButtonGroup = styled.div`
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 40px;
+`;
+
 const WbsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<SearchFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [items] = useState<ProjectList[]>(dummyProjects);
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
-  const [editingRequest, setEditingRequest] = useState<ProjectList | null>(null);
+  const [editingProject, setEditingProejct] = useState<ProjectList | null>(null);
+  const [projectView, setProjectView] = useState<'all' | 'on_hold'>('all');
+
+  const storeProjectMutation = useMutation({
+      mutationFn: api.wbs.storeProject,
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['wbs'] });
+        queryClient.invalidateQueries({ queryKey: ['wbs-stats'] });
+        toast.success('품목이 보관되었습니다.');
+      },
+      onError: (error: any) => {
+        toast.error(error.response?.data?.message || '보관 중 오류가 발생했습니다.');
+      },
+    });
+  
   const handleRefresh = async () => {
     try {
       await queryClient.invalidateQueries({ queryKey: ['wbs'] });
@@ -193,19 +182,37 @@ const WbsPage: React.FC = () => {
   
   const handleFormSuccess = () => {
     setIsFormModalOpen(false);
-    setEditingRequest(null);
+    setEditingProejct(null);
     handleRefresh();
   };
   
   const handleFormCancel = () => {
     setIsFormModalOpen(false);
-    setEditingRequest(null);
+    setEditingProejct(null);
+  };
+
+  const handleSearch = (searchFilters: SearchFilters) => {
+    setFilters(searchFilters);
+    setCurrentPage(1);
+  };
+
+  const handleStore = async (itemId: number) => {
+    if (window.confirm('정말로 이 품목을 보관하시겠습니까?')) {
+      storeProjectMutation.mutate(itemId);
+
+    }
+  };
+
+  const handleEdit = (item: ProjectList) => {
+    setEditingProejct(item);
+    setIsFormModalOpen(true);
   };
 
   // 프로젝트 목록 조회
   const{data: projectsData, isLoading, error, refetch}=useQuery({
-    queryKey:['wbs',currentPage,filters],
-    queryFn: () => projectApi.getRequests({page: currentPage,limit: 20,... filters}),
+    queryKey:['wbs',projectView,currentPage,filters],
+    queryFn: () => {const params = {page: currentPage,limit: 20,... filters};
+      return projectView === 'on_hold'?projectApi.getOnHoldProjects(params):projectApi.getRequests(params)},
     keepPreviousData: true,
     staleTime: 5*60*1000,
     retry:2,
@@ -292,50 +299,83 @@ const WbsPage: React.FC = () => {
       width: '80px'
     },
     {
-      key: 'action',
+      key: 'actions',
       label: '관리',
-      width: '200px'
+      width: '180px',
+      align: 'center',
+      verticalAlign: 'middle',
+      style: { verticalAlign: 'middle' },
+      render: (_, item) => {
+        
+        return (
+          <ActionButtonGroup>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(event) => {event.stopPropagation();handleEdit(item)}}
+              title="수정"
+            >
+              <Edit size={14} />
+              수정
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(event) => {event.stopPropagation();handleStore(item.id)}}
+              title="보류"
+            >
+              <Archive size={14} />
+              보류
+            </Button>
+          </ActionButtonGroup>
+        );
+      },
     }
   ], []);
 
   return(
     <>
-    <ContentCard>
-      <Container>
-        <PageTitle>프로젝트 관리</PageTitle>
-        <PageSubtitle>프로젝트를 등록하고 관리하세요.</PageSubtitle>
-        <FilterSection>
-          <FilterContainer>
-            <ActionButtons>
-              <Button
-                variant="outline"
-                size="sm"
-                title="보관 프로젝트"
-              >
-                <Archive size={16} />
-                <span>보관 프로젝트</span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleRefresh}
-                disabled={isLoading}
-                size="sm"
-                title="새로고침"
-              >
-                <RefreshCw size={16} />
-                <span>새로고침</span>
-              </Button>
-              <Button
-                onClick={() => setIsFormModalOpen(true)}
-                size="sm"
-                title="프로젝트 추가"
-              >
-                <Plus size={16}/>
-                <span>프로젝트 등록</span>
-              </Button>
-            </ActionButtons>
-          </FilterContainer>
-        </FilterSection>
+    <Container>
+      <PageTitle>프로젝트 관리</PageTitle>
+      <PageSubtitle>프로젝트를 등록하고 관리하세요.</PageSubtitle>
+      <Card>
+        <FilterContainer>
+          <WbsFilters onFilter={handleSearch} />
+          <ActionButtons>
+            <Button
+              variant="outline"
+              onClick={() => { setCurrentPage(1); setProjectView('on_hold'); }}       
+              title="보류 프로젝트 목록"
+            >
+              <Archive size={16}/>
+              보류 프로젝트
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => { setCurrentPage(1); setProjectView('all'); }}
+            >
+              <Archive size={16}/>
+              전체 프로젝트
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              title="새로고침"
+            >
+              <RefreshCw size={16} />
+              새로고침
+            </Button>
+            <Button
+              onClick={() => setIsFormModalOpen(true)}       
+              title="프로젝트 추가"
+            >
+              <Plus size={16}/>
+              프로젝트 등록
+            </Button>
+          </ActionButtons>
+        </FilterContainer>
         <Table
           columns={columns}
           data={projects}
@@ -343,19 +383,19 @@ const WbsPage: React.FC = () => {
           onRowClick={(item) => navigate('/wbs/project-page',{state: {project:item}})}
           emptyMessage='등록된 프로젝트가 없습니다.'
         />
-      </Container>
-    </ContentCard>
+      </Card>
+    </Container>
     <Modal
       isOpen={isFormModalOpen}
       onClose={handleFormCancel}
-      title={editingRequest ? '구매 요청 수정' : '새 구매 요청 등록'}
+      title={editingProject ? '프로젝트 수정' : '새 프로젝트 등록'}
       size="xl"
     >
       <ProjectUploadForm
         onSuccess={handleFormSuccess}
         onCancel={handleFormCancel}
-        initialData={editingRequest || undefined}
-        isEdit={!!editingRequest}
+        initialData={editingProject || undefined}
+        isEdit={!!editingProject}
       />
     </Modal>
     </>
