@@ -9,3 +9,6 @@ data
 /dist
 /client/dist
 /client/logs/nginx/access.log
+# Python local environment
+server/.venv/
+server/.pytest_cache/
