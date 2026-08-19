@@ -14,15 +14,20 @@ import { TableColumn } from '../../types';
 // 필터 import 추가
 import { useNavigate } from 'react-router-dom';
 import ProjectUploadForm from './ProjectUploadForm';
+import { projectApi, type Project } from '@/services/api';
 
 interface ProjectList{
-  project_code: number;
+  id: number;
+  project_code: string;
   manager_name: string;
   department: string;
   project_name: string;
   start_date: string;
   due_date: string;
   status: string;
+  project_description?: string | null;
+  updated_by?: string | null;
+  updated_at?: string | null;
 }
 
 interface Project{
@@ -33,6 +38,12 @@ interface Project{
   start_date: string;
   due_date: string;
   status: string;
+}
+
+interface SearchFilters {
+  search?: string;
+  status?: string;
+  department?: string;
 }
 
 const dummyProjects: ProjectList[] = [
@@ -164,30 +175,21 @@ const StatusBadge = styled.span<{ $status: string }>`
 
 const WbsPage: React.FC = () => {
   const queryClient = useQueryClient();
-  const [isLoading,setIsLoading] = useState<boolean>(false);
+  const [filters, setFilters] = useState<SearchFilters>({});
+  const [currentPage, setCurrentPage] = useState(1);
   const [items] = useState<ProjectList[]>(dummyProjects);
-  const refetch = async () => {return Promise.resolve()};
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingRequest, setEditingRequest] = useState<ProjectList | null>(null);
   const handleRefresh = async () => {
-      try {
-        // 순차적으로 새로고침 (동시성 문제 방지)
-        setIsLoading(true);
-        await queryClient.invalidateQueries({ queryKey: ['projects'] });
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        await queryClient.invalidateQueries({ queryKey: ['projects-stats'] });
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        await refetch();
-      } catch (error) {
-        console.error('새로고침 중 오류:', error);
-        toast.error('새로고침 중 오류가 발생했습니다.');
-      }finally{
-        setIsLoading(false);
-      }
-    };
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['wbs'] });
+      await refetch();
+    } catch (error) {
+      console.error('프로젝트 목록 새로고침 실패:', error);
+      toast.error('프로젝트 목록을 새로고침하지 못했습니다.');
+    }
+  };
   
   const handleFormSuccess = () => {
     setIsFormModalOpen(false);
@@ -199,6 +201,17 @@ const WbsPage: React.FC = () => {
     setIsFormModalOpen(false);
     setEditingRequest(null);
   };
+
+  // 프로젝트 목록 조회
+  const{data: projectsData, isLoading, error, refetch}=useQuery({
+    queryKey:['wbs',currentPage,filters],
+    queryFn: () => projectApi.getRequests({page: currentPage,limit: 20,... filters}),
+    keepPreviousData: true,
+    staleTime: 5*60*1000,
+    retry:2,
+  });
+
+  const projects = projectsData?.data?.items || [];
 
   const columns: TableColumn<ProjectList>[] = useMemo(() => [
     {
@@ -325,8 +338,8 @@ const WbsPage: React.FC = () => {
         </FilterSection>
         <Table
           columns={columns}
-          data={items}
-          //loading={}
+          data={projects}
+          loading={isLoading}
           onRowClick={(item) => navigate('/wbs/project-page',{state: {project:item}})}
           emptyMessage='등록된 프로젝트가 없습니다.'
         />
