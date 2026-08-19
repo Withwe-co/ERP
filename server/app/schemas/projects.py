@@ -23,6 +23,7 @@ class UpdateProject(ProjectsBase):
     due_date: Optional[datetime] = None
     status: Optional[str] = None
     project_description: Optional[str] = None
+    updated_by: Optional[str] = Field(None, max_length=20)
 
 # 응답용 스키마
 class ProjectInDB(ProjectsBase):

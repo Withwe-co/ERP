@@ -155,7 +155,7 @@ const WbsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
-  const [editingRequest, setEditingRequest] = useState<ProjectList | null>(null);
+  const [editingProject, setEditingProejct] = useState<ProjectList | null>(null);
   const [projectView, setProjectView] = useState<'all' | 'on_hold'>('all');
 
   const storeProjectMutation = useMutation({
@@ -182,13 +182,13 @@ const WbsPage: React.FC = () => {
   
   const handleFormSuccess = () => {
     setIsFormModalOpen(false);
-    setEditingRequest(null);
+    setEditingProejct(null);
     handleRefresh();
   };
   
   const handleFormCancel = () => {
     setIsFormModalOpen(false);
-    setEditingRequest(null);
+    setEditingProejct(null);
   };
 
   const handleSearch = (searchFilters: SearchFilters) => {
@@ -201,6 +201,11 @@ const WbsPage: React.FC = () => {
       storeProjectMutation.mutate(itemId);
 
     }
+  };
+
+  const handleEdit = (item: ProjectList) => {
+    setEditingProejct(item);
+    setIsFormModalOpen(true);
   };
 
   // 프로젝트 목록 조회
@@ -307,7 +312,7 @@ const WbsPage: React.FC = () => {
             <Button
               size="sm"
               variant="outline"
-              //onClick={() => }
+              onClick={(event) => {event.stopPropagation();handleEdit(item)}}
               title="수정"
             >
               <Edit size={14} />
@@ -383,14 +388,14 @@ const WbsPage: React.FC = () => {
     <Modal
       isOpen={isFormModalOpen}
       onClose={handleFormCancel}
-      title={editingRequest ? '구매 요청 수정' : '새 구매 요청 등록'}
+      title={editingProject ? '프로젝트 수정' : '새 프로젝트 등록'}
       size="xl"
     >
       <ProjectUploadForm
         onSuccess={handleFormSuccess}
         onCancel={handleFormCancel}
-        initialData={editingRequest || undefined}
-        isEdit={!!editingRequest}
+        initialData={editingProject || undefined}
+        isEdit={!!editingProject}
       />
     </Modal>
     </>

@@ -108,6 +108,74 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
             detail=f"프로젝트 등록에 실패했습니다: {str(e)}"
         )
 
+@router.put("/{project_id}",response_model=dict)
+def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(get_db)):
+
+    """
+        summary : 프로젝트 수정 함수
+
+        arg : 
+            - project_id (int) : 수정 프로젝트 ID
+            - request_in : 수정스키마
+            - db (Session) : DB 세션
+            
+        desc : 
+            - DB에서 전달받은 id와 같은 데이터 조회
+            - 전달받은 id가 DB에 없으면 404 에러 반환
+            - 프로젝트 코드 제거
+            - 날짜 유효성 검증 -> 400에러 반환
+            - DB에 데이터 저장
+            - 예외 처리 : 500 에러 반환 & Rollback
+    """
+
+    try:
+        # DB에서 전달받은 id조회
+        project=db.query(DBProject).filter(DBProject.id==project_id).first()
+
+        # DB에서 id조회 실패 -> 404에러
+        if project is None:
+            raise HTTPException(status_code=404,detail="프로젝트를 찾을 수 없습니다.")
+
+        # 실제로 전달된 항목만 추출
+        update_data = request_in.model_dump(exclude_unset=True)
+
+        # 프로젝트 코드가 전달되면 제거
+        update_data.pop("project_code",None)
+
+        # 날짜 유효성 검증
+        start_date=update_data.get("start_date",project.start_date)
+        due_date=update_data.get("due_date",project.due_date)
+
+        # 종료일이 시작일보다 빠르면 400 에러 반환
+        if start_date > due_date:
+            raise HTTPException(status_code=400,detail="종료일은 시작일보다 빠를 수 없습니다.")
+
+        # 수정값으로 변경
+        for field, value in update_data.items():
+            setattr(project,field,value)
+
+        # 수정시간에 현재시간 저장
+        project.updated_at=datetime.now()
+
+        db.commit()
+        db.refresh(project)
+
+        return {
+            "success": True,
+            "message": "프로젝트가 수정되었습니다.",
+            "data": ProjectInDB.model_validate(project).model_dump(),
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"프로젝트 수정 중 오류가 발생했습니다: {str(e)}",
+        )
+    
 @router.get("/",response_model=ProjectsList)
 def read_projectlist(
     db: Session = Depends(get_db),

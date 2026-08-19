@@ -18,6 +18,8 @@ interface ProjectUploadFormData {
     due_date: string;
     status: string;
     project_description: string;
+    updated_at: string;
+    updated_by: string;
 }
 
 interface Project {
@@ -177,14 +179,14 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
             };
         }
 
-        // 백엔드 데이터를 프론트엔드 형식으로 변환
+        // 수정모드
             return {
             project_code: initialData.project_code || '',
             project_name: initialData.project_name || '',
             manager_name: initialData.manager_name || '',
             department: initialData.department || '',
-            start_date: initialData.start_date || '',
-            due_date: initialData.due_date || '',
+            start_date: initialData.start_date.split('T')[0] || '',
+            due_date: initialData.due_date.split('T')[0] || '',
             status: initialData.status || 'IN_PROGRESS',
             project_description: initialData.project_description || '',
             };
@@ -280,6 +282,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
             start_date: formData.start_date? `${formData.start_date}T00:00:00` : null,
             due_date: formData.due_date? `${formData.due_date}T23:59:59` : null,
             project_description: formData.project_description,
+            updated_by: formData.updated_by,
         };
         console.log('submitData:', JSON.stringify(submitData, null, 2));
       
@@ -389,6 +392,23 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                             min={formData.start_date||undefined}
                             required
                         />
+
+                        {isEdit &&(
+                            <FormRow style={{display:'grid',gridTemplateColumns: '1fr 1fr',gap: '16px'}}>
+                                <Input
+                                    label="최종 수정일"
+                                    value={initialData?.updated_at ? new Date(initialData.updated_at).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul'}) : '' }
+                                    disabled
+                                />
+
+                                <Input
+                                    label="수정자"
+                                    value={formData.updated_by || ''}
+                                    onChange={(e) => handleChange('updated_by', e.target.value)}
+                                    placeholder="수정자명을 입력하세요"
+                                />
+                            </FormRow>
+                        )}
 
                         <FormRow style={{ marginTop: '16px' }}>
                             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
