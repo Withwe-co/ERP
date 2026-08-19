@@ -413,6 +413,11 @@ export const projectApi = {
       throw error;
     }
   },
+
+  getNextProjectCode: async (): Promise<string> => {
+    const response = await apiRequest.get('/wbs/next-code');
+    return response.project_code;
+  },
 };
 
 // 구매 요청 API - 실제 백엔드 연결

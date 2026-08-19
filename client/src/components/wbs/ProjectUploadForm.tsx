@@ -141,6 +141,26 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
     { value: '인사팀', label: '인사팀' },
     ];
 
+    const [isLoadingProjectCode, setIsLoadingProjectCode] = useState(!initialData);
+    useEffect(() => {
+        if (initialData) return;
+    
+        let cancelled = false;
+        setIsLoadingProjectCode(true);
+        projectApi.getNextProjectCode()
+          .then(projectCode => {
+            if (!cancelled) {
+              setFormData(previous => ({ ...previous, project_code: projectCode }));
+            }
+          })
+          .catch(error => console.error('다음 프로젝트 코드 조회 실패:', error))
+          .finally(() => {
+            if (!cancelled) setIsLoadingProjectCode(false);
+          });
+    
+        return () => { cancelled = true; };
+      }, [initialData]);
+    
     const queryClient = useQueryClient();
     const [errors,setErrors] = useState<Record<string,string>>({});
     const getInitialFormData = (): ProjectUploadFormData => {
@@ -321,9 +341,9 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
 
                         <Input
                             label="프로젝트 코드"
-                            value={formData.project_code}
-                            onChange={(e) => handleChange('project_code',e.target.value)}
-                            placeholder="프로젝트 코드"
+                            value={isLoadingProjectCode?'프로젝트 코드 생성 중 ...' : (formData.project_code||'')}
+                            disabled
+                            placeholder="규칙에 따라 자동 생성됩니다."
                         />
 
                         <Select
