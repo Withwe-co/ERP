@@ -377,6 +377,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                             type="date"
                             value={formData.start_date}
                             onChange={(e) => handleChange('start_date', e.target.value)}
+                            max={formData.due_date||undefined}
                             required
                         />
 
@@ -385,6 +386,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                             type="date"
                             value={formData.due_date}
                             onChange={(e) => handleChange('due_date', e.target.value)}
+                            min={formData.start_date||undefined}
                             required
                         />
 
