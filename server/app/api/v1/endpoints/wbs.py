@@ -136,7 +136,7 @@ def read_projectlist(
     """
     try:
         # 유효한 상태만 조회
-        valid_statuses=['COMPLETED','IN_PROGRESS','CANCELLED','PLANNED','ON_HOLD']
+        valid_statuses=['COMPLETED','IN_PROGRESS','CANCELLED','PLANNED']
 
         # 조회 쿼리 (유효한 상태만 조회)
         query=db.query(DBProject).filter(DBProject.status.in_(valid_statuses))

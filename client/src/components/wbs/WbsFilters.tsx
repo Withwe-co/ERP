@@ -137,7 +137,6 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
       const labels: Record<string, string> = {
         COMPLETED: '완료',
         IN_PROGRESS: '진행중',
-        ON_HOLD: '보류',
         CANCELLED: '취소됨',
         PLANNED: '진행예정',
       };
@@ -181,7 +180,6 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
           <option value="">전체 상태</option>
           <option value="COMPLETED">완료</option>
           <option value="IN_PROGRESS">진행중</option>
-          <option value="ON_HOLD">보류</option>
           <option value="CANCELLED">취소됨</option>
           <option value="PLANNED">진행예정</option>
         </FilterSelect>
