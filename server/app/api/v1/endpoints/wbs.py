@@ -210,3 +210,52 @@ def get_next_project_code(db: Session = Depends(get_db)):
     return {
         "project_code": f"PRJ-{next_number:06d}"
     }
+
+@router.patch("/{project_id}/store",response_model=dict)
+def Store_project(project_id:int , db:Session=Depends(get_db)):
+    """
+        summary : 프로젝트 상태(Status)를 보류(ON_HOLD)로 변경하는 함수
+
+        arg : db (Session) : DB 세션
+        
+        desc :
+            - 요청된 ID의 구매 요청을 조회하고, 상태가 'SUBMITTED'인 경우에만 업데이트
+            - 요청된 ID 중 DB에서 찾지 못한 ID가 있으면 404 에러 반환
+            - 요청 상태가 'SUBMITTED'이 아닌 구매 요청이 있으면 400 에러 반환, 처리 불가 id 출력
+            - 상태 업데이트 후 DB 커밋 완료 메시지 출력
+            - 예외 처리: DB 롤백 및 500 에러 반환
+    """
+    #
+    try:
+        project=db.query(DBProject).filter(DBProject.id == project_id).first()
+
+        # project를 찾을 수 없으면 404 에러 반환
+        if project is None:
+            raise HTTPException(status_code=404,detail=f"프로젝트를 찾을 수 없습니다: {project_id}",)
+
+        # project의 상태가 이미 보류(ON_HOLD)이면 메시지 출력
+        if project.status == "ON_HOLD":
+            return {
+                "success": True,
+                "message": "이미 보류 상태인 프로젝트입니다.",
+                "project_id": project.id,
+                "status": project.status,
+            }
+
+        project.status = "ON_HOLD"
+        db.commit()
+        db.refresh(project)
+
+        return {
+            "success": True,
+            "message": "프로젝트가 보류 처리되었습니다.",
+            "project_id": project.id,
+            "status": project.status,
+        }
+    
+    except HTTPException:
+        raise
+    # 예외 처리: DB 롤백 및 500 에러 반환
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500,detail=f"상태 업데이트 중 오류가 발생했습니다: {str(e)}")

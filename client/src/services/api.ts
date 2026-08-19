@@ -418,6 +418,16 @@ export const projectApi = {
     const response = await apiRequest.get('/wbs/next-code');
     return response.project_code;
   },
+
+  storeProject: async (ProjectId: string)  => {
+    try {
+      const response = await api.patch(`/wbs/${ProjectId}/store`);
+      return response.data;
+    } catch (error) {
+      console.error('프로젝트 보관 실패:', error);
+      throw error;
+    }
+  },
 };
 
 // 구매 요청 API - 실제 백엔드 연결
