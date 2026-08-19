@@ -10,8 +10,7 @@ import Button from '../common/Button';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
 import { TableColumn } from '../../types';
-// 프로젝트 등록 폼 추가
-// 필터 import 추가
+import WbsFilters from '../wbs/WbsFilters';
 import { useNavigate } from 'react-router-dom';
 import ProjectUploadForm from './ProjectUploadForm';
 import { projectApi, type Project } from '@/services/api';
@@ -88,45 +87,16 @@ const FilterSection = styled.div`
 
 const FilterContainer = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: space-between;
-  
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    gap: 16px;
-  }
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
 `;
 
 const ActionButtons = styled.div`
   display: flex;
-  align-self: flex-end;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-shrink: 0;
-  
-  @media (max-width: 1024px) {
-    width: 100%;
-    justify-content: flex-end;
-  }
-  
-  @media (max-width: 768px) {
-    justify-content: stretch;
-    
-    > button {
-      flex: 1;
-      min-width: 0;
-      
-      span {
-        display: none;
-      }
-      
-      svg {
-        margin: 0;
-      }
-    }
-  }
+  gap: 10px;
+  margin-left: auto;
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
@@ -200,6 +170,11 @@ const WbsPage: React.FC = () => {
   const handleFormCancel = () => {
     setIsFormModalOpen(false);
     setEditingRequest(null);
+  };
+
+  const handleSearch = (searchFilters: SearchFilters) => {
+    setFilters(searchFilters);
+    setCurrentPage(1);
   };
 
   // 프로젝트 목록 조회
@@ -300,42 +275,31 @@ const WbsPage: React.FC = () => {
 
   return(
     <>
-    <ContentCard>
-      <Container>
-        <PageTitle>프로젝트 관리</PageTitle>
-        <PageSubtitle>프로젝트를 등록하고 관리하세요.</PageSubtitle>
-        <FilterSection>
-          <FilterContainer>
-            <ActionButtons>
-              <Button
-                variant="outline"
-                size="sm"
-                title="보관 프로젝트"
-              >
-                <Archive size={16} />
-                <span>보관 프로젝트</span>
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleRefresh}
-                disabled={isLoading}
-                size="sm"
-                title="새로고침"
-              >
-                <RefreshCw size={16} />
-                <span>새로고침</span>
-              </Button>
-              <Button
-                onClick={() => setIsFormModalOpen(true)}
-                size="sm"
-                title="프로젝트 추가"
-              >
-                <Plus size={16}/>
-                <span>프로젝트 등록</span>
-              </Button>
-            </ActionButtons>
-          </FilterContainer>
-        </FilterSection>
+    <Container>
+      <PageTitle>프로젝트 관리</PageTitle>
+      <PageSubtitle>프로젝트를 등록하고 관리하세요.</PageSubtitle>
+      <Card>
+        <FilterContainer>
+          <WbsFilters onFilter={handleSearch} />
+          <ActionButtons>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              title="새로고침"
+            >
+              <RefreshCw size={16} />
+              새로고침
+            </Button>
+            <Button
+              onClick={() => setIsFormModalOpen(true)}       
+              title="프로젝트 추가"
+            >
+              <Plus size={16}/>
+              프로젝트 등록
+            </Button>
+          </ActionButtons>
+        </FilterContainer>
         <Table
           columns={columns}
           data={projects}
@@ -343,8 +307,8 @@ const WbsPage: React.FC = () => {
           onRowClick={(item) => navigate('/wbs/project-page',{state: {project:item}})}
           emptyMessage='등록된 프로젝트가 없습니다.'
         />
-      </Container>
-    </ContentCard>
+      </Card>
+    </Container>
     <Modal
       isOpen={isFormModalOpen}
       onClose={handleFormCancel}
