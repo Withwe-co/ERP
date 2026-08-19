@@ -45,18 +45,6 @@ interface SearchFilters {
   department?: string;
 }
 
-const dummyProjects: ProjectList[] = [
-  {
-    project_code: 1004,
-    manager_name: '정지은',
-    department: '마케팅팀',
-    project_name: '글로벌 마케팅 캠페인 자동화',
-    start_date: '2026-05-01T09:00:00',
-    due_date: '2026-10-31T18:00:00',
-    status: 'IN_PROGRESS'
-  }
-];
-
 const Container = styled.div`
   padding: 20px;
 `;
@@ -143,11 +131,19 @@ const StatusBadge = styled.span<{ $status: string }>`
   }}
 `;
 
+const ActionButtonGroup = styled.div`
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 40px;
+`;
+
 const WbsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<SearchFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [items] = useState<ProjectList[]>(dummyProjects);
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingRequest, setEditingRequest] = useState<ProjectList | null>(null);
@@ -267,9 +263,38 @@ const WbsPage: React.FC = () => {
       width: '80px'
     },
     {
-      key: 'action',
+      key: 'actions',
       label: '관리',
-      width: '200px'
+      width: '180px',
+      align: 'center',
+      verticalAlign: 'middle',
+      style: { verticalAlign: 'middle' },
+      render: (_, item) => {
+        
+        return (
+          <ActionButtonGroup>
+            <Button
+              size="sm"
+              variant="outline"
+              //onClick={() => }
+              title="수정"
+            >
+              <Edit size={14} />
+              수정
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="outline"
+              //onClick={() => }
+              title="보관"
+            >
+              <Archive size={14} />
+              보관
+            </Button>
+          </ActionButtonGroup>
+        );
+      },
     }
   ], []);
 
