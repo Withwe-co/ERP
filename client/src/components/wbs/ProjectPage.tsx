@@ -7,12 +7,8 @@ import { Edit, Plus, RefreshCw } from 'lucide-react';
 
 // Components
 import Card from '../common/Card';
-import Table from '../common/Table';
-import Button from '../common/Button';
-import Pagination from '../common/Pagination';
-import LoadingSpinner from '../common/LoadingSpinner';
 import TaskManagementPage from './TaskManagementPage';
-
+import WbsManagementPage from './WbsManagementPage';
 // Type
 import { TableColumn } from '../../types';
 
@@ -85,10 +81,17 @@ const ProjectCode = styled.p`
   font-size: 14px;
 `;
 
+// 프로젝트 정보 Grid
 const InfoGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 16px;
+`;
+
+// 프로젝트 설명 Grid
+const DescGrid = styled.div`
+  grid-column: 1 / -1;
+  width: 100%;
 `;
 
 const InfoItem = styled.div`
@@ -96,6 +99,16 @@ const InfoItem = styled.div`
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background-color: #f9fafb;
+`;
+
+// 프로젝트 설명 Item
+const DescItem = styled.div`
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background-color: #f9fafb;
+  min-height: 180px;
+  overflow-y: auto;
 `;
 
 // 담당자 항목 스타일
@@ -233,6 +246,15 @@ const ProjectPage: React.FC = () => {
                   <InfoValue>{'0'}</InfoValue>
                 </InfoItem>
 
+                <DescGrid>
+                  <DescItem>
+                    <InfoLabel>프로젝트 설명</InfoLabel>
+                    <InfoValue>{project.project_description}</InfoValue>
+                  </DescItem>
+                </DescGrid>
+                  
+                  
+
                 </InfoGrid>
             </Card>
             
@@ -257,9 +279,7 @@ const ProjectPage: React.FC = () => {
               {/* 선택된 탭에 따라 화면 전환 */}
               <TabContent>
                   {activeTab === 'wbs' ? (
-                  <WbsPlaceholder>
-                      WBS 상세 영역
-                  </WbsPlaceholder>
+                  <WbsManagementPage projectId={project.id} />
                   ) : (
                   <TaskManagementPage />
                   )}

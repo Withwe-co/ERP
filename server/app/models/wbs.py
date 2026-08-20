@@ -1,0 +1,43 @@
+from sqlalchemy import Column,Integer,String,Text,Date
+from app.core.database import Base
+from zoneinfo import ZoneInfo
+from datetime import datetime
+
+class Wbs(Base):
+    __tablename__ = "Wbs"
+    """
+        wbs 테이블
+
+            Column      |            Type             | Collation | Nullable |   desc  
+        ----------------+-----------------------------+-----------+----------+---------------------------------
+        id              | integer                     |           | not null | 프로젝트 고유 ID
+        wbs_code        | character varying(10)       |           | not null | WBS 코드
+        wbs_name        | character varying(50)       |           | not null | WBS 이름
+        parent_wbs      | integer                     |           |          | 상위 WBS
+        start_date      | timestamp without time zone |           | not null | WBS 시작일
+        due_date        | timestamp without time zone |           | not null | WBS 종료일
+        wbs_description | character varying(500)      |           |          | WBS 설명
+        wbs_order       | integer                     |           |          | WBS 표시 순서
+        updated_by      | character varying(20)       |           |          | 수정자
+        updated_at      | timestamp without time zone |           |          | 수정일
+        project_id      | integer                     |           |          | 프로젝트 아이디
+        progress_rate   | integer                     |           |          | 진행률
+        total_tasks     | integer                     |           |          | 전체 태스크 수
+        delayed_tasks   | integer                     |           |          | 지연 태스크 수
+        
+    """
+
+    id = Column(Integer, primary_key=True, index=True)
+    wbs_code = Column(String, unique=True,nullable=False)
+    wbs_name = Column(String ,nullable=False)
+    parent_wbs = Column(Integer ,nullable=True)
+    start_date = Column(Date ,nullable=False)
+    due_date = Column(Date ,nullable=False)
+    wbs_description = Column(Text ,nullable=True)
+    wbs_order = Column(Integer ,nullable=True)
+    updated_by = Column(String ,nullable=True)
+    updated_at=Column(Date, default=lambda: datetime.now(ZoneInfo("Asia/Seoul")), nullable=False)
+    project_id = Column(Integer ,nullable=True)
+    progress_rate = Column(Integer ,nullable=True)
+    total_tasks = Column(Integer ,nullable=True)
+    delayed_tasks = Column(Integer ,nullable=True)

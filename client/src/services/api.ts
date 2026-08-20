@@ -353,118 +353,30 @@ export interface Project {
     project_description: string;
 }
 
-export const projectApi = {
-  //프로젝트 등록
-  createProject: async (data: ProjectUploadFormData): Promise<Project> => {
-    try {
-      const response = await apiRequest.post('/wbs/', data);
-      return response;
-    } catch (error) {
-      console.error('프로젝트 등록 실패:', error);
-      throw error;
-    }
-  },
+interface WbsUploadFormData {
+    wbs_code: string;
+    wbs_name: string;
+    parent_wbs: string;
+    start_date: string;
+    due_date: string;
+    wbs_description: string;
+    wbs_order: number;
+    updated_at: string;
+    updated_by: string;
+    project_id: number;
+}
 
-  //프로젝트 수정
-  updateProject: async (id: number, data: Partial<ProjectUploadFormData>): Promise<Project> => {
-    try {
-      const response = await apiRequest.put(`/wbs/${id}`, data);
-      return response;
-    } catch (error) {
-      console.error('API 오류 상세:', error.response?.data);
-      throw error;
-    }
-  },
-
-  // 프로젝트 목록 조회
-  getRequests: async (params: {
-    page: number;
-    limit: number;
-    search?: string;
-    status?: string;
-    department?: string;
-    [key: string]: any;
-  }): Promise<{
-    data: {
-      items: Project[];
-      total: number;
-      pages: number;
-      page: number;
-      size: number;
-    };
-  }> => {
-    const { page, limit, ...filters } = params;
-    
-    try {
-      const queryParams = {
-        skip: (page - 1) * limit,
-        limit,
-        ...Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
-        )
-      };
-      
-      const response = await apiRequest.get('/wbs/', queryParams);
-      return { data: response };
-    } catch (error) {
-      console.error('프로젝트 목록 조회 실패:', error);
-      throw error;
-    }
-  },
-
-  // 보류(Status==ON_HOLD)인 프로젝트 목록 조회
-  getOnHoldProjects: async (params: {
-    page: number;
-    limit: number;
-    search?: string;
-    status?: string;
-    department?: string;
-    [key: string]: any;
-  }): Promise<{
-    data: {
-      items: Project[];
-      total: number;
-      pages: number;
-      page: number;
-      size: number;
-    };
-  }> => {
-    const { page, limit, ...filters } = params;
-    
-    try {
-      const queryParams = {
-        skip: (page - 1) * limit,
-        limit,
-        ...Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
-        )
-      };
-      
-      const response = await apiRequest.get('/wbs/on_hold', queryParams);
-      return { data: response };
-    } catch (error) {
-      console.error('프로젝트 목록 조회 실패:', error);
-      throw error;
-    }
-  },
-
-  getNextProjectCode: async (): Promise<string> => {
-    const response = await apiRequest.get('/wbs/next-code');
-    return response.project_code;
-  },
-
-  storeProject: async (ProjectId: string)  => {
-    try {
-      const response = await api.patch(`/wbs/${ProjectId}/store`);
-      return response.data;
-    } catch (error) {
-      console.error('프로젝트 보관 실패:', error);
-      throw error;
-    }
-  },
-
-
-};
+interface Wbs {
+    id: number;
+    wbs_code: string;
+    wbs_name: string;
+    parent_wbs: string;
+    start_date: string;
+    due_date: string;
+    wbs_description: string;
+    wbs_order: number;
+    project_id: number;
+}
 
 // 구매 요청 API - 실제 백엔드 연결
 export const purchaseApi = {
@@ -1831,6 +1743,145 @@ export const apiUtils = {
   }
 };
 
+// Project Api
+export const projectApi = {
+  //프로젝트 등록
+  createProject: async (data: ProjectUploadFormData): Promise<Project> => {
+    try {
+      const response = await apiRequest.post('/wbs/', data);
+      return response;
+    } catch (error) {
+      console.error('프로젝트 등록 실패:', error);
+      throw error;
+    }
+  },
+
+  //프로젝트 수정
+  updateProject: async (id: number, data: Partial<ProjectUploadFormData>): Promise<Project> => {
+    try {
+      const response = await apiRequest.put(`/wbs/${id}`, data);
+      return response;
+    } catch (error) {
+      console.error('API 오류 상세:', error.response?.data);
+      throw error;
+    }
+  },
+
+  // 프로젝트 목록 조회
+  getRequests: async (params: {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+    department?: string;
+    [key: string]: any;
+  }): Promise<{
+    data: {
+      items: Project[];
+      total: number;
+      pages: number;
+      page: number;
+      size: number;
+    };
+  }> => {
+    const { page, limit, ...filters } = params;
+    
+    try {
+      const queryParams = {
+        skip: (page - 1) * limit,
+        limit,
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        )
+      };
+      
+      const response = await apiRequest.get('/wbs/', queryParams);
+      return { data: response };
+    } catch (error) {
+      console.error('프로젝트 목록 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  // 보류(Status==ON_HOLD)인 프로젝트 목록 조회
+  getOnHoldProjects: async (params: {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+    department?: string;
+    [key: string]: any;
+  }): Promise<{
+    data: {
+      items: Project[];
+      total: number;
+      pages: number;
+      page: number;
+      size: number;
+    };
+  }> => {
+    const { page, limit, ...filters } = params;
+    
+    try {
+      const queryParams = {
+        skip: (page - 1) * limit,
+        limit,
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        )
+      };
+      
+      const response = await apiRequest.get('/wbs/on_hold', queryParams);
+      return { data: response };
+    } catch (error) {
+      console.error('프로젝트 목록 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  getNextProjectCode: async (): Promise<string> => {
+    const response = await apiRequest.get('/wbs/next-code');
+    return response.project_code;
+  },
+
+  storeProject: async (ProjectId: string)  => {
+    try {
+      const response = await api.patch(`/wbs/${ProjectId}/store`);
+      return response.data;
+    } catch (error) {
+      console.error('프로젝트 보관 실패:', error);
+      throw error;
+    }
+  },
+
+
+};
+
+// WBSAPI
+export const WbsApi = {
+  // Wbs 생성
+  createWbs: async (data: WbsUploadFormData): Promise<Wbs> => {
+    try {
+      const response = await apiRequest.post('/projectwbs/', data);
+      return response;
+    } catch (error) {
+      console.error('WBS 등록 실패:', error);
+      throw error;
+    }
+  },
+
+  // Wbs 수정
+  updateWbs: async (id: number, data: Partial<WbsUploadFormData>): Promise<Wbs> => {
+    try {
+      const response = await apiRequest.put(`/projectwbs/${id}`, data);
+      return response;
+    } catch (error) {
+      console.error('API 오류 상세:', error.response?.data);
+      throw error;
+    }
+  },
+
+};
 export default {
   dashboard: dashboardApi,
   purchase: purchaseApi,
@@ -1841,4 +1892,5 @@ export default {
   upload: uploadApi,
   utils: apiUtils,
   wbs: projectApi,
+  projectwbs: WbsApi,
 };
