@@ -90,7 +90,10 @@ const ProjectPage: React.FC = () => {
                 WBS 상세 영역
             </WbsPlaceholder>
             ) : (
-            <TaskManagementPage />
+            <TaskManagementPage
+              projectId={project.id}
+              projectName={project.project_name}
+            />
             )}
         </TabContent>
         </Container>

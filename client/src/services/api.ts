@@ -1,6 +1,9 @@
 // client/src/services/api.ts - API 연결 수정
 import axios from 'axios';
 
+// 태스크 API 요청/응답에 사용할 타입
+import {TaskCreateData, TaskResponse,} from '../types/task';
+
 // API 기본 설정
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
 // const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
@@ -359,10 +362,7 @@ export const projectApi = {
     try {
       const response = await apiRequest.post('/wbs/', data);
       return response;
-    } catch (error) {
-      console.error('프로젝트 등록 실패:', error);
-      throw error;
-    }
+    } catch (error) {console.error('프로젝트 등록 실패:', error); throw error;}
   },
 
   //프로젝트 수정
@@ -370,10 +370,7 @@ export const projectApi = {
     try {
       const response = await apiRequest.put(`/wbs/${id}`, data);
       return response;
-    } catch (error) {
-      console.error('API 오류 상세:', error.response?.data);
-      throw error;
-    }
+    } catch (error) {console.error('API 오류 상세:', error.response?.data); throw error;}
   },
 
   // 프로젝트 목록 조회
@@ -406,10 +403,7 @@ export const projectApi = {
       
       const response = await apiRequest.get('/wbs/', queryParams);
       return { data: response };
-    } catch (error) {
-      console.error('프로젝트 목록 조회 실패:', error);
-      throw error;
-    }
+    } catch (error) {console.error('프로젝트 목록 조회 실패:', error); throw error;}
   },
 
   // 보류(Status==ON_HOLD)인 프로젝트 목록 조회
@@ -442,10 +436,7 @@ export const projectApi = {
       
       const response = await apiRequest.get('/wbs/on_hold', queryParams);
       return { data: response };
-    } catch (error) {
-      console.error('프로젝트 목록 조회 실패:', error);
-      throw error;
-    }
+    } catch (error) {console.error('프로젝트 목록 조회 실패:', error); throw error;}
   },
 
   getNextProjectCode: async (): Promise<string> => {
@@ -457,14 +448,25 @@ export const projectApi = {
     try {
       const response = await api.patch(`/wbs/${ProjectId}/store`);
       return response.data;
-    } catch (error) {
-      console.error('프로젝트 보관 실패:', error);
-      throw error;
-    }
+    } catch (error) {console.error('프로젝트 보관 실패:', error); throw error;}
   },
 
 
 };
+
+// 태스크 관리 API
+export const taskApi = {
+  // 태스크 등록
+  createTask: async (data: TaskCreateData,): Promise<TaskResponse> => {
+    try {
+      // FastAPI의 POST /api/v1/tasks/ 호출
+      const response = await apiRequest.post('/tasks/', data);
+
+      return response;
+    } catch (error) {console.error('태스크 등록 실패:', error); throw error;}
+  },
+};
+
 
 // 구매 요청 API - 실제 백엔드 연결
 export const purchaseApi = {
@@ -1841,4 +1843,7 @@ export default {
   upload: uploadApi,
   utils: apiUtils,
   wbs: projectApi,
+
+  // 태스크 관리 API
+  task: taskApi,
 };
