@@ -322,7 +322,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                         />
 
                         <Input
-                            label="프로젝트 시작일"
+                            label="WBS 시작일"
                             type="date"
                             value={formData.start_date}
                             onChange={(e) => handleChange('start_date', e.target.value)}
@@ -331,7 +331,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                         />
 
                         <Input
-                            label="프로젝트 종료일"
+                            label="WBS 종료일"
                             type="date"
                             value={formData.due_date}
                             onChange={(e) => handleChange('due_date', e.target.value)}
