@@ -10,6 +10,10 @@ import Button from '../common/Button';
 import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
 
+interface WbsManagementPageProps {
+  projectId: number;
+}
+
 const Container = styled.div`
   padding: 20px;
 `;
@@ -30,7 +34,9 @@ const FilterContainer = styled.div`
   align-items: center;
 `;
 
-const WbsManagementPage: React.FC = () => {
+const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
+    projectId,
+}) => {
 
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
@@ -41,10 +47,10 @@ const WbsManagementPage: React.FC = () => {
                 <ActionButtons>
                     <Button
                         onClick={() => setIsFormModalOpen(true)}       
-                        title="프로젝트 추가"
+                        title="WBS 추가"
                     >
                         <Plus size={16}/>
-                        프로젝트 등록
+                        WBS 추가
                     </Button>
                 </ActionButtons>
             </FilterContainer>
@@ -59,6 +65,7 @@ const WbsManagementPage: React.FC = () => {
             size="xl"
             >
             <WbsUploadForm
+                projectId={projectId}
                 onSuccess={() => setIsFormModalOpen(false)}
                 onCancel={() => setIsFormModalOpen(false)}
             />

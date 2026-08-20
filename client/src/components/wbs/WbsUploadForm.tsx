@@ -38,6 +38,7 @@ interface Wbs {
 }
 
 interface WbsUploadFormProps {
+    projectId: number;
     onSuccess: () => void;
     onCancel: () => void;
     initialData?: Wbs;
@@ -132,6 +133,7 @@ const ButtonGroup = styled.div`
 
 
 const WbsUploadForm: React.FC<WbsUploadFormProps> =({
+    projectId,
     onSuccess,
     onCancel,
     initialData,
@@ -155,7 +157,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             console.error('HTTP 상태 코드:', error.response?.status);
             console.error('에러 응답 데이터:', error.response?.data);
             
-            toast.error(error.response?.data?.message || '처리 중 오류가 발생했습니다.');
+            toast.error(error.response?.data?.detail ||error.response?.data?.message ||'처리 중 오류가 발생했습니다.');
         },
     });
     
@@ -175,7 +177,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
     });
 
     const isLoading = createMutation.isPending || updateMutation.isPending;
-    
+
     const getInitialFormData = (): WbsUploadFormData => {
         if (!initialData) {
             return {
@@ -245,7 +247,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             wbs_description: formData.wbs_description,
             wbs_order: formData.wbs_order,
             updated_by: formData.updated_by,
-            project_id: formData.project_id,
+            project_id: projectId,
         };
         console.log('submitData:', JSON.stringify(submitData, null, 2));
         
@@ -339,10 +341,8 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
 
                         <Input
                             label="프로젝트 ID"
-                            value={formData.project_id}
-                            onChange={(e) => handleChange('project_id', e.target.value)}
-                            placeholder="프로젝트 ID"
-                            required
+                            value={projectId}
+                            disabled
                         />
 
                         <Input
