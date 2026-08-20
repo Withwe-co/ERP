@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from datetime import datetime
 
 class Wbs(Base):
-    __tablename__ = "Wbs"
+    __tablename__ = "wbs"
     """
         wbs 테이블
 
@@ -13,7 +13,7 @@ class Wbs(Base):
         id              | integer                     |           | not null | 프로젝트 고유 ID
         wbs_code        | character varying(10)       |           | not null | WBS 코드
         wbs_name        | character varying(50)       |           | not null | WBS 이름
-        parent_wbs      | integer                     |           |          | 상위 WBS
+        parent_wbs      | character varying(10)       |           |          | 상위 WBS
         start_date      | timestamp without time zone |           | not null | WBS 시작일
         due_date        | timestamp without time zone |           | not null | WBS 종료일
         wbs_description | character varying(500)      |           |          | WBS 설명
@@ -30,7 +30,7 @@ class Wbs(Base):
     id = Column(Integer, primary_key=True, index=True)
     wbs_code = Column(String, unique=True,nullable=False)
     wbs_name = Column(String ,nullable=False)
-    parent_wbs = Column(Integer ,nullable=True)
+    parent_wbs = Column(String ,nullable=True)
     start_date = Column(Date ,nullable=False)
     due_date = Column(Date ,nullable=False)
     wbs_description = Column(Text ,nullable=True)
