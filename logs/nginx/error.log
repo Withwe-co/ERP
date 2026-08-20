@@ -2270,3 +2270,22 @@
 2026/08/16 14:23:28 [notice] 1#1: start worker process 40
 2026/08/18 02:29:28 [error] 37#37: *728 directory index of "/usr/share/nginx/html/" is forbidden, client: 127.0.0.1, server: localhost, request: "GET / HTTP/1.1", host: "localhost"
 2026/08/18 04:43:44 [error] 32#32: *1026 directory index of "/usr/share/nginx/html/" is forbidden, client: 127.0.0.1, server: localhost, request: "GET / HTTP/1.1", host: "localhost"
+2026/08/19 23:54:21 [notice] 1#1: using the "epoll" event method
+2026/08/19 23:54:21 [notice] 1#1: nginx/1.31.3
+2026/08/19 23:54:21 [notice] 1#1: built by gcc 15.2.0 (Alpine 15.2.0) 
+2026/08/19 23:54:21 [notice] 1#1: OS: Linux 6.18.33.2-microsoft-standard-WSL2
+2026/08/19 23:54:21 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1048576:1048576
+2026/08/19 23:54:21 [notice] 1#1: start worker processes
+2026/08/19 23:54:21 [notice] 1#1: start worker process 29
+2026/08/19 23:54:21 [notice] 1#1: start worker process 30
+2026/08/19 23:54:21 [notice] 1#1: start worker process 31
+2026/08/19 23:54:21 [notice] 1#1: start worker process 32
+2026/08/19 23:54:21 [notice] 1#1: start worker process 33
+2026/08/19 23:54:21 [notice] 1#1: start worker process 34
+2026/08/19 23:54:21 [notice] 1#1: start worker process 35
+2026/08/19 23:54:21 [notice] 1#1: start worker process 36
+2026/08/19 23:54:21 [notice] 1#1: start worker process 37
+2026/08/19 23:54:21 [notice] 1#1: start worker process 38
+2026/08/19 23:54:21 [notice] 1#1: start worker process 39
+2026/08/19 23:54:21 [notice] 1#1: start worker process 40
+2026/08/20 00:11:24 [error] 30#30: *46 directory index of "/usr/share/nginx/html/" is forbidden, client: 127.0.0.1, server: localhost, request: "GET / HTTP/1.1", host: "localhost"
