@@ -7,12 +7,8 @@ import { Edit, Plus, RefreshCw } from 'lucide-react';
 
 // Components
 import Card from '../common/Card';
-import Table from '../common/Table';
-import Button from '../common/Button';
-import Pagination from '../common/Pagination';
-import LoadingSpinner from '../common/LoadingSpinner';
 import TaskManagementPage from './TaskManagementPage';
-
+import WbsManagementPage from './WbsManagementPage';
 // Type
 import { TableColumn } from '../../types';
 
@@ -283,9 +279,7 @@ const ProjectPage: React.FC = () => {
               {/* 선택된 탭에 따라 화면 전환 */}
               <TabContent>
                   {activeTab === 'wbs' ? (
-                  <WbsPlaceholder>
-                      WBS 상세 영역
-                  </WbsPlaceholder>
+                  <WbsManagementPage/>
                   ) : (
                   <TaskManagementPage />
                   )}

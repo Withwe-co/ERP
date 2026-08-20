@@ -229,8 +229,8 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
     const isLoading = createMutation.isPending || updateMutation.isPending;
 
     // 등록 조건 Error 문구
-    const validateForm = (): boolean => {
-        const newErrors: Record<string, string> = {};
+     const validateForm = (): boolean => {
+       const newErrors: Record<string, string> = {};
     
         if (!formData.project_name.trim()) {
           newErrors.project_name = '프로젝트명을 입력해주세요.';
@@ -434,7 +434,6 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         {isEdit ? '수정' : '등록'}
                     </Button>
                 </ButtonGroup>
-                
             </form>
         </FormContainer>
     )
