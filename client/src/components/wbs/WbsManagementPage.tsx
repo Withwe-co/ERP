@@ -154,7 +154,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             <tr>
                             <th style={{textAlign: 'center'}}>Depth 1</th>
                             <th style={{textAlign: 'center'}}>Depth 2</th>
-                            <th style={{textAlign: 'center'}}>Depth 3</th>
+                            <th style={{textAlign: 'center'}}>Task</th>
                             {days.map((day) => (
                                 <th key={day}>{day}</th>
                             ))}
