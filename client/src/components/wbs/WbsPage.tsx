@@ -355,15 +355,6 @@ const WbsPage: React.FC = () => {
               전체 프로젝트
             </Button>
             <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isLoading}
-              title="새로고침"
-            >
-              <RefreshCw size={16} />
-              새로고침
-            </Button>
-            <Button
               onClick={() => setIsFormModalOpen(true)}       
               title="프로젝트 추가"
             >

@@ -48,6 +48,7 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
                     status_code=422,
                     detail=f"필수 필드가 누락되었습니다: {field}"
                 )
+            
         # string-> datetime을 위한 함수
         def parse_date(date_str):
             if not date_str:
@@ -78,7 +79,7 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         db.commit()
         db.refresh(project)
 
-        print(f"✅ 프로젝트 생성 완료: ID={project.id}")
+        print(f"프로젝트 생성 완료: ID={project.id}")
                 
         return {
             "success": True,
@@ -95,14 +96,12 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
                 "project_description": project.project_description
             }
         }
-
-    except HTTPException:
-            raise
+    
     except Exception as e:
         db.rollback()
-        print(f"❌ 프로젝트 등록 실패: {e}")
+        print(f"프로젝트 등록 실패: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"프로젝트 등록에 실패했습니다: {str(e)}"
@@ -161,13 +160,11 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
         db.refresh(project)
 
         return {
+            # 성공 코드
             "success": True,
             "message": "프로젝트가 수정되었습니다.",
             "data": ProjectInDB.model_validate(project).model_dump(),
         }
-
-    except HTTPException:
-        raise
 
     except Exception as e:
         db.rollback()
@@ -223,11 +220,11 @@ def read_projectlist(
 
         # 총 개수 조회
         total = query.count()
-        print(f"📊 총 개수: {total}")
+        print(f"총 개수: {total}")
 
         # 데이터 조회
         items = query.order_by(DBProject.id.desc()).offset(skip).limit(limit).all()
-        print(f"📋 조회된 항목 수: {len(items)}")
+        print(f"조회된 항목 수: {len(items)}")
 
         # Response 객체로 반환
         response_items = [
@@ -244,10 +241,11 @@ def read_projectlist(
         }
 
         return result
+    
     except Exception as e:
-        print(f"❌ 프로젝트 목록 조회 오류: {e}")
+        print(f"프로젝트 목록 조회 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}"
@@ -295,11 +293,11 @@ def read_on_hold_projectlist(
 
         # 총 개수 조회
         total = query.count()
-        print(f"📊 총 개수: {total}")
+        print(f"총 개수: {total}")
 
         # 데이터 조회
         items = query.order_by(DBProject.id.desc()).offset(skip).limit(limit).all()
-        print(f"📋 조회된 항목 수: {len(items)}")
+        print(f"조회된 항목 수: {len(items)}")
 
         # Response 객체로 반환
         response_items = [
@@ -317,9 +315,9 @@ def read_on_hold_projectlist(
 
         return result
     except Exception as e:
-        print(f"❌ 구매 요청 목록 조회 오류: {e}")
+        print(f"구매 요청 목록 조회 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}"
@@ -387,14 +385,13 @@ def Store_project(project_id:int , db:Session=Depends(get_db)):
         db.refresh(project)
 
         return {
+            # 성공 코드
             "success": True,
             "message": "프로젝트가 보류 처리되었습니다.",
             "project_id": project.id,
             "status": project.status,
         }
-    
-    except HTTPException:
-        raise
+
     # 예외 처리: DB 롤백 및 500 에러 반환
     except Exception as e:
         db.rollback()

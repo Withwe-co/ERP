@@ -154,7 +154,7 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
               <SearchIcon />
               <SearchInput
                 type="text"
-                placeholder="프로젝트명으로 검색"
+                placeholder="프로젝트명 / 담당자명 으로 검색"
                 value={filters.search || ''}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
