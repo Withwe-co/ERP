@@ -384,13 +384,29 @@ interface Wbs {
 // 태스크 관리 API
 export const taskApi = {
   // 태스크 등록
-  createTask: async (data: TaskCreateData,): Promise<TaskResponse> => {
+  createTask: async (data: TaskCreateData): Promise<TaskResponse> => {
     try {
-      // FastAPI의 POST /api/v1/tasks/ 호출
-      const response = await apiRequest.post('/tasks/', data);
+      const response = await apiRequest.post("/tasks/", data);
 
       return response;
-    } catch (error) {console.error('태스크 등록 실패:', error); throw error;}
+    } catch (error) {
+      console.error("태스크 등록 실패:", error);
+      throw error;
+    }
+  },
+
+  // 프로젝트별 태스크 목록 조회
+  getTasks: async (projectId: number): Promise<TaskResponse[]> => {
+    try {
+      const response = await apiRequest.get("/tasks/", {
+        project_id: projectId,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("태스크 목록 조회 실패:", error);
+      throw error;
+    }
   },
 };
 
