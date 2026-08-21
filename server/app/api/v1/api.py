@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     upload,
     wbs,
     tasks,
+    projectwbs,
 )
 
 api_router = APIRouter()
@@ -58,4 +59,11 @@ api_router.include_router(
     tasks.router,
     prefix="/tasks",
     tags=["tasks"],
+)
+
+# projectwbs 관리 엔드포인트
+api_router.include_router(
+    projectwbs.router,
+    prefix="/projectwbs",
+    tags=["projectwbs"],
 )

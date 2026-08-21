@@ -78,7 +78,7 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         db.commit()
         db.refresh(project)
 
-        print(f"✅ 구매 요청 생성 완료: ID={project.id}")
+        print(f"✅ 프로젝트 생성 완료: ID={project.id}")
                 
         return {
             "success": True,
