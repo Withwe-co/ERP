@@ -1748,7 +1748,8 @@ export const projectApi = {
   //프로젝트 등록
   createProject: async (data: ProjectUploadFormData): Promise<Project> => {
     try {
-      const response = await apiRequest.post('/wbs/', data);
+      const response = await apiRequest.post('/wbs/',data);
+      console.log('HTTP 상태 코드 : ',response.success);
       return response;
     } catch (error) {
       console.error('프로젝트 등록 실패:', error);
@@ -1760,6 +1761,7 @@ export const projectApi = {
   updateProject: async (id: number, data: Partial<ProjectUploadFormData>): Promise<Project> => {
     try {
       const response = await apiRequest.put(`/wbs/${id}`, data);
+      console.log('HTTP 상태 코드 : ',response.success);
       return response;
     } catch (error) {
       console.error('API 오류 상세:', error.response?.data);
@@ -1846,8 +1848,9 @@ export const projectApi = {
 
   storeProject: async (ProjectId: string)  => {
     try {
-      const response = await api.patch(`/wbs/${ProjectId}/store`);
-      return response.data;
+      const response = await apiRequest.patch(`/wbs/${ProjectId}/store`);
+      console.log('HTTP 상태 코드 : ',response.success);
+      return response;
     } catch (error) {
       console.error('프로젝트 상태 변경 실패:', error);
       throw error;
@@ -1863,6 +1866,7 @@ export const WbsApi = {
   createWbs: async (data: WbsUploadFormData): Promise<Wbs> => {
     try {
       const response = await apiRequest.post('/projectwbs/', data);
+      console.log('HTTP 상태 코드 : ',response.success);
       return response;
     } catch (error) {
       console.error('WBS 등록 실패:', error);

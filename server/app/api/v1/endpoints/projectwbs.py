@@ -75,7 +75,7 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         print(f"WBS 생성 완료: ID={wbs.id}")
                 
         return {
-            "success": True,
+            "success": 201,
             "message": "WBS가 성공적으로 등록되었습니다.",
             "data": {
                 "id": wbs.id,

@@ -83,7 +83,7 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         print(f"프로젝트 생성 완료: ID={project.id}")
                 
         return {
-            "success": True,
+            "success": 201,
             "message": "프로젝트가 성공적으로 등록되었습니다.",
             "data": {
                 "id": project.id,
@@ -166,7 +166,7 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
 
         return {
             # 성공 코드
-            "success": True,
+            "success": 200,
             "message": "프로젝트가 수정되었습니다.",
             "data": ProjectInDB.model_validate(project).model_dump(),
         }
@@ -387,10 +387,12 @@ def Store_project(project_id:int , db:Session=Depends(get_db)):
 
         return {
             # 성공 코드
-            "success": True,
-            "message": "프로젝트의 상태가 변경 되었습니다.",
-            "project_id": project.id,
-            "status": project.status,
+            "success":200,
+            "data":{
+                "message": "프로젝트의 상태가 변경 되었습니다.",
+                "project_id": project.id,
+                "status": project.status,
+            }
         }
 
     except HTTPException:
