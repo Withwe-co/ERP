@@ -100,6 +100,31 @@ def test_get_task_list():
     assert len(data) == 1
     assert data[0]["task_name"] == "태스크 API 구현"
 
+def test_get_tasks_by_project_id():
+    task_1 = valid_task_data()
+    task_1["project_id"] = 1
+    task_1["task_name"] = "프로젝트 1 태스크"
+
+    task_2 = valid_task_data()
+    task_2["project_id"] = 2
+    task_2["task_name"] = "프로젝트 2 태스크"
+
+    client.post("/tasks/", json=task_1)
+    client.post("/tasks/", json=task_2)
+
+    response = client.get(
+        "/tasks/",
+        params={"project_id": 1},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["project_id"] == 1
+    assert data[0]["task_name"] == "프로젝트 1 태스크"
+
 
 def test_get_task_by_id():
     create_response = client.post(

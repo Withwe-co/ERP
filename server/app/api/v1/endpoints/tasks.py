@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -37,10 +37,19 @@ def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
 
 # 태스크 목록 조회
 @router.get("/", response_model=List[TaskResponse],)
-def get_tasks(db: Session = Depends(get_db),):
-    '''태스크 목록 조회'''
-    return db.query(Task).all() # 현재 DB의 Task 전부 가져옴
+def get_tasks(
+    project_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """태스크 목록 조회"""
+    # 태스크 테이블을 조회할 준비(아직 DB에서 결과 가져오지 않음)
+    query = db.query(Task)
 
+    # project_id가 전달되면 해당 프로젝트의 태스크만 조회
+    if project_id is not None:
+        query = query.filter(Task.project_id == project_id)
+
+    return query.all()
 
 # 태스크 단건 조회
 @router.get("/{task_id}", response_model=TaskResponse,)
