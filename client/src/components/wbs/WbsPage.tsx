@@ -20,10 +20,6 @@ import api from '../../services/api';
 // Type
 import { TableColumn } from '../../types';
 
-
-
-
-
 interface ProjectList{
   id: number;
   project_code: string;
@@ -163,10 +159,10 @@ const WbsPage: React.FC = () => {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['wbs'] });
         queryClient.invalidateQueries({ queryKey: ['wbs-stats'] });
-        toast.success('품목이 보관되었습니다.');
+        toast.success('프로젝트의 상태가 변경되었습니다.');
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || '보관 중 오류가 발생했습니다.');
+        toast.error(error.response?.data?.message || '상태 변경 중 오류가 발생했습니다.');
       },
     });
   
@@ -197,7 +193,7 @@ const WbsPage: React.FC = () => {
   };
 
   const handleStore = async (itemId: number) => {
-    if (window.confirm('정말로 이 품목을 보관하시겠습니까?')) {
+    if (window.confirm('정말로 이 프로젝트의 상태를 변경하시겠습니까?')) {
       storeProjectMutation.mutate(itemId);
 
     }
@@ -225,7 +221,7 @@ const WbsPage: React.FC = () => {
       key: 'status',
       label: '상태',
       sortable: true,
-      width: '80px',
+      width: '100px',
       render: (value) => {
         const statusMap: Record<string, string> ={
           'COMPLETED': '완료',
@@ -319,20 +315,20 @@ const WbsPage: React.FC = () => {
               수정
             </Button>
             
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(event) => {event.stopPropagation();handleStore(item.id)}}
-              title="보류"
-            >
-              <Archive size={14} />
-              보류
-            </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(event) => {event.stopPropagation();handleStore(item.id)}}
+                title="상태변경"
+              >
+                <Archive size={14} />
+                {projectView=='all' ? '보류' : '진행'}
+              </Button>
           </ActionButtonGroup>
         );
       },
     }
-  ], []);
+  ], [projectView]);
 
   return(
     <>
@@ -357,15 +353,6 @@ const WbsPage: React.FC = () => {
             >
               <Archive size={16}/>
               전체 프로젝트
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isLoading}
-              title="새로고침"
-            >
-              <RefreshCw size={16} />
-              새로고침
             </Button>
             <Button
               onClick={() => setIsFormModalOpen(true)}       

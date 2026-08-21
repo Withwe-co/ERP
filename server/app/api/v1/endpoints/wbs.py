@@ -44,10 +44,8 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         required_fields = ['project_name', 'status', 'manager_name', 'department', 'start_date', 'due_date']
         for field in required_fields:
             if field not in request_in or not request_in[field]:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"필수 필드가 누락되었습니다: {field}"
-                )
+                raise HTTPException(status_code=422 , detail=f"필수 필드가 누락되었습니다: {field}")
+            
         # string-> datetime을 위한 함수
         def parse_date(date_str):
             if not date_str:
@@ -72,16 +70,20 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         # None 값 제거 (선택사항)
         filtered_data = {k: v for k, v in safe_data.items() if v is not None}
 
+        # 프로젝트명 중복 -> 400에러
+        if db.query(DBProject.id).filter(func.lower(DBProject.project_name)==safe_data['project_name'].lower()).first():
+            raise HTTPException(status_code=400,detail="이미 등록된 프로젝트명입니다.")
+
         # DB 객체 생성
         project = DBProject(**filtered_data)
         db.add(project)
         db.commit()
         db.refresh(project)
 
-        print(f"✅ 프로젝트 생성 완료: ID={project.id}")
+        print(f"프로젝트 생성 완료: ID={project.id}")
                 
         return {
-            "success": True,
+            "success": 201,
             "message": "프로젝트가 성공적으로 등록되었습니다.",
             "data": {
                 "id": project.id,
@@ -97,16 +99,14 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         }
 
     except HTTPException:
-            raise
+        raise
+
     except Exception as e:
         db.rollback()
-        print(f"❌ 프로젝트 등록 실패: {e}")
+        print(f"프로젝트 등록 실패: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"프로젝트 등록에 실패했습니다: {str(e)}"
-        )
+        print(f"스택 트레이스: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"프로젝트 등록에 실패했습니다: {str(e)}")
 
 @router.put("/{project_id}",response_model=dict)
 def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(get_db)):
@@ -150,6 +150,10 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
         if start_date > due_date:
             raise HTTPException(status_code=400,detail="종료일은 시작일보다 빠를 수 없습니다.")
 
+        # 프로젝트명 중복 -> 400에러
+        if db.query(DBProject.id).filter(func.lower(DBProject.project_name)==update_data.get("project_name",project.project_name).lower()).first():
+            raise HTTPException(status_code=400,detail="이미 등록된 프로젝트명입니다.")
+
         # 수정값으로 변경
         for field, value in update_data.items():
             setattr(project,field,value)
@@ -161,20 +165,18 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
         db.refresh(project)
 
         return {
-            "success": True,
+            # 성공 코드
+            "success": 200,
             "message": "프로젝트가 수정되었습니다.",
             "data": ProjectInDB.model_validate(project).model_dump(),
         }
 
     except HTTPException:
-        raise
-
+            raise
+    
     except Exception as e:
         db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"프로젝트 수정 중 오류가 발생했습니다: {str(e)}",
-        )
+        raise HTTPException(status_code=500, detail=f"프로젝트 수정 중 오류가 발생했습니다: {str(e)}")
     
 @router.get("/",response_model=ProjectsList)
 def read_projectlist(
@@ -223,11 +225,11 @@ def read_projectlist(
 
         # 총 개수 조회
         total = query.count()
-        print(f"📊 총 개수: {total}")
+        print(f"총 개수: {total}")
 
         # 데이터 조회
         items = query.order_by(DBProject.id.desc()).offset(skip).limit(limit).all()
-        print(f"📋 조회된 항목 수: {len(items)}")
+        print(f"조회된 항목 수: {len(items)}")
 
         # Response 객체로 반환
         response_items = [
@@ -244,14 +246,15 @@ def read_projectlist(
         }
 
         return result
+
+    except HTTPException:
+            raise
+    
     except Exception as e:
-        print(f"❌ 구매 요청 목록 조회 오류: {e}")
+        print(f"프로젝트 목록 조회 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"구매 요청 목록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        print(f"스택 트레이스: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}")
 
 @router.get("/on_hold",response_model=ProjectsList)
 def read_on_hold_projectlist(
@@ -295,11 +298,11 @@ def read_on_hold_projectlist(
 
         # 총 개수 조회
         total = query.count()
-        print(f"📊 총 개수: {total}")
+        print(f"총 개수: {total}")
 
         # 데이터 조회
         items = query.order_by(DBProject.id.desc()).offset(skip).limit(limit).all()
-        print(f"📋 조회된 항목 수: {len(items)}")
+        print(f"조회된 항목 수: {len(items)}")
 
         # Response 객체로 반환
         response_items = [
@@ -317,12 +320,12 @@ def read_on_hold_projectlist(
 
         return result
     except Exception as e:
-        print(f"❌ 구매 요청 목록 조회 오류: {e}")
+        print(f"구매 요청 목록 조회 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
-            detail=f"구매 요청 목록 조회 중 오류가 발생했습니다: {str(e)}"
+            detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}"
         )
 
 @router.get("/next-code",response_model=dict)
@@ -373,28 +376,28 @@ def Store_project(project_id:int , db:Session=Depends(get_db)):
         if project is None:
             raise HTTPException(status_code=404,detail=f"프로젝트를 찾을 수 없습니다: {project_id}",)
 
-        # project의 상태가 이미 보류(ON_HOLD)이면 메시지 출력
+        # project의 상태가 이미 보류(ON_HOLD)이면 진행중(IN_PROGRESS)으로 변경 이외에는 보류(ON_HOLD)로 변경
         if project.status == "ON_HOLD":
-            return {
-                "success": True,
-                "message": "이미 보류 상태인 프로젝트입니다.",
-                "project_id": project.id,
-                "status": project.status,
-            }
-
-        project.status = "ON_HOLD"
+            project.status = "IN_PROGRESS"
+        else:
+            project.status = "ON_HOLD"
+        
         db.commit()
         db.refresh(project)
 
         return {
-            "success": True,
-            "message": "프로젝트가 보류 처리되었습니다.",
-            "project_id": project.id,
-            "status": project.status,
+            # 성공 코드
+            "success":200,
+            "data":{
+                "message": "프로젝트의 상태가 변경 되었습니다.",
+                "project_id": project.id,
+                "status": project.status,
+            }
         }
-    
+
     except HTTPException:
-        raise
+            raise
+    
     # 예외 처리: DB 롤백 및 500 에러 반환
     except Exception as e:
         db.rollback()

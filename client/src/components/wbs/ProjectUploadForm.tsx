@@ -208,7 +208,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
           console.error('HTTP 상태 코드:', error.response?.status);
           console.error('에러 응답 데이터:', error.response?.data);
           
-          toast.error(error.response?.data?.message || '처리 중 오류가 발생했습니다.');
+          toast.error(error.response?.data?.detail || '처리 중 오류가 발생했습니다.');
         },
     });
 
@@ -222,7 +222,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
         },
         onError: (error: any) => {
           console.error('프로젝트 수정 실패:', error);
-          toast.error(error.response?.data?.message || '수정 중 오류가 발생했습니다.');
+          toast.error(error.response?.data?.detail || '수정 중 오류가 발생했습니다.');
         },
     });
 

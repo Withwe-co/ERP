@@ -40,10 +40,8 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         required_fields = ['wbs_code', 'wbs_name','start_date', 'due_date']
         for field in required_fields:
             if field not in request_in or not request_in[field]:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"필수 필드가 누락되었습니다: {field}"
-                )
+                raise HTTPException(status_code=422,detail=f"필수 필드가 누락되었습니다: {field}")
+            
         # string-> datetime을 위한 함수
         def parse_date(date_str):
             if not date_str:
@@ -74,10 +72,10 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         db.commit()
         db.refresh(wbs)
 
-        print(f"✅ WBS 생성 완료: ID={wbs.id}")
+        print(f"WBS 생성 완료: ID={wbs.id}")
                 
         return {
-            "success": True,
+            "success": 201,
             "message": "WBS가 성공적으로 등록되었습니다.",
             "data": {
                 "id": wbs.id,
@@ -93,12 +91,10 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
 
     except HTTPException:
             raise
+
     except Exception as e:
         db.rollback()
-        print(f"❌ WBS 등록 실패: {e}")
+        print(f"WBS 등록 실패: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"WBS 등록에 실패했습니다: {str(e)}"
-        )
+        print(f"스택 트레이스: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"WBS 등록에 실패했습니다: {str(e)}")
