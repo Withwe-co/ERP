@@ -245,12 +245,12 @@ def read_projectlist(
 
         return result
     except Exception as e:
-        print(f"❌ 구매 요청 목록 조회 오류: {e}")
+        print(f"❌ 프로젝트 목록 조회 오류: {e}")
         import traceback
         print(f"📋 스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
-            detail=f"구매 요청 목록 조회 중 오류가 발생했습니다: {str(e)}"
+            detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}"
         )
 
 @router.get("/on_hold",response_model=ProjectsList)
@@ -322,7 +322,7 @@ def read_on_hold_projectlist(
         print(f"📋 스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
-            detail=f"구매 요청 목록 조회 중 오류가 발생했습니다: {str(e)}"
+            detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}"
         )
 
 @router.get("/next-code",response_model=dict)

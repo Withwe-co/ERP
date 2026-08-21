@@ -20,10 +20,6 @@ import api from '../../services/api';
 // Type
 import { TableColumn } from '../../types';
 
-
-
-
-
 interface ProjectList{
   id: number;
   project_code: string;
