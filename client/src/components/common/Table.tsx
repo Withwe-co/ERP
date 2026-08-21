@@ -273,7 +273,7 @@ function Table<T extends Record<string, any>>({
                   {columns.map((column) => {
                     const value = item[column.key];
                     const displayValue = column.render 
-                      ? column.render(value, item) 
+                      ? column.render(value, item, index) 
                       : value;
                     
                     return (
