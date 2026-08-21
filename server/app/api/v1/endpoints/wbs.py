@@ -376,23 +376,19 @@ def Store_project(project_id:int , db:Session=Depends(get_db)):
         if project is None:
             raise HTTPException(status_code=404,detail=f"프로젝트를 찾을 수 없습니다: {project_id}",)
 
-        # project의 상태가 이미 보류(ON_HOLD)이면 메시지 출력
+        # project의 상태가 이미 보류(ON_HOLD)이면 진행중(IN_PROGRESS)으로 변경 이외에는 보류(ON_HOLD)로 변경
         if project.status == "ON_HOLD":
-            return {
-                "success": True,
-                "message": "이미 보류 상태인 프로젝트입니다.",
-                "project_id": project.id,
-                "status": project.status,
-            }
-
-        project.status = "ON_HOLD"
+            project.status = "IN_PROGRESS"
+        else:
+            project.status = "ON_HOLD"
+        
         db.commit()
         db.refresh(project)
 
         return {
             # 성공 코드
             "success": True,
-            "message": "프로젝트가 보류 처리되었습니다.",
+            "message": "프로젝트의 상태가 변경 되었습니다.",
             "project_id": project.id,
             "status": project.status,
         }

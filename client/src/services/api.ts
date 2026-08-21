@@ -1849,7 +1849,7 @@ export const projectApi = {
       const response = await api.patch(`/wbs/${ProjectId}/store`);
       return response.data;
     } catch (error) {
-      console.error('프로젝트 보관 실패:', error);
+      console.error('프로젝트 상태 변경 실패:', error);
       throw error;
     }
   },
