@@ -4,7 +4,7 @@
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
 
 // TaskPriority: 우선순위로 허용할 값 정의
-export type TaskPriority = "LOW" | "MEDIUM" | "HIGH";
+export type TaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
 // Task: 태스크 하나가 어떤 데이터를 가지고 있는지 정의
 export interface Task {
@@ -37,4 +37,13 @@ export interface TaskFilter {
   priority?: TaskPriority;
   assignee_name?: string;
   department?: string;
+}
+
+// TaskResponse: 서버에서 태스크 등록/조회 후 반환되는 데이터 구조
+// Task 기본 정보에 보관 여부와 생성/수정 시간을 추가
+export interface TaskResponse extends Task {
+  is_archived: boolean;
+  archived_at?: string | null;
+  created_at: string;
+  updated_at: string;
 }

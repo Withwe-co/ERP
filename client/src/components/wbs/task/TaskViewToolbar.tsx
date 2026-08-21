@@ -1,8 +1,14 @@
 import styled from "styled-components";
 import Button from "../../common/Button";
 
+// 태스크 보기 도구 영역에서 사용할 이벤트 Props
+interface TaskViewToolbarProps {
+  // 태스크 등록 버튼을 클릭했을 때 실행할 함수
+  onCreateTask: () => void;
+}
+
 // 태스크 보기 방식 전환 및 등록 버튼 영역
-function TaskViewToolbar() {
+function TaskViewToolbar({onCreateTask,}: TaskViewToolbarProps) {
   return (
     <ActionArea>
       <ViewArea>
@@ -12,7 +18,10 @@ function TaskViewToolbar() {
         </Button>
       </ViewArea>
 
-      <Button>태스크 등록</Button>
+      {/* 태스크 등록 Modal을 열기 위한 버튼 */}
+      <Button onClick={onCreateTask}>
+        태스크 등록
+      </Button>
     </ActionArea>
   );
 }

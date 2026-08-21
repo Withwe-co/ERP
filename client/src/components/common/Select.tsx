@@ -23,6 +23,12 @@ const StyledSelect = styled.select`
   color: #374151;
   cursor: pointer;
   
+  /* 선택할 수 없는 옵션을 회색으로 표시 */
+  option:disabled {
+    color: #9ca3af;
+    background: #f3f4f6;
+  }
+
   &:focus {
     outline: none;
     border-color: #3b82f6;

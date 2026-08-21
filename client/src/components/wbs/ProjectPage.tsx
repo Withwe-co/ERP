@@ -42,11 +42,6 @@ const TabContent = styled.div`
   padding-top: 20px;
 `;
 
-// 실제 WBS 상세 화면 연결 전 임시 영역
-const WbsPlaceholder = styled.div`
-  min-height: 400px;
-  padding: 20px;
-`;
 
 // 카드 사이에 여백
 const CardWrapper = styled.div`
@@ -281,13 +276,15 @@ const ProjectPage: React.FC = () => {
                   {activeTab === 'wbs' ? (
                   <WbsManagementPage projectId={project.id} />
                   ) : (
-                  <TaskManagementPage />
+                  <TaskManagementPage 
+                    projectId={project.id}
+                    projectName={project.project_name}
+                  />
                   )}
               </TabContent>
             </Card>
           </CardWrapper>
           
-       
         </Container>
     )
 };
