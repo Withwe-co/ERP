@@ -89,12 +89,12 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
             }
         }
 
+    except HTTPException:
+            raise
+
     except Exception as e:
         db.rollback()
         print(f"WBS 등록 실패: {e}")
         import traceback
         print(f"스택 트레이스: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"WBS 등록에 실패했습니다: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"WBS 등록에 실패했습니다: {str(e)}")

@@ -44,10 +44,7 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         required_fields = ['project_name', 'status', 'manager_name', 'department', 'start_date', 'due_date']
         for field in required_fields:
             if field not in request_in or not request_in[field]:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"필수 필드가 누락되었습니다: {field}"
-                )
+                raise HTTPException(status_code=422 , detail=f"필수 필드가 누락되었습니다: {field}")
             
         # string-> datetime을 위한 함수
         def parse_date(date_str):
@@ -73,6 +70,10 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
         # None 값 제거 (선택사항)
         filtered_data = {k: v for k, v in safe_data.items() if v is not None}
 
+        # 프로젝트명 중복 -> 400에러
+        if db.query(DBProject.id).filter(func.lower(DBProject.project_name)==safe_data['project_name'].lower()).first():
+            raise HTTPException(status_code=400,detail="이미 등록된 프로젝트명입니다.")
+
         # DB 객체 생성
         project = DBProject(**filtered_data)
         db.add(project)
@@ -96,16 +97,16 @@ def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTask
                 "project_description": project.project_description
             }
         }
-    
+
+    except HTTPException:
+        raise
+
     except Exception as e:
         db.rollback()
         print(f"프로젝트 등록 실패: {e}")
         import traceback
         print(f"스택 트레이스: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"프로젝트 등록에 실패했습니다: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"프로젝트 등록에 실패했습니다: {str(e)}")
 
 @router.put("/{project_id}",response_model=dict)
 def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(get_db)):
@@ -149,6 +150,10 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
         if start_date > due_date:
             raise HTTPException(status_code=400,detail="종료일은 시작일보다 빠를 수 없습니다.")
 
+        # 프로젝트명 중복 -> 400에러
+        if db.query(DBProject.id).filter(func.lower(DBProject.project_name)==update_data.get("project_name",project.project_name).lower()).first():
+            raise HTTPException(status_code=400,detail="이미 등록된 프로젝트명입니다.")
+
         # 수정값으로 변경
         for field, value in update_data.items():
             setattr(project,field,value)
@@ -166,12 +171,12 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
             "data": ProjectInDB.model_validate(project).model_dump(),
         }
 
+    except HTTPException:
+            raise
+    
     except Exception as e:
         db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"프로젝트 수정 중 오류가 발생했습니다: {str(e)}",
-        )
+        raise HTTPException(status_code=500, detail=f"프로젝트 수정 중 오류가 발생했습니다: {str(e)}")
     
 @router.get("/",response_model=ProjectsList)
 def read_projectlist(
@@ -241,15 +246,15 @@ def read_projectlist(
         }
 
         return result
+
+    except HTTPException:
+            raise
     
     except Exception as e:
         print(f"프로젝트 목록 조회 오류: {e}")
         import traceback
         print(f"스택 트레이스: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"프로젝트 목록 조회 중 오류가 발생했습니다: {str(e)}")
 
 @router.get("/on_hold",response_model=ProjectsList)
 def read_on_hold_projectlist(
@@ -392,6 +397,9 @@ def Store_project(project_id:int , db:Session=Depends(get_db)):
             "status": project.status,
         }
 
+    except HTTPException:
+            raise
+    
     # 예외 처리: DB 롤백 및 500 에러 반환
     except Exception as e:
         db.rollback()
