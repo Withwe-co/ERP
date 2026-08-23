@@ -3,8 +3,12 @@ import Modal from "../common/Modal";
 import styled from "styled-components";
 import Card from "../common/Card";
 import TaskSearchFilter from "./task/TaskSearchFilter";
-import TaskViewToolbar from "./task/TaskViewToolbar";
+import TaskViewToolbar, {TaskViewMode,} from "./task/TaskViewToolbar";
 import TaskCreateForm from "./task/TaskCreateForm";
+import { useQuery } from "@tanstack/react-query";
+import { taskApi } from "../../services/api";
+import TaskList from "./task/TaskList";
+import { TaskFilter } from "../../types/task";
 
 // 현재 선택된 프로젝트의 ID와 이름을 전달받기 위한 Props
 interface TaskManagementPageProps {
@@ -17,6 +21,32 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
   // 태스크 등록 Modal의 열림/닫힘 상태
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // 현재 태스크 화면의 보기 방식
+  // 처음 진입했을 때는 칸반 보기가 기본
+  const [viewMode, setViewMode] = useState<TaskViewMode>("kanban");
+
+  // 현재 적용된 태스크 검색 및 필터 조건을 관리
+  const [filters, setFilters] = useState<TaskFilter>({});
+
+  // 검색 또는 필터 조건이 변경되면
+  // TaskSearchFilter에서 전달받은 값을 부모의 filters 상태에 저장
+  const handleSearch = (searchFilters: TaskFilter) => {setFilters(searchFilters);};
+
+  // 현재 프로젝트의 태스크 목록 조회
+  const {data: tasks = [], isLoading, error, refetch,} = useQuery({
+    // 프로젝트 또는 검색/필터 조건이 변경되면 서로 다른 조회 데이터로 인식하여 API 다시 호출
+    queryKey: ["tasks", projectId, filters],
+
+    // 현재 프로젝트 ID와 검색/필터 조건을 서버에 전달
+    queryFn: () => taskApi.getTasks(projectId, filters),
+
+    // 한 번 조회한 데이터는 5분 동안 최신 데이터로 간주
+    staleTime: 5 * 60 * 1000,
+
+    // 조회 실패 시 최대 2번 재시도
+    retry: 2,
+  });
+
   return (
     <>
       <Container>
@@ -26,15 +56,34 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
           {projectName} 프로젝트의 태스크를 조회하고 관리할 수 있습니다.
         </PageSubtitle>
 
-        {/* 태스크 검색 및 필터 영역 */}
-        <TaskSearchFilter />
+        {/* 검색 및 필터 조건이 변경되면 부모의 filters 상태에 반영 */}
+        <TaskSearchFilter
+          onFilter={handleSearch}
+        />
 
-        {/* 보기 방식 전환 및 태스크 등록 영역 */}
-        <TaskViewToolbar onCreateTask={() => setIsCreateModalOpen(true)}/>
+        {/* 보기 방식 전환 및 태스크 등록 영역 -> 현재 보기 상태와 상태 변경 함수를 Toolbar에 전달 */}
+        <TaskViewToolbar 
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onCreateTask={() => setIsCreateModalOpen(true)}
+        />
 
-        {/* 칸반 또는 목록이 표시될 메인 콘텐츠 영역 */}
+        {/* 현재 선택된 보기 방식에 따라 태스크 목록 또는 칸반 임시 화면을 표시 */}
         <ContentCard>
-          태스크 콘텐츠 영역
+          {error ? (
+            <ErrorMessage>
+              태스크 목록을 불러오지 못했습니다.
+            </ErrorMessage>
+          ) : viewMode === "list" ? (
+            <TaskList
+              tasks={tasks}
+              loading={isLoading}
+            />
+          ) : (
+            <KanbanPlaceholder>
+              칸반 보드는 추후 구현 예정입니다.
+            </KanbanPlaceholder>
+          )}
         </ContentCard>
       </Container>
 
@@ -49,9 +98,9 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
         <TaskCreateForm
             projectId={projectId}
             projectName={projectName}
-            // 태스크 등록 성공 시 Modal 닫기
-            onSuccess={() => setIsCreateModalOpen(false)}
-            // 사용자가 취소한 경우에도 Modal 닫기
+            // 태스크 등록 성공 시 Modal은 닫고 태스크 목록을 다시 조회
+            onSuccess={() => {setIsCreateModalOpen(false); refetch();}}
+            // 사용자가 취소한 경우에는 Modal만 닫음
             onCancel={() => setIsCreateModalOpen(false)}
         />
       </Modal>     
@@ -89,4 +138,18 @@ const PageSubtitle = styled.p`
 // 태스크 칸반 또는 목록이 표시될 콘텐츠 영역
 const ContentCard = styled(Card)`
   min-height: 400px;
+`;
+
+// 태스크 목록 조회 실패 시 표시할 메시지
+const ErrorMessage = styled.div`
+  padding: 40px 20px;
+  text-align: center;
+  color: ${props => props.theme.colors.error};
+`;
+
+// 실제 칸반보드 구현 전 임시 표시 영역
+const KanbanPlaceholder = styled.div`
+  padding: 60px 20px;
+  text-align: center;
+  color: ${props => props.theme.colors.textSecondary};
 `;
