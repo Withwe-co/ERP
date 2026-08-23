@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // 태스크 API 요청/응답에 사용할 타입
-import {TaskCreateData, TaskResponse,} from '../types/task';
+import {TaskCreateData, TaskFilter, TaskResponse,} from '../types/task';
 
 // API 기본 설정
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
@@ -396,10 +396,18 @@ export const taskApi = {
   },
 
   // 프로젝트별 태스크 목록 조회
-  getTasks: async (projectId: number): Promise<TaskResponse[]> => {
+  // 검색 및 필터 조건이 있으면 query parameter에 함께 전달
+  getTasks: async (
+    projectId: number,
+    filters: TaskFilter = {},
+  ): Promise<TaskResponse[]> => {
     try {
       const response = await apiRequest.get("/tasks/", {
+        // 현재 프로젝트의 태스크만 조회
         project_id: projectId,
+
+        // 검색어, 상태, 우선순위, 담당자, 부서 필터를 함께 전달
+        ...filters,
       });
 
       return response;

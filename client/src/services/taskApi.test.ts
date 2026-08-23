@@ -55,4 +55,44 @@ describe("taskApi", () => {
 
     expect(result).toEqual(responseData);
   });
+
+  it("검색 및 필터 조건을 query parameter로 전달한다", async () => {
+    const responseData = [
+      {
+        id: 1,
+        project_id: 2,
+        wbs_id: 1,
+        task_name: "태스크 목록 구현",
+      },
+    ];
+
+    mockGet.mockResolvedValue({
+      data: responseData,
+    });
+
+    const result = await taskApi.getTasks(2, {
+      search: "목록",
+      status: "IN_PROGRESS",
+      priority: "HIGH",
+      assignee_name: "담당자1",
+      department: "담당부서1",
+    });
+
+    expect(mockGet).toHaveBeenCalledWith(
+      "/tasks/",
+      {
+        params: {
+          project_id: 2,
+          search: "목록",
+          status: "IN_PROGRESS",
+          priority: "HIGH",
+          assignee_name: "담당자1",
+          department: "담당부서1",
+        },
+      },
+    );
+
+    expect(result).toEqual(responseData);
+  });
+
 });

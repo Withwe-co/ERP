@@ -8,6 +8,7 @@ import TaskCreateForm from "./task/TaskCreateForm";
 import { useQuery } from "@tanstack/react-query";
 import { taskApi } from "../../services/api";
 import TaskList from "./task/TaskList";
+import { TaskFilter } from "../../types/task";
 
 // 현재 선택된 프로젝트의 ID와 이름을 전달받기 위한 Props
 interface TaskManagementPageProps {
@@ -24,13 +25,20 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
   // 처음 진입했을 때는 칸반 보기가 기본
   const [viewMode, setViewMode] = useState<TaskViewMode>("kanban");
 
+  // 현재 적용된 태스크 검색 및 필터 조건을 관리
+  const [filters, setFilters] = useState<TaskFilter>({});
+
+  // 검색 또는 필터 조건이 변경되면
+  // TaskSearchFilter에서 전달받은 값을 부모의 filters 상태에 저장
+  const handleSearch = (searchFilters: TaskFilter) => {setFilters(searchFilters);};
+
   // 현재 프로젝트의 태스크 목록 조회
   const {data: tasks = [], isLoading, error, refetch,} = useQuery({
-    // projectId가 달라지면 다른 프로젝트의 태스크 목록으로 구분
-    queryKey: ["tasks", projectId],
+    // 프로젝트 또는 검색/필터 조건이 변경되면 서로 다른 조회 데이터로 인식하여 API 다시 호출
+    queryKey: ["tasks", projectId, filters],
 
-    // 현재 프로젝트 ID를 사용해 태스크 목록 API 호출
-    queryFn: () => taskApi.getTasks(projectId),
+    // 현재 프로젝트 ID와 검색/필터 조건을 서버에 전달
+    queryFn: () => taskApi.getTasks(projectId, filters),
 
     // 한 번 조회한 데이터는 5분 동안 최신 데이터로 간주
     staleTime: 5 * 60 * 1000,
@@ -48,8 +56,10 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
           {projectName} 프로젝트의 태스크를 조회하고 관리할 수 있습니다.
         </PageSubtitle>
 
-        {/* 태스크 검색 및 필터 영역 */}
-        <TaskSearchFilter />
+        {/* 검색 및 필터 조건이 변경되면 부모의 filters 상태에 반영 */}
+        <TaskSearchFilter
+          onFilter={handleSearch}
+        />
 
         {/* 보기 방식 전환 및 태스크 등록 영역 -> 현재 보기 상태와 상태 변경 함수를 Toolbar에 전달 */}
         <TaskViewToolbar 
