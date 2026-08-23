@@ -125,6 +125,35 @@ def test_get_tasks_by_project_id():
     assert data[0]["project_id"] == 1
     assert data[0]["task_name"] == "프로젝트 1 태스크"
 
+def test_get_tasks_by_search():
+    """태스크명에 검색어가 포함된 태스크만 조회되는지 확인한다."""
+
+    # 같은 프로젝트에 서로 다른 이름의 태스크 2개 생성
+    task_1 = valid_task_data()
+    task_1["project_id"] = 2
+    task_1["task_name"] = "태스크 목록 구현"
+
+    task_2 = valid_task_data()
+    task_2["project_id"] = 2
+    task_2["task_name"] = "API 테스트"
+
+    client.post("/tasks/", json=task_1)
+    client.post("/tasks/", json=task_2)
+
+    # 2번 프로젝트에서 태스크명에 "목록"이 포함된 태스크 조회
+    response = client.get(
+        "/tasks/",
+        params={"project_id": 2, "search": "목록",},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # 검색어가 포함된 태스크 하나만 조회되어야 함
+    assert len(data) == 1
+    assert data[0]["task_name"] == "태스크 목록 구현"
+
 
 def test_get_task_by_id():
     create_response = client.post(
@@ -138,6 +167,186 @@ def test_get_task_by_id():
 
     assert response.status_code == 200
     assert response.json()["id"] == task_id
+
+def test_get_tasks_by_status():
+    """선택한 상태와 같은 태스크만 조회되는지 확인한다."""
+
+    task_1 = valid_task_data()
+    task_1["project_id"] = 2
+    task_1["task_name"] = "진행 중 태스크"
+    task_1["status"] = "IN_PROGRESS"
+    task_1["progress_rate"] = 50
+
+    task_2 = valid_task_data()
+    task_2["project_id"] = 2
+    task_2["task_name"] = "대기 태스크"
+    task_2["status"] = "TODO"
+    task_2["progress_rate"] = 0
+
+    client.post("/tasks/", json=task_1)
+    client.post("/tasks/", json=task_2)
+
+    response = client.get(
+        "/tasks/",
+        params={"project_id": 2,"status": "IN_PROGRESS",},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["status"] == "IN_PROGRESS"
+    assert data[0]["task_name"] == "진행 중 태스크"
+
+def test_get_tasks_by_priority():
+    """선택한 우선순위와 같은 태스크만 조회되는지 확인한다."""
+
+    task_1 = valid_task_data()
+    task_1["project_id"] = 2
+    task_1["task_name"] = "높은 우선순위 태스크"
+    task_1["priority"] = "HIGH"
+
+    task_2 = valid_task_data()
+    task_2["project_id"] = 2
+    task_2["task_name"] = "보통 우선순위 태스크"
+    task_2["priority"] = "NORMAL"
+
+    client.post("/tasks/", json=task_1)
+    client.post("/tasks/", json=task_2)
+
+    response = client.get(
+        "/tasks/",
+        params={"project_id": 2,"priority": "HIGH",},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["priority"] == "HIGH"
+    assert data[0]["task_name"] == "높은 우선순위 태스크"
+
+def test_get_tasks_by_assignee_name():
+    """입력한 담당자명이 포함된 태스크만 조회되는지 확인한다."""
+
+    task_1 = valid_task_data()
+    task_1["project_id"] = 2
+    task_1["task_name"] = "담당자1 태스크"
+    task_1["assignee_name"] = "담당자1"
+
+    task_2 = valid_task_data()
+    task_2["project_id"] = 2
+    task_2["task_name"] = "담당자2 태스크"
+    task_2["assignee_name"] = "담당자2"
+
+    client.post("/tasks/", json=task_1)
+    client.post("/tasks/", json=task_2)
+
+    response = client.get(
+        "/tasks/",
+        params={"project_id": 2,"assignee_name": "자1",},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["assignee_name"] == "담당자1"
+    assert data[0]["task_name"] == "담당자1 태스크"
+
+def test_get_tasks_by_department():
+    """입력한 부서명이 포함된 태스크만 조회되는지 확인한다."""
+
+    task_1 = valid_task_data()
+    task_1["project_id"] = 2
+    task_1["task_name"] = "담당부서1 태스크"
+    task_1["department"] = "담당부서1"
+
+    task_2 = valid_task_data()
+    task_2["project_id"] = 2
+    task_2["task_name"] = "담당부서2 태스크"
+    task_2["department"] = "담당부서2"
+
+    client.post("/tasks/", json=task_1)
+    client.post("/tasks/", json=task_2)
+
+    response = client.get(
+        "/tasks/",
+        params={"project_id": 2,"department": "부서1",},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["department"] == "담당부서1"
+    assert data[0]["task_name"] == "담당부서1 태스크"
+
+def test_get_tasks_with_multiple_filters():
+    """검색어와 여러 필터가 동시에 적용되는지 확인한다."""
+
+    # 모든 검색/필터 조건에 일치하는 태스크
+    task_1 = valid_task_data()
+    task_1["project_id"] = 2
+    task_1["task_name"] = "태스크 목록 화면 구현"
+    task_1["status"] = "IN_PROGRESS"
+    task_1["progress_rate"] = 50
+    task_1["priority"] = "HIGH"
+    task_1["assignee_name"] = "담당자1"
+    task_1["department"] = "담당부서1"
+
+    # 같은 프로젝트이지만 상태가 다른 태스크
+    task_2 = valid_task_data()
+    task_2["project_id"] = 2
+    task_2["task_name"] = "태스크 API 구현"
+    task_2["status"] = "TODO"
+    task_2["progress_rate"] = 0
+    task_2["priority"] = "HIGH"
+    task_2["assignee_name"] = "담당자1"
+    task_2["department"] = "담당부서1"
+
+    # 같은 프로젝트이지만 담당자가 다른 태스크
+    task_3 = valid_task_data()
+    task_3["project_id"] = 2
+    task_3["task_name"] = "태스크 목록 테스트"
+    task_3["status"] = "IN_PROGRESS"
+    task_3["progress_rate"] = 30
+    task_3["priority"] = "HIGH"
+    task_3["assignee_name"] = "담당자2"
+    task_3["department"] = "담당부서1"
+
+    client.post("/tasks/", json=task_1)
+    client.post("/tasks/", json=task_2)
+    client.post("/tasks/", json=task_3)
+
+    # 여러 검색/필터 조건을 동시에 전달
+    response = client.get(
+        "/tasks/",
+        params={
+            "project_id": 2,
+            "search": "목록",
+            "status": "IN_PROGRESS",
+            "priority": "HIGH",
+            "assignee_name": "담당자1",
+            "department": "담당부서1",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # 모든 조건을 만족하는 task_1 하나만 조회되어야 함
+    assert len(data) == 1
+    assert data[0]["task_name"] == "태스크 목록 화면 구현"
+    assert data[0]["status"] == "IN_PROGRESS"
+    assert data[0]["priority"] == "HIGH"
+    assert data[0]["assignee_name"] == "담당자1"
+    assert data[0]["department"] == "담당부서1"
 
 
 def test_get_missing_task_returns_404():

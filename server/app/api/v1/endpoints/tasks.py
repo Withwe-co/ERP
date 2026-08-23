@@ -35,20 +35,57 @@ def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
     return task
 
 
-# 태스크 목록 조회
-@router.get("/", response_model=List[TaskResponse],)
+@router.get("/", response_model=List[TaskResponse])
 def get_tasks(
     project_id: Optional[int] = None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    assignee_name: Optional[str] = None,
+    department: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """태스크 목록 조회"""
-    # 태스크 테이블을 조회할 준비(아직 DB에서 결과 가져오지 않음)
+
+    # 태스크 테이블 조회 쿼리 생성
+    # 아직 실제 데이터를 가져오는 단계는 아님
     query = db.query(Task)
 
     # project_id가 전달되면 해당 프로젝트의 태스크만 조회
     if project_id is not None:
         query = query.filter(Task.project_id == project_id)
 
+    # 검색어가 전달되면 태스크명에 검색어가 포함된 태스크만 조회
+    if search:
+        query = query.filter(
+            Task.task_name.ilike(f"%{search}%")
+        )
+
+    # 상태가 전달되면 해당 상태의 태스크만 조회
+    if status:
+        query = query.filter(
+            Task.status == status
+        )
+
+    # 우선순위가 전달되면 해당 우선순위의 태스크만 조회
+    if priority:
+        query = query.filter(
+            Task.priority == priority
+        )
+
+    # 담당자가 전달되면 담당자명에 검색어가 포함된 태스크만 조회
+    if assignee_name:
+        query = query.filter(
+            Task.assignee_name.ilike(f"%{assignee_name}%")
+        )
+
+    # 부서가 전달되면 부서명에 검색어가 포함된 태스크만 조회
+    if department:
+        query = query.filter(
+            Task.department.ilike(f"%{department}%")
+        )
+
+    # 위에서 적용한 모든 조건에 맞는 태스크 조회
     return query.all()
 
 # 태스크 단건 조회
