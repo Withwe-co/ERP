@@ -274,7 +274,11 @@ const ProjectPage: React.FC = () => {
               {/* 선택된 탭에 따라 화면 전환 */}
               <TabContent>
                   {activeTab === 'wbs' ? (
-                  <WbsManagementPage projectId={project.id} />
+                  <WbsManagementPage 
+                    projectId={project.id}
+                    projectStartDate={project.start_date}
+                    projectDueDate={project.due_date}
+                   />
                   ) : (
                   <TaskManagementPage 
                     projectId={project.id}
