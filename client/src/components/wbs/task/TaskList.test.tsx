@@ -33,8 +33,8 @@ describe("TaskList", () => {
         // 해당 태스크가 속한 프로젝트 ID
         project_id: 1,
 
-        // 해당 태스크가 속한 WBS ID
-        wbs_id: 3,
+        // 해당 태스크가 속한 WBS CODE
+        wbs_code: "1.3",
 
         // 태스크 기본 정보
         task_name: "태스크 목록 구현",
@@ -48,9 +48,6 @@ describe("TaskList", () => {
         // 태스크 예정 일정
         planned_start_date: "2026-08-21",
         planned_end_date: "2026-08-22",
-
-        // 진척률
-        progress_rate: 50,
 
         // 선택 입력값
         description: "TaskList 구현",
@@ -92,7 +89,5 @@ describe("TaskList", () => {
     // 부서가 표시되는지 확인
     expect(html).toContain("개발팀");
 
-    // 진척률이 사용자에게 50% 형태로 표시되는지 확인
-    expect(html).toContain("50%");
   });
 });

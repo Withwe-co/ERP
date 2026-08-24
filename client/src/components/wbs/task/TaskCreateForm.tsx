@@ -6,10 +6,8 @@ import Input from "../../common/Input";
 import Select from "../../common/Select";
 
 import {TaskCreateData,TaskPriority,TaskStatus,} from "../../../types/task";
-
 import { toast } from "react-toastify";
-import { getTaskStatusAfterProgressChange,validateTaskCreateData } from "./taskValidation";
-
+import { validateTaskCreateData } from "./taskValidation";
 import { taskApi } from "../../../services/api";
 
 
@@ -36,8 +34,8 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
         // 프로젝트 ID는 현재 프로젝트 상세 화면의 ID를 자동으로 사용
         project_id: projectId,
 
-        // WBS 연동 전까지는 사용자가 숫자 ID를 직접 입력
-        wbs_id: 0,
+        // WBS 연동 전까지는 사용자가 WBS 코드를 직접 입력
+        wbs_code: "",
 
         task_name: "",
         assignee_name: "",
@@ -52,15 +50,9 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
         planned_start_date: "",
         planned_end_date: "",
 
-        // 신규 태스크의 기본 진척률
-        progress_rate: 0,
-
         description: "",
         note: "",
     });
-
-    // 진척률 입력창은 신규 태스크의 기본값인 0을 화면에 표시
-    const [progressInput, setProgressInput] = useState("0");
 
     // POST 요청이 진행 중인지 관리
     // 중복으로 등록 버튼을 누르는 것을 방지하기 위해 사용
@@ -94,23 +86,14 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
         // FastAPI가 문자열 형태의 detail을 반환한 경우 사용
         const detail = error.response?.data?.detail;
 
-        if (typeof detail === "string") {
-        toast.error(detail);
-        return;
-        }
+        if (typeof detail === "string") {toast.error(detail); return;}
 
         // FastAPI 입력값 검증 실패
-        if (error.response?.status === 422) {
-        toast.error("입력값 형식을 확인해주세요.");
-        return;
-        }
+        if (error.response?.status === 422) {toast.error("입력값 형식을 확인해주세요."); return;}
 
         // 그 외 서버/네트워크 오류
         toast.error("태스크 등록 중 오류가 발생했습니다.");
-    } finally {
-        // 성공/실패와 관계없이 API 요청 상태 종료
-        setIsSubmitting(false);
-    }
+    } finally {setIsSubmitting(false);}  // 성공/실패와 관계없이 API 요청 상태 종료
     };
 
 
@@ -127,12 +110,11 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
             />
 
             <Input
-            label="WBS ID"
-            type="number"
-            value={formData.wbs_id || ""}
-            min={1}
-            required
-            onChange={(event) =>setFormData({...formData, wbs_id: Number(event.target.value),})}
+                label="WBS 코드"
+                value={formData.wbs_code}
+                required
+                placeholder="예: 1.1"
+                onChange={(event) =>setFormData({...formData, wbs_code: event.target.value,})}
             />
         </FormGrid>
 
@@ -182,6 +164,19 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
             onChange={(value) =>setFormData({...formData, priority: value as TaskPriority,})}
             />
 
+            <Select
+                label="상태"
+                value={formData.status}
+                required
+                options={[
+                { value: "TODO", label: "대기" },
+                { value: "IN_PROGRESS", label: "진행 중" },
+                { value: "ON_HOLD", label: "보류" },
+                { value: "DONE", label: "완료" },
+                ]}
+                onChange={(value) => setFormData({...formData, status: value as TaskStatus,})}
+            />
+
         </FormGrid>
 
 
@@ -191,6 +186,7 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
             label="시작 예정일"
             type="date"
             value={formData.planned_start_date}
+            max={formData.planned_end_date || undefined}
             required
             onChange={(event) =>setFormData({...formData, planned_start_date: event.target.value,})}
             />
@@ -199,157 +195,10 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
             label="완료 예정일"
             type="date"
             value={formData.planned_end_date}
+            min={formData.planned_start_date || undefined}
             required
             onChange={(event) =>setFormData({...formData, planned_end_date: event.target.value,})}
             />
-        </FormGrid>
-
-
-        {/* 진척률과 상태를 한 행에 표시 */}
-        <FormGrid>
-        <Input
-            label="진척률 (%)"
-            type="number"
-            value={progressInput}
-            min={0}
-            required
-            placeholder="0 ~ 100"
-            onChange={(event) => {
-            // 사용자가 입력한 값을 가져옴
-            const inputValue = event.target.value;
-
-            // 초기값 0 뒤에 숫자를 입력했을 때
-            // 05, 0080처럼 앞에 불필요한 0이 붙는 것을 제거
-            const normalizedValue =
-                inputValue.replace(/^0+(?=\d)/, "");
-
-            // 입력창에 정리된 값을 표시
-            setProgressInput(normalizedValue);
-
-            // 입력값이 비어 있는 순간에는 기본 진척률 0으로 처리
-            const progressRate =
-                normalizedValue === ""
-                ? 0
-                : Number(normalizedValue);
-
-            // 0 ~ 100 범위에서는 진척률에 맞게 상태 자동 변경
-            if (
-                progressRate >= 0 &&
-                progressRate <= 100
-            ) {
-                setFormData({
-                ...formData,
-                progress_rate: progressRate,
-
-                // 보류 상태라면 보류 유지,
-                // 아니면 진척률에 따라 상태 자동 결정
-                status: getTaskStatusAfterProgressChange(
-                    progressRate,
-                    formData.status,
-                ),
-                });
-
-                return;
-            }
-
-            // 0 ~ 100 범위를 벗어난 값도 일단 저장
-            // 등록 시 validateTaskCreateData에서 오류 처리
-            setFormData({
-                ...formData,
-                progress_rate: progressRate,
-            });
-            }}
-        />
-
-        {/* 상태는 진척률과 서로 연동됨 */}
-        <Select
-            label="상태"
-            value={formData.status}
-            required
-            options={[
-            {
-                value: "TODO",
-                label: "대기",
-
-                // 진척률이 0이 아니면 대기 선택 불가
-                disabled: formData.progress_rate !== 0,
-            },
-            {
-                value: "IN_PROGRESS",
-                label: "진행 중",
-
-                // 진행 중은 진척률 1 ~ 99에서만 선택 가능
-                disabled:
-                formData.progress_rate < 1 ||
-                formData.progress_rate > 99,
-            },
-            {
-                value: "ON_HOLD",
-                label: "보류",
-            },
-            {
-                value: "DONE",
-                label: "완료",
-
-                // 진척률을 직접 입력한 1 ~ 99 상태에서는 완료 선택 불가
-                // 진척률 0인 신규 상태에서는 완료 직접 선택 가능
-                disabled:
-                    formData.progress_rate >= 1 &&
-                    formData.progress_rate <= 99,
-            },
-            ]}
-            onChange={(value) => {
-            const selectedStatus = value as TaskStatus;
-
-            // 대기를 직접 선택하면 진척률도 0으로 변경
-            if (selectedStatus === "TODO") {
-                setProgressInput("0");
-
-                setFormData({
-                ...formData,
-                progress_rate: 0,
-                status: "TODO",
-                });
-
-                return;
-            }
-
-            // 완료를 직접 선택하면 진척률도 100으로 변경
-            if (selectedStatus === "DONE") {
-                setProgressInput("100");
-
-                setFormData({
-                ...formData,
-                progress_rate: 100,
-                status: "DONE",
-                });
-
-                return;
-            }
-
-            // 보류는 현재 진척률을 그대로 유지
-            if (selectedStatus === "ON_HOLD") {
-                setFormData({
-                ...formData,
-                status: "ON_HOLD",
-                });
-
-                return;
-            }
-
-            // 진행 중은 진척률이 1 ~ 99인 경우에만 선택 가능
-            if (
-                selectedStatus === "IN_PROGRESS" &&
-                formData.progress_rate >= 1 &&
-                formData.progress_rate <= 99
-            ) {
-                setFormData({
-                ...formData,
-                status: "IN_PROGRESS",
-                });
-            }
-            }}
-        />
         </FormGrid>
 
 

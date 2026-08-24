@@ -33,7 +33,7 @@ describe("taskApi", () => {
       {
         id: 1,
         project_id: 1,
-        wbs_id: 1,
+        wbs_code: 1.1,
         task_name: "테스트 태스크",
       },
     ];
@@ -61,7 +61,7 @@ describe("taskApi", () => {
       {
         id: 1,
         project_id: 2,
-        wbs_id: 1,
+        wbs_code: "1.1",
         task_name: "태스크 목록 구현",
       },
     ];
