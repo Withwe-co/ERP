@@ -49,6 +49,7 @@ interface InputProps {
   required?: boolean;
   className?: string;
   min?: string | number;
+  max?: string | number;
   step?: string | number;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
@@ -63,6 +64,7 @@ const Input: React.FC<InputProps> = ({
   required = false,
   className,
   min,
+  max,
   step,
   onKeyDown
 }) => {
@@ -82,6 +84,7 @@ const Input: React.FC<InputProps> = ({
         disabled={disabled}
         required={required}
         min={min}
+        max={max}
         step={step}
         onKeyDown={onKeyDown}
       />

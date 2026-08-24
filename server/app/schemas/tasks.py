@@ -25,7 +25,12 @@ TaskStatus = Literal[
 # 태스크 공통 스키마
 class TaskBase(BaseModel):
     project_id: int = Field(..., description="프로젝트 ID")
-    wbs_id: int = Field(..., description="WBS ID")
+
+    wbs_code: str = Field(
+        ...,
+        max_length=10,
+        description="WBS 코드",
+    )
 
     task_name: str = Field(
         ...,
@@ -70,13 +75,6 @@ class TaskBase(BaseModel):
         description="완료 예정일",
     )
 
-    progress_rate: int = Field(
-        default=0,
-        ge=0,
-        le=100,
-        description="진척률",
-    )
-
     note: Optional[str] = Field(
         None,
         description="비고",
@@ -91,7 +89,7 @@ class TaskCreate(TaskBase):
 # 태스크 수정용 스키마
 class TaskUpdate(BaseModel):
     project_id: Optional[int] = None
-    wbs_id: Optional[int] = None
+    wbs_code: Optional[str] = Field(None, max_length=10,)
 
     task_name: Optional[str] = Field(
         None,
@@ -115,12 +113,6 @@ class TaskUpdate(BaseModel):
 
     planned_start_date: Optional[date] = None
     planned_end_date: Optional[date] = None
-
-    progress_rate: Optional[int] = Field(
-        None,
-        ge=0,
-        le=100,
-    )
 
     note: Optional[str] = None
 

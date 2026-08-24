@@ -9,7 +9,7 @@ def test_task_model_has_expected_columns():
     expected_columns = {
         "id",
         "project_id",
-        "wbs_id",
+        "wbs_code",
         "task_name",
         "description",
         "assignee_name",
@@ -18,7 +18,6 @@ def test_task_model_has_expected_columns():
         "status",
         "planned_start_date",
         "planned_end_date",
-        "progress_rate",
         "note",
         "is_archived",
         "archived_at",

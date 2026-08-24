@@ -10,7 +10,7 @@ import { TaskResponse } from "../../../types/task";
 
 // TaskList가 부모 컴포넌트로부터 전달받는 값
 interface TaskListProps {
-  // 화면에 표시할 태스크 목록
+  // 화면에 표시할 태스크 
   tasks: TaskResponse[];
 
   // API 데이터를 불러오는 중인지 여부
@@ -38,12 +38,9 @@ function TaskList({
     },
 
     {
-      key: "wbs_id",
-      label: "WBS",
-      width: "80px",
-
-      // WBS ID를 그대로 숫자로 표시
-      render: (value) => value,
+      key: "wbs_code",
+      label: "WBS 코드",
+      width: "100px",
     },
 
     {
@@ -110,15 +107,6 @@ function TaskList({
       width: "120px",
     },
 
-    {
-      key: "progress_rate",
-      label: "진척률",
-      width: "90px",
-      align: "center",
-
-      // 숫자 50을 사용자 화면에서는 50%로 표시
-      render: (value) => `${value}%`,
-    },
   ];
 
 

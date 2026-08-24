@@ -10,7 +10,7 @@ export type TaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 export interface Task {
   id: number;
   project_id: number;
-  wbs_id: number;
+  wbs_code: string;
   task_name: string;
   assignee_name: string;
   department: string;
@@ -18,7 +18,6 @@ export interface Task {
   status: TaskStatus;
   planned_start_date: string;
   planned_end_date: string;
-  progress_rate: number;
   description?: string;
   note?: string;
 }
@@ -32,7 +31,7 @@ export type TaskUpdateData = Partial<TaskCreateData>;
 // TaskFilter: 태스크 검색 및 필터 조건 정의
 export interface TaskFilter {
   search?: string;
-  wbs_id?: number;
+  wbs_code?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
   assignee_name?: string;

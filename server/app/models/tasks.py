@@ -35,10 +35,9 @@ class Task(Base):
         index=True,
     )
 
-    # 태스크가 속한 WBS ID
-    # 실제 WBS 테이블 생성 후 FK 연결 예정
-    wbs_id = Column(
-        Integer,
+    # 태스크가 속한 WBS 코드
+    wbs_code = Column(
+        String(10),
         nullable=False,
         index=True,
     )
@@ -91,13 +90,6 @@ class Task(Base):
     planned_end_date = Column(
         Date,
         nullable=False,
-    )
-
-    # 진척률: 0 ~ 100
-    progress_rate = Column(
-        Integer,
-        nullable=False,
-        default=0,
     )
 
     # 비고
