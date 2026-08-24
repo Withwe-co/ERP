@@ -9,6 +9,10 @@ import Card from "../common/Card";
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
+
+// Api
+import {WbsApi} from '../../services/api'
+
 ////////////////////임시
 const TableWrapper = styled.div`
   overflow-x: auto;
@@ -65,7 +69,9 @@ const StyledRow = styled.tr`
 ////////////////////////////임시
 
 interface WbsManagementPageProps {
-  projectId: number;
+    projectId: number;
+    projectStartDate: string;
+    projectDueDate: string;
 }
 
 const Container = styled.div`
@@ -90,39 +96,54 @@ const FilterContainer = styled.div`
 
 const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     projectId,
+    projectStartDate,
+    projectDueDate,
 }) => {
 
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     //임시
-    const tasks = [
-        { wbs_code:"1",wbs_name:"A",parent_wbs:'',start_date:'2026-9-1',due_date:'2026-9-20',wbs_order:1 },
-        { wbs_code:"2",wbs_name:"B",parent_wbs:'',start_date:'2026-9-10',due_date:'2026-9-20',wbs_order:2},
-        { wbs_code:"1.1",wbs_name:"C",parent_wbs:'1',start_date:'2026-9-21',due_date:'2026-9-30',wbs_order:1 },
-        { wbs_code:"1.1.1",wbs_name:"D",parent_wbs:'1.1',start_date:'202-9-4',due_date:'2026-9-12',wbs_order:1 },
-        { wbs_code:"3",wbs_name:"E",parent_wbs:'',start_date:'2026-9-14',due_date:'2026-9-22',wbs_order:3},
-    ]
-    // 1일부터 7일까지만 예시로 표시 (원하는 날짜만큼 동적으로 생성 가능) 임시
-    const days = Array.from({ length: 31 }, (_, i) => i + 1);
+    const {
+        data: tasks = [],
+        isLoading,
+        isError,
+    } = useQuery({
+        queryKey: ['projectwbs', projectId],
+        queryFn: () => WbsApi.getWbsList(projectId),
+        enabled: Boolean(projectId),
+    });
+    
     const Depth1 = 200;
     const Depth2 = 200;
     const Depth3 = 200;
     const cellWidth = 40;
-    const tableWidth = Depth1+Depth2+Depth3 + days.length * cellWidth;
-    const timelineStart = '2026-09-01';
+    const timelineStart = projectStartDate?.slice(0,10) ?? '';
+    const timelineEnd = projectDueDate?.slice(0,10)?? '';
 
     const toUtcDate = (dateString: string) => {
-    const [year, month, day] = dateString.slice(0, 10).split('-').map(Number);
+        const [year, month, day] = dateString.slice(0, 10).split('-').map(Number);
 
-    return Date.UTC(year, month - 1, day);
+        return Date.UTC(year, month - 1, day);
     };
 
     const getDayOffset = (dateString: string, baseDate: string) => {
-    const oneDay = 1000 * 60 * 60 * 24;
+        const oneDay = 1000 * 60 * 60 * 24;
 
-    return Math.floor(
-        (toUtcDate(dateString) - toUtcDate(baseDate)) / oneDay
-    );
+        return Math.floor((toUtcDate(dateString) - toUtcDate(baseDate)) / oneDay);
     };
+
+    const days =
+    timelineStart && timelineEnd
+        ? Array.from(
+            { length: getDayOffset(timelineEnd, timelineStart) + 1 },
+            (_, i) => {
+            const date = new Date(`${timelineStart}T00:00:00Z`);
+            date.setUTCDate(date.getUTCDate() + i);
+            return date.toISOString().slice(0, 10);
+            },
+        )
+    : []
+
+    const tableWidth = Depth1+Depth2+Depth3 + days.length * cellWidth;
 
     return(
         <>
@@ -155,47 +176,73 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             <th style={{textAlign: 'center'}}>Depth 1</th>
                             <th style={{textAlign: 'center'}}>Depth 2</th>
                             <th style={{textAlign: 'center'}}>Task</th>
-                            {days.map((day) => (
-                                <th key={day}>{day}</th>
-                            ))}
+                            {days.map((date) => ( <th key={date}>{new Date(`${date}T00:00:00Z`).getUTCDate()}</th>))}
                             </tr>
                         </thead>
                         <tbody>
-                            {tasks.map((task, index) => {
+                            {tasks.map((task) => {
+                                const depth = task.wbs_code.split('.').length;
+
+                                if (depth > 2)
+                                    return null;
+                                
                                 const startOffset = getDayOffset(task.start_date, timelineStart);
                                 const endOffset = getDayOffset(task.due_date, timelineStart);
 
-                                // 화면에 표시하는 기간 밖으로 나가는 경우 보정
                                 const visibleStart = Math.max(0, startOffset);
                                 const visibleEnd = Math.min(days.length - 1, endOffset);
 
-                                // 표시할 구간이 없으면 렌더링하지 않음
-                                if (visibleEnd < 0 || visibleStart >= days.length) {
+                                if (visibleEnd < 0 || visibleStart >= days.length)
                                     return null;
-                                }
-
-                                const leftOffset =
-                                    Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
-
-                                const barWidth =
-                                    (visibleEnd - visibleStart + 1) * cellWidth - 4;
+                                
+                                const leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
+                                const barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
 
                                 return (
                                     <StyledRow key={task.wbs_code}>
-                                    <td style={{ fontWeight: '500', background: '#fafafa', textAlign: 'center' }}>{task.wbs_code}</td>
-                                    <td style={{ textAlign: 'left', fontWeight: '500', paddingLeft: '12px' }}>{task.wbs_code}</td>
-                                    <td style={{ textAlign: 'left', fontWeight: '500', paddingLeft: '12px' }}>{task.wbs_code}</td>
-                                    
-                                    {days.map((day) => (
-                                        <td key={day} style={{ width: `${cellWidth}px`, background: '#fff' }} />
-                                    ))}
+                                        <td
+                                            style={{
+                                            fontWeight: '500',
+                                            background: '#fafafa',
+                                            textAlign: 'center',
+                                            }}
+                                        >
+                                            {depth === 1 ? task.wbs_code +' / '+task.wbs_name : ''}
+                                        </td>
 
-                                    <GanttBar
-                                        style={{
-                                        left: `${leftOffset + 2}px`,
-                                        width: `${barWidth}px`,
-                                        }}
-                                    />
+                                        <td
+                                            style={{
+                                            textAlign: 'center',
+                                            fontWeight: '500',
+                                            paddingLeft: '12px',
+                                            }}
+                                        >
+                                            {depth === 2 ? task.wbs_code +' / '+task.wbs_name : ''}
+                                        </td>
+
+                                        <td
+                                            style={{
+                                            textAlign: 'left',
+                                            fontWeight: '500',
+                                            paddingLeft: '12px',
+                                            }}
+                                        >
+                                            {/* Task 열은 비워 둠 */}
+                                        </td>
+
+                                        {days.map((day) => (
+                                            <td
+                                            key={day}
+                                            style={{ width: `${cellWidth}px`, background: '#fff' }}
+                                            />
+                                        ))}
+
+                                        <GanttBar
+                                            style={{
+                                            left: `${leftOffset + 2}px`,
+                                            width: `${barWidth}px`,
+                                            }}
+                                        />
                                     </StyledRow>
                                 );
                             })}

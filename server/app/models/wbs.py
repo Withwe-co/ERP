@@ -1,10 +1,18 @@
-from sqlalchemy import Column,Integer,String,Text,Date
+from sqlalchemy import Column,Integer,String,Text,Date,UniqueConstraint
 from app.core.database import Base
 from zoneinfo import ZoneInfo
 from datetime import datetime
 
 class Wbs(Base):
     __tablename__ = "wbs"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "wbs_code",
+            name="uq_wbs_project_wbs_code",
+        ),
+    )
     """
         wbs 테이블
 
@@ -28,7 +36,7 @@ class Wbs(Base):
     """
 
     id = Column(Integer, primary_key=True, index=True)
-    wbs_code = Column(String, unique=True,nullable=False)
+    wbs_code = Column(String,nullable=False)
     wbs_name = Column(String ,nullable=False)
     parent_wbs = Column(String ,nullable=True)
     start_date = Column(Date ,nullable=False)
