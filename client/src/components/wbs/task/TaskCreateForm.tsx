@@ -74,11 +74,9 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
         // API 요청 시작
         setIsSubmitting(true);
 
-        // 검증을 통과한 데이터를 FastAPI에 전달
-        await taskApi.createTask(formData);
+        const response = await taskApi.createTask(formData);
 
-        // 서버에서 정상적으로 등록된 경우 성공 메시지 표시
-        toast.success("태스크가 등록되었습니다.");
+        toast.success(response.message);
 
         // 등록 성공 후 부모 컴포넌트에 성공 사실 전달
         onSuccess();

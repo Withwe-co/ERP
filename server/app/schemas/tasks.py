@@ -128,3 +128,10 @@ class TaskResponse(TaskBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# 태스크 등록 API 응답 스키마
+class TaskCreateResponse(BaseModel):
+    status_code: int
+    message: str
+    data: TaskResponse

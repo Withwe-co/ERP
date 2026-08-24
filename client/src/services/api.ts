@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // 태스크 API 요청/응답에 사용할 타입
-import {TaskCreateData, TaskFilter, TaskResponse,} from '../types/task';
+import {TaskCreateData, TaskFilter, TaskResponse, TaskCreateResponse,} from '../types/task';
 
 // API 기본 설정
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
@@ -356,6 +356,13 @@ export interface Project {
     project_description: string;
 }
 
+// 태스크 등록 API 응답 타입
+export interface TaskCreateResponse {
+  status_code: number;
+  message: string;
+  data: TaskResponse;
+}
+
 interface WbsUploadFormData {
     wbs_code: string;
     wbs_name: string;
@@ -383,17 +390,12 @@ interface Wbs {
 
 
 // 태스크 관리 API
-export const taskApi = {
-  // 태스크 등록
-  createTask: async (data: TaskCreateData): Promise<TaskResponse> => {
+export const taskApi = {createTask: async (data: TaskCreateData,): Promise<TaskCreateResponse> => {
     try {
       const response = await apiRequest.post("/tasks/", data);
 
       return response;
-    } catch (error) {
-      console.error("태스크 등록 실패:", error);
-      throw error;
-    }
+    } catch (error) {console.error("태스크 등록 실패:", error); throw error;}
   },
 
   // 프로젝트별 태스크 목록 조회

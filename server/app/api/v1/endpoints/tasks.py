@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.tasks import Task
-from app.schemas.tasks import TaskCreate, TaskResponse
+from app.schemas.tasks import TaskCreate, TaskResponse, TaskCreateResponse
 
 
 router = APIRouter()
@@ -23,16 +23,21 @@ router = APIRouter()
 # - 상태 / 진척률 규칙
 
 # 태스크 등록
-@router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED,)
+@router.post("/", response_model=TaskCreateResponse, status_code=status.HTTP_201_CREATED,)
 def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
-    '''태스크 등록'''
-    task = Task(**task_in.model_dump()) # Pydantic의 TaskCreate 데이터를Python dict로 바꾼 다음 SQLAlchemy Task 객체에 전달
+    """태스크 등록"""
+
+    task = Task(**task_in.model_dump())
 
     db.add(task)
     db.commit()
     db.refresh(task)
 
-    return task
+    return {
+        "status_code": status.HTTP_201_CREATED,
+        "message": "태스크가 성공적으로 등록되었습니다.",
+        "data": task,
+    }
 
 
 @router.get("/", response_model=List[TaskResponse])
@@ -63,27 +68,19 @@ def get_tasks(
 
     # 상태가 전달되면 해당 상태의 태스크만 조회
     if status:
-        query = query.filter(
-            Task.status == status
-        )
+        query = query.filter(Task.status == status)
 
     # 우선순위가 전달되면 해당 우선순위의 태스크만 조회
     if priority:
-        query = query.filter(
-            Task.priority == priority
-        )
+        query = query.filter(Task.priority == priority)
 
     # 담당자가 전달되면 담당자명에 검색어가 포함된 태스크만 조회
     if assignee_name:
-        query = query.filter(
-            Task.assignee_name.ilike(f"%{assignee_name}%")
-        )
+        query = query.filter(Task.assignee_name.ilike(f"%{assignee_name}%"))
 
     # 부서가 전달되면 부서명에 검색어가 포함된 태스크만 조회
     if department:
-        query = query.filter(
-            Task.department.ilike(f"%{department}%")
-        )
+        query = query.filter(Task.department.ilike(f"%{department}%"))
 
     # 위에서 적용한 모든 조건에 맞는 태스크 조회
     return query.all()
