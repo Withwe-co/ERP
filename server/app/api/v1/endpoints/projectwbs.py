@@ -10,7 +10,7 @@ from io import BytesIO
 from datetime import datetime
 
 from app.core.database import get_db
-from app.schemas.wbs import (WbsBase,UpdateWbs)
+from app.schemas.wbs import WbsBase,UpdateWbs,WbsInDB
 
 from app.models.wbs import Wbs as DBWbs
 
@@ -98,3 +98,19 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         import traceback
         print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"WBS 등록에 실패했습니다: {str(e)}")
+
+@router.get("/", response_model=List[WbsInDB])
+def get_wbs_list(project_id: int = Query(...),db: Session = Depends(get_db),):
+    """
+        summary : Project의 하위 WBS 조회 함수
+        
+        arg : 
+            - project_id(int) : 해당 프로젝트의 ID
+            - db (Session) : 데이터베이스
+
+        desc :
+            - 
+
+    """
+    # 프로젝트 아이디에 해당하는 wbs 조회
+    return ( db.query(DBWbs).filter(DBWbs.project_id == project_id).order_by(DBWbs.wbs_order.asc(), DBWbs.id.asc()).all() )

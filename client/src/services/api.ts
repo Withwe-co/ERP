@@ -381,6 +381,7 @@ interface Wbs {
     project_id: number;
 }
 
+
 // 태스크 관리 API
 export const taskApi = {
   // 태스크 등록
@@ -1924,6 +1925,13 @@ export const WbsApi = {
       console.error('API 오류 상세:', error.response?.data);
       throw error;
     }
+  },
+  
+  //  Wbs 리스트 조회
+  getWbsList: async (projectId: number): Promise<Wbs[]> => {
+    return apiRequest.get('/projectwbs/', {
+      project_id: projectId,
+    });
   },
 
 };

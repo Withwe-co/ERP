@@ -9,6 +9,10 @@ import Card from "../common/Card";
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
+
+// Api
+import {WbsApi} from '../../services/api'
+
 ////////////////////임시
 const TableWrapper = styled.div`
   overflow-x: auto;
@@ -98,14 +102,16 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
 
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     //임시
-    const tasks = [
-        { wbs_code:"1",wbs_name:"A",parent_wbs:'',start_date:'2026-8-1',due_date:'2026-8-20',wbs_order:1 },
-        { wbs_code:"2",wbs_name:"B",parent_wbs:'',start_date:'2026-8-10',due_date:'2026-8-20',wbs_order:2},
-        { wbs_code:"1.1",wbs_name:"C",parent_wbs:'1',start_date:'2026-8-1',due_date:'2026-8-10',wbs_order:1 },
-        { wbs_code:"1.2",wbs_name:"D",parent_wbs:'1.1',start_date:'2026-8-10',due_date:'2026-8-18',wbs_order:1 },
-        { wbs_code:"3",wbs_name:"E",parent_wbs:'',start_date:'2026-8-14',due_date:'2026-8-22',wbs_order:3},
-    ]
-    // 1일부터 7일까지만 예시로 표시 (원하는 날짜만큼 동적으로 생성 가능) 임시
+    const {
+        data: tasks = [],
+        isLoading,
+        isError,
+    } = useQuery({
+        queryKey: ['projectwbs', projectId],
+        queryFn: () => WbsApi.getWbsList(projectId),
+        enabled: Boolean(projectId),
+    });
+    
     const Depth1 = 200;
     const Depth2 = 200;
     const Depth3 = 200;
@@ -189,9 +195,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                 if (visibleEnd < 0 || visibleStart >= days.length)
                                     return null;
                                 
-
                                 const leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
-
                                 const barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
 
                                 return (
@@ -203,7 +207,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             textAlign: 'center',
                                             }}
                                         >
-                                            {depth === 1 ? task.wbs_code : ''}
+                                            {depth === 1 ? task.wbs_code +' / '+task.wbs_name : ''}
                                         </td>
 
                                         <td
@@ -213,7 +217,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                            {depth === 2 ? task.wbs_code : ''}
+                                            {depth === 2 ? task.wbs_code +' / '+task.wbs_name : ''}
                                         </td>
 
                                         <td

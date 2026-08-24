@@ -22,3 +22,10 @@ class UpdateWbs(WbsBase):
     due_date: Optional[date] = None
     wbs_description: Optional[str] =None
     updated_by: Optional[str] = Field(None, max_length=20)
+
+# WBS 조회용 스키마
+class WbsInDB(WbsBase):
+    id: int
+    project_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
