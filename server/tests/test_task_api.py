@@ -71,16 +71,26 @@ def valid_task_data():
 
 # POST /tasks/
 def test_create_task():
-    '''정상적인 태스크 데이터를 전달했을 때 태스크가 성공적으로 등록되는지 확인'''
-    response = client.post("/tasks/", json=valid_task_data(),)
+    response = client.post(
+        "/tasks/",
+        json=valid_task_data(),
+    )
 
+    # 실제 HTTP 상태 코드 확인
     assert response.status_code == 201
 
-    data = response.json()
+    response_data = response.json()
 
-    assert data["task_name"] == "태스크 API 구현"
-    assert data["priority"] == "NORMAL"
-    assert data["status"] == "TODO"
+    # Response Body에 포함된 상태 코드와 메시지 확인
+    assert response_data["status_code"] == 201
+    assert response_data["message"] == "태스크가 성공적으로 등록되었습니다."
+
+    # 실제 등록된 태스크 데이터
+    task_data = response_data["data"]
+
+    assert task_data["task_name"] == "태스크 API 구현"
+    assert task_data["priority"] == "NORMAL"
+    assert task_data["status"] == "TODO"
 
 # GET /tasks/
 def test_get_task_list():
@@ -151,7 +161,7 @@ def test_get_task_by_id():
     '''태스크 ID를 이용해 특정 태스크 한 건을 조회할 수 있는지 확인'''
     create_response = client.post("/tasks/", json=valid_task_data(),)
 
-    task_id = create_response.json()["id"]
+    task_id = create_response.json()["data"]["id"]
 
     response = client.get(f"/tasks/{task_id}")
 

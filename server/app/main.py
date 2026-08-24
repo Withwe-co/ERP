@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -42,6 +45,45 @@ app = FastAPI(
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+# HTTP 에러 공통 응답 처리
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException,):
+    if isinstance(exc.detail, str):
+        message = exc.detail
+        data = None
+    else:
+        message = "요청 처리 중 오류가 발생했습니다."
+        data = exc.detail
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status_code": exc.status_code,
+            "message": message,
+            "data": jsonable_encoder(data),
+
+            # 기존 프로젝트/WBS 프런트와의 호환을 위해 임시 유지
+            "detail": jsonable_encoder(exc.detail),
+        },
+    )
+
+# 요청 데이터 검증 실패(422) 공통 응답 처리
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError,):
+    errors = jsonable_encoder(exc.errors())
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "message": "입력값을 확인해주세요.",
+            "data": errors,
+
+            # 기존 응답 구조와의 호환을 위해 임시 유지
+            "detail": errors,
+        },
+    )
 
 allowed_origins_str = os.getenv("ALLOWED_HOSTS", "http://localhost,http://localhost:80,http://localhost:3001")
 allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]  # strip() 추가로 공백 제거
