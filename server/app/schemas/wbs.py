@@ -23,5 +23,7 @@ class UpdateWbs(WbsBase):
 class WbsInDB(WbsBase):
     id: int
     project_id: Optional[int] = None
+    updated_at: Optional[date] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

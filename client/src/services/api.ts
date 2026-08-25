@@ -367,7 +367,7 @@ interface WbsUploadFormData {
     project_id: number;
 }
 
-interface Wbs {
+export interface Wbs {
     id: number;
     wbs_code: string;
     wbs_name: string;

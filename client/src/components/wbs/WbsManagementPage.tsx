@@ -2,7 +2,7 @@ import styled from "styled-components";
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {toast} from 'react-toastify';
-import {Edit,Plus,RefreshCw,Archive} from 'lucide-react'
+import {Edit,Plus,RefreshCw,Archive, Underline} from 'lucide-react'
 
 // Components
 import Card from "../common/Card";
@@ -11,7 +11,7 @@ import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
 
 // Api
-import {WbsApi,taskApi} from '../../services/api'
+import {WbsApi, taskApi, type Wbs} from '../../services/api'
 
 ////////////////////임시
 const TableWrapper = styled.div`
@@ -101,7 +101,19 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
 }) => {
 
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-   
+    const [editingWbs, setEditingWbs] = useState<Wbs | null>(null);
+
+    // wbs 생성 모달 오픈
+    const openCreateModal = () => {
+        setEditingWbs(null);
+        setIsFormModalOpen(true);
+    }
+    // wbs 수정 모달 오픈
+    const openEditModal = (wbs:Wbs) =>{
+        setEditingWbs(wbs);
+        setIsFormModalOpen(true);
+    }
+
     // wbs 목록 불러오기
     const {
         data: tasks = [],
@@ -230,6 +242,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                 return (
                                     <StyledRow key={rowTask.wbs_code}>
                                         <td
+                                            onClick={showParent? () => openEditModal(parent): undefined}
                                             style={{
                                             fontWeight: '500',
                                             background: '#fafafa',
@@ -240,6 +253,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         </td>
 
                                         <td
+                                            onClick={child? ()=> openEditModal(child):undefined}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
@@ -284,13 +298,22 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         <Modal
             isOpen={isFormModalOpen}
             onClose={() => setIsFormModalOpen(false)}
-            title="WBS 등록"
+            title={editingWbs ? "WBS 수정" : "WBS 등록"}
             size="xl"
             >
             <WbsUploadForm
+                key={editingWbs?.id ?? 'create'}
                 projectId={projectId}
-                onSuccess={() => setIsFormModalOpen(false)}
-                onCancel={() => setIsFormModalOpen(false)}
+                initialData={editingWbs ?? undefined}
+                isEdit={Boolean(editingWbs)}
+                onSuccess={() => {
+                    setIsFormModalOpen(false);
+                    setEditingWbs(null);
+                }}
+                onCancel={() => {
+                    setIsFormModalOpen(false);
+                    setEditingWbs(null);
+                }}
             />
         </Modal>
         </>

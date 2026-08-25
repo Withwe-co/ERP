@@ -19,6 +19,7 @@ interface WbsUploadFormData {
     parent_wbs: string;
     wbs_description: string;
     wbs_order: number;
+    updated_at: Date;
     updated_by: string;
     project_id: number;
 }
@@ -31,6 +32,8 @@ interface Wbs {
     wbs_description: string;
     wbs_order: number;
     project_id: number;
+    updated_at?: string | null;
+    updated_by?: string | null;
 }
 
 interface WbsUploadFormProps {
@@ -316,6 +319,24 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             placeholder="WBS 순서"
                             required
                         />
+
+                        {isEdit &&(
+                            <FormRow style={{display:'grid',gridTemplateColumns: '1fr 1fr',gap: '16px'}}>
+                                <Input
+                                    label="최종 수정일"
+                                    value={initialData?.updated_at ? new Date(initialData.updated_at).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul'}) : '' }
+                                    disabled
+                                />
+
+                                <Input
+                                    label="수정자"
+                                    value={formData.updated_by || ''}
+                                    onChange={(e) => handleChange('updated_by', e.target.value)}
+                                    placeholder="수정자명을 입력하세요"
+                                    required
+                                />
+                            </FormRow>
+                        )}
 
                         <FormRow style={{ marginTop: '16px' }}>
                             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>

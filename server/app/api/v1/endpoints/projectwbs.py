@@ -4,7 +4,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import func
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
@@ -85,6 +85,64 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         import traceback
         print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"WBS 등록에 실패했습니다: {str(e)}")
+
+@router.put("/{wbs_id}",response_model=dict)
+def update_project(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
+
+    """
+        summary : WBS 수정 함수
+
+        arg : 
+            - project_id (int) : 수정 WBS ID
+            - request_in : 수정스키마
+            - db (Session) : DB 세션
+            
+        desc : 
+            - DB에서 전달받은 id와 같은 데이터 조회
+            - 전달받은 id가 DB에 없으면 404 에러 반환
+            - WBS명 중복 -> 400에러 반환
+            - DB에 데이터 저장
+            - 예외 처리 -> 500 에러 반환 & Rollback
+    """
+
+    try:
+        # DB에서 전달받은 id조회
+        wbs=db.query(DBWbs).filter(DBWbs.id==wbs_id).first()
+
+        # DB에서 id조회 실패 -> 404에러
+        if wbs is None:
+            raise HTTPException(status_code=404,detail="WBS를 찾을 수 없습니다.")
+
+        # 실제로 전달된 항목만 추출
+        update_data = request_in.model_dump(exclude_unset=True)
+
+        # WBS명 중복 -> 400에러
+        if db.query(DBWbs.id).filter(func.lower(DBWbs.wbs_name)==update_data.get("wbs_name",wbs.wbs_name).lower()).first():
+            raise HTTPException(status_code=400,detail="이미 등록된 WBS명입니다.")
+
+        # 수정값으로 변경
+        for field, value in update_data.items():
+            setattr(wbs,field,value)
+
+        # 수정시간에 현재시간 저장
+        wbs.updated_at=datetime.now()
+
+        db.commit()
+        db.refresh(wbs)
+
+        return {
+            # 성공 코드
+            "success": 200,
+            "message": "WBS가 수정되었습니다.",
+            "data": WbsInDB.model_validate(wbs).model_dump(),
+        }
+
+    except HTTPException:
+            raise
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"WBS 수정 중 오류가 발생했습니다: {str(e)}")
 
 @router.get("/", response_model=List[WbsInDB])
 def get_wbs_list(project_id: int = Query(...),db: Session = Depends(get_db),):
