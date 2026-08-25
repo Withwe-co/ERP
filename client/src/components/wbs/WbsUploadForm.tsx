@@ -196,7 +196,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             return {
                 wbs_code: '',
                 wbs_name: '',
-                parent_wbs: '',
+                parent_wbs: '없음',
                 wbs_description: '',
                 wbs_order: 0,
                 project_id: 0,
@@ -298,7 +298,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
     const parentWbsOptions = [
         {
             value: '',
-            label: '최상위 WBS',
+            label: '없음',
         },
         ...wbsList
             .filter((wbs) => {
@@ -390,9 +390,9 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             WBS 설명
                             </label>
                             <TextArea
-                            value={formData.wbs_description}
-                            onChange={(e) => handleChange('wbs_description', e.target.value)}
-                            placeholder="WBS 설명을 입력하세요"
+                                value={formData.wbs_description}
+                                onChange={(e) => handleChange('wbs_description', e.target.value)}
+                                placeholder="WBS 설명을 입력하세요"
                             />
                         </FormRow>
                     </FormGrid>
