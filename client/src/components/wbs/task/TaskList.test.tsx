@@ -41,7 +41,7 @@ describe("TaskList", () => {
 
         // 태스크 기본 정보
         task_name: "태스크 목록 구현",
-        assignee_name: "김진산",
+        assignee_name: "담당자씨",
         department: "개발팀",
 
         // 우선순위와 상태
@@ -87,7 +87,7 @@ describe("TaskList", () => {
     expect(html).toContain("태스크 목록 구현");
 
     // 담당자가 표시되는지 확인
-    expect(html).toContain("담당자");
+    expect(html).toContain("담당자씨");
 
     // 부서가 표시되는지 확인
     expect(html).toContain("개발팀");

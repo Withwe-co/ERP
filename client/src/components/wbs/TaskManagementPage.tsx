@@ -10,6 +10,7 @@ import { taskApi } from "../../services/api";
 import TaskList from "./task/TaskList";
 import TaskDetail from "./task/TaskDetail";
 import { TaskFilter, TaskResponse, } from "../../types/task";
+import TaskKanbanBoard from "./task/TaskKanbanBoard";
 
 // 현재 선택된 프로젝트의 ID와 이름을 전달받기 위한 Props
 interface TaskManagementPageProps {
@@ -90,9 +91,10 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
               onDetail={(task) => setDetailTask(task)}
             />
           ) : (
-            <KanbanPlaceholder>
-              칸반 보드는 추후 구현 예정입니다.
-            </KanbanPlaceholder>
+            <TaskKanbanBoard
+              tasks={tasks}
+              onDetail={(task) => setDetailTask(task)}
+            />
           )}
         </ContentCard>
       </Container>
@@ -198,11 +200,4 @@ const ErrorMessage = styled.div`
   padding: 40px 20px;
   text-align: center;
   color: ${props => props.theme.colors.error};
-`;
-
-// 실제 칸반보드 구현 전 임시 표시 영역
-const KanbanPlaceholder = styled.div`
-  padding: 60px 20px;
-  text-align: center;
-  color: ${props => props.theme.colors.textSecondary};
 `;
