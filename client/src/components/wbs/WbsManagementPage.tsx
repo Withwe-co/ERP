@@ -238,6 +238,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
                                     }
                                 }
+                                const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Seoul',});
 
                                 return (
                                     <StyledRow key={rowTask.wbs_code}>
@@ -276,7 +277,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         {days.map((day) => (
                                             <td
                                             key={day}
-                                            style={{ width: `${cellWidth}px`, background: '#fff' }}
+                                            style={{ width: `${cellWidth}px`, background: day===today?'#FFF3CD':'#fff' }}
                                             />
                                         ))}
                                         {showGanttBar && (
