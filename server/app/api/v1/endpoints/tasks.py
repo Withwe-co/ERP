@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.tasks import Task
-from app.schemas.tasks import TaskCreate, TaskResponse, TaskCreateResponse
+from app.schemas.tasks import TaskCreate, TaskUpdate, TaskResponse, TaskCreateResponse
 
 
 router = APIRouter()
@@ -97,5 +97,36 @@ def get_task(task_id: int, db: Session = Depends(get_db),):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="태스크를 찾을 수 없습니다.",
         )
+
+    return task
+
+# 태스크 수정
+@router.put("/{task_id}", response_model=TaskResponse)
+def update_task(
+    task_id: int,
+    task_in: TaskUpdate,
+    db: Session = Depends(get_db),
+):
+    """태스크 수정"""
+
+    # 수정할 태스크 조회
+    task = db.query(Task).filter(Task.id == task_id).first()
+
+    # 해당 태스크가 존재하지 않으면 404 반환
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="태스크를 찾을 수 없습니다.",
+        )
+
+    # 요청에서 실제로 전달된 필드만 가져옴
+    update_data = task_in.model_dump(exclude_unset=True)
+
+    # 전달된 필드만 기존 Task 객체에 반영
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
+    db.commit()
+    db.refresh(task)
 
     return task

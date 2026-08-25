@@ -5,13 +5,12 @@ import Button from "../../common/Button";
 import Input from "../../common/Input";
 import Select from "../../common/Select";
 
-import {TaskCreateData,TaskPriority,TaskStatus,} from "../../../types/task";
+import {TaskCreateData,TaskPriority,TaskStatus,TaskResponse,} from "../../../types/task";
 import { toast } from "react-toastify";
 import { validateTaskCreateData } from "./taskValidation";
 import { taskApi } from "../../../services/api";
 
 
-// 태스크 등록 Form에서 전달받을 값
 interface TaskCreateFormProps {
   // 현재 보고 있는 프로젝트의 ID
   projectId: number;
@@ -19,40 +18,36 @@ interface TaskCreateFormProps {
   // 현재 보고 있는 프로젝트의 이름
   projectName: string;
 
-  // 태스크 등록에 성공했을 때 실행할 함수
+  // 등록 / 수정 모드
+  mode?: "create" | "edit";
+
+  // 수정할 기존 태스크 데이터
+  initialData?: TaskResponse;
+
+  // 등록 또는 수정 성공 시 실행
   onSuccess: () => void;
 
-  // 등록 Form에서 취소 버튼을 눌렀을 때 실행할 함수
+  // 취소 시 실행
   onCancel: () => void;
 }
 
 
 // 태스크 등록 Form
-function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCreateFormProps) {
+function TaskCreateForm({projectId, projectName, mode = "create", initialData, onSuccess, onCancel,}: TaskCreateFormProps) {
     // 태스크 등록 Form의 입력값을 하나의 객체로 관리
-    const [formData, setFormData] = useState<TaskCreateData>({
-        // 프로젝트 ID는 현재 프로젝트 상세 화면의 ID를 자동으로 사용
-        project_id: projectId,
-
-        // WBS 연동 전까지는 사용자가 WBS 코드를 직접 입력
-        wbs_code: "",
-
-        task_name: "",
-        assignee_name: "",
-        department: "",
-
-        // 기본 우선순위
-        priority: "NORMAL",
-
-        // 신규 태스크의 기본 상태
-        status: "TODO",
-
-        planned_start_date: "",
-        planned_end_date: "",
-
-        description: "",
-        note: "",
-    });
+    const [formData, setFormData] = useState<TaskCreateData>(() => ({
+        project_id: initialData?.project_id ?? projectId,
+        wbs_code: initialData?.wbs_code ?? "",
+        task_name: initialData?.task_name ?? "",
+        assignee_name: initialData?.assignee_name ?? "",
+        department: initialData?.department ?? "",
+        priority: initialData?.priority ?? "NORMAL",
+        status: initialData?.status ?? "TODO",
+        planned_start_date: initialData?.planned_start_date ?? "",
+        planned_end_date: initialData?.planned_end_date ?? "",
+        description: initialData?.description ?? "",
+        note: initialData?.note ?? "",
+    }));
 
     // POST 요청이 진행 중인지 관리
     // 중복으로 등록 버튼을 누르는 것을 방지하기 위해 사용
@@ -74,12 +69,17 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
         // API 요청 시작
         setIsSubmitting(true);
 
-        const response = await taskApi.createTask(formData);
+        if (mode === "edit" && initialData) {
+            await taskApi.updateTask( initialData.id, formData,);
+            toast.success("태스크가 성공적으로 수정되었습니다.");
+        } 
+        else {
+            const response = await taskApi.createTask(formData);
+            toast.success(response.message);
+        }
 
-        toast.success(response.message);
-
-        // 등록 성공 후 부모 컴포넌트에 성공 사실 전달
         onSuccess();
+
     } catch (error: any) {
         // FastAPI가 문자열 형태의 detail을 반환한 경우 사용
         const detail = error.response?.data?.detail;
@@ -90,7 +90,11 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
         if (error.response?.status === 422) {toast.error("입력값 형식을 확인해주세요."); return;}
 
         // 그 외 서버/네트워크 오류
-        toast.error("태스크 등록 중 오류가 발생했습니다.");
+        toast.error(
+            mode === "edit"
+                ? "태스크 수정 중 오류가 발생했습니다."
+                : "태스크 등록 중 오류가 발생했습니다.",
+        );
     } finally {setIsSubmitting(false);}  // 성공/실패와 관계없이 API 요청 상태 종료
     };
 
@@ -241,7 +245,7 @@ function TaskCreateForm({projectId, projectName, onSuccess, onCancel,}: TaskCrea
                 loading={isSubmitting}
                 disabled={isSubmitting}
             >
-            등록
+                {mode === "edit" ? "수정 저장" : "등록"}
             </Button>
         </ButtonArea>
         </Form>

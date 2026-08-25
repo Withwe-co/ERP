@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // 태스크 API 요청/응답에 사용할 타입
-import {TaskCreateData, TaskFilter, TaskResponse, TaskCreateResponse,} from '../types/task';
+import {TaskCreateData, TaskFilter, TaskResponse,TaskUpdateData,} from '../types/task';
 
 // API 기본 설정
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
@@ -57,12 +57,10 @@ const apiRequest = {
   },
   
   download: async (url: string, params?: any) => {
-    const response = await api.get(url, { 
-      params, 
-      responseType: 'blob' 
-    });
+    const response = await api.get(url, { params, responseType: 'blob'});
     return response.data;
   }
+
 };
 
 // 타입 정의들
@@ -390,20 +388,17 @@ interface Wbs {
 
 
 // 태스크 관리 API
-export const taskApi = {createTask: async (data: TaskCreateData,): Promise<TaskCreateResponse> => {
+export const taskApi = {
+  createTask: async (data: TaskCreateData,): Promise<TaskCreateResponse> => {
     try {
       const response = await apiRequest.post("/tasks/", data);
-
       return response;
     } catch (error) {console.error("태스크 등록 실패:", error); throw error;}
   },
 
   // 프로젝트별 태스크 목록 조회
   // 검색 및 필터 조건이 있으면 query parameter에 함께 전달
-  getTasks: async (
-    projectId: number,
-    filters: TaskFilter = {},
-  ): Promise<TaskResponse[]> => {
+  getTasks: async (projectId: number,filters: TaskFilter = {},): Promise<TaskResponse[]> => {
     try {
       const response = await apiRequest.get("/tasks/", {
         // 현재 프로젝트의 태스크만 조회
@@ -414,11 +409,17 @@ export const taskApi = {createTask: async (data: TaskCreateData,): Promise<TaskC
       });
 
       return response;
-    } catch (error) {
-      console.error("태스크 목록 조회 실패:", error);
-      throw error;
-    }
+    } catch (error) {console.error("태스크 목록 조회 실패:", error); throw error;}
   },
+
+  // 태스크 수정
+  updateTask: async (taskId: number, data: TaskUpdateData,): Promise<TaskResponse> => {
+    try {
+      const response = await apiRequest.put(`/tasks/${taskId}`, data,);
+      return response;
+    } catch (error) {console.error("태스크 수정 실패:", error); throw error;}
+  },
+
 };
 
 

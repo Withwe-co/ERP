@@ -17,6 +17,9 @@ import { TaskResponse } from "../../../types/task";
 // 현재는 아직 파일을 만들지 않았기 때문에 첫 테스트에서는 실패하는 것이 정상
 import TaskList from "./TaskList";
 
+import styled from "styled-components";
+import { Pencil, Archive } from "lucide-react";
+
 
 // TaskList 컴포넌트 테스트 모음
 describe("TaskList", () => {
@@ -74,7 +77,7 @@ describe("TaskList", () => {
       <ThemeProvider theme={theme}>
 
         {/* TaskList에 테스트용 태스크 배열 전달 */}
-        <TaskList tasks={tasks} />
+        <TaskList tasks={tasks} onEdit={() => {}} onDetail={() => {}} />
 
       </ThemeProvider>,
     );
@@ -84,10 +87,12 @@ describe("TaskList", () => {
     expect(html).toContain("태스크 목록 구현");
 
     // 담당자가 표시되는지 확인
-    expect(html).toContain("김진산");
+    expect(html).toContain("담당자");
 
     // 부서가 표시되는지 확인
     expect(html).toContain("개발팀");
 
+    // 태스크 수정 기능으로 이동할 수 있는 수정 버튼이 표시되는지 확인
+    expect(html).toContain("수정");
   });
 });

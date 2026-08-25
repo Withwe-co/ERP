@@ -1,21 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 
-const { mockGet, mockPost } = vi.hoisted(() => ({mockGet: vi.fn(), mockPost: vi.fn(), }));
+const {mockGet, mockPost, mockPut,} = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPost: vi.fn(),
+  mockPut: vi.fn(),
+}));
 
 vi.mock("axios", () => ({
   default: {
     create: vi.fn(() => ({
       get: mockGet,
       post: mockPost,
-      put: vi.fn(),
+      put: mockPut,
       patch: vi.fn(),
       delete: vi.fn(),
-      interceptors: {
-        response: {
-          use: vi.fn(),
-        },
-      },
+      interceptors: {response: {use: vi.fn(),},},
     })),
   },
 }));
@@ -23,7 +23,7 @@ vi.mock("axios", () => ({
 import { taskApi } from "./api";
 
 describe("taskApi", () => {
-  beforeEach(() => {mockGet.mockReset(); mockPost.mockReset();});
+  beforeEach(() => {mockGet.mockReset(); mockPost.mockReset(); mockPut.mockReset();});
 
   it("project_id를 query parameter로 전달해 태스크 목록을 조회한다", async () => {
     const responseData = [
@@ -130,4 +130,48 @@ describe("taskApi", () => {
     expect(result.message).toBe("태스크가 성공적으로 등록되었습니다.",);
     expect(result.data.task_name).toBe("태스크 등록 테스트",);
   });
+
+  it("태스크 ID와 수정 데이터를 전달해 태스크를 수정한다", async () => {
+    const requestData = {
+      task_name: "수정된 태스크",
+      status: "IN_PROGRESS" as const,
+    };
+
+    const responseData = {
+      id: 1,
+      project_id: 1,
+      wbs_code: "1.1",
+      task_name: "수정된 태스크",
+      assignee_name: "홍길동",
+      department: "개발팀",
+      priority: "NORMAL" as const,
+      status: "IN_PROGRESS" as const,
+      planned_start_date: "2026-08-24",
+      planned_end_date: "2026-08-25",
+      description: "",
+      note: "",
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-08-24T16:00:00",
+      updated_at: "2026-08-25T09:00:00",
+    };
+
+    mockPut.mockResolvedValue({
+      data: responseData,
+    });
+
+    const result = await taskApi.updateTask(
+      1,
+      requestData,
+    );
+
+    expect(mockPut).toHaveBeenCalledWith(
+      "/tasks/1",
+      requestData,
+    );
+
+    expect(result.task_name).toBe("수정된 태스크");
+    expect(result.status).toBe("IN_PROGRESS");
+  });
+
 });
