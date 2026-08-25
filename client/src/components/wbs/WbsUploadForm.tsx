@@ -323,7 +323,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             value={formData.parent_wbs}
                             onChange={(e) => handleChange('parent_wbs', e.target.value)}
                             placeholder="상위 WBS"
-                            required
                         />
 
                         <Input
