@@ -1922,6 +1922,17 @@ export const WbsApi = {
       throw error;
     }
   },
+
+  // Wbs 삭제
+  deleteWbs: async (id: number): Promise<any> => {
+    try {
+      const response = await apiRequest.delete(`/projectwbs/${id}`);
+      return response;
+    } catch (error) {
+      console.error('WBS 삭제 실패:', error);
+      throw error;
+    }
+  },
   
   //  Wbs 리스트 조회
   getWbsList: async (projectId: number): Promise<Wbs[]> => {

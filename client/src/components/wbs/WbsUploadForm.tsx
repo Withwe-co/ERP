@@ -175,6 +175,20 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         },
     });
 
+    //WBS 삭제
+    const deleteItemMutation = useMutation({
+        mutationFn: WbsApi.deleteWbs,
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['projectwbs'] });
+          queryClient.invalidateQueries({ queryKey: ['projectwbs-stats'] });
+          toast.success('WBS가 삭제되었습니다.');
+          onSuccess();
+        },
+        onError: (error: any) => {
+          toast.error(error.response?.data?.message || '삭제 중 오류가 발생했습니다.');
+        },
+    });
+
     const isLoading = createMutation.isPending || updateMutation.isPending;
 
     const getInitialFormData = (): WbsUploadFormData => {
@@ -265,6 +279,12 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         }
     };
 
+    const handleDelete = async (itemId: number) => {
+        if (window.confirm('정말로 이 품목을 삭제하시겠습니까?')) {
+            deleteItemMutation.mutate(itemId);
+        }
+    };
+
     return(
         <FormContainer>
             <form onSubmit={handleSubmit}>
@@ -340,20 +360,34 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
 
                         <FormRow style={{ marginTop: '16px' }}>
                             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                            프로젝트 설명
+                            WBS 설명
                             </label>
                             <TextArea
                             value={formData.wbs_description}
                             onChange={(e) => handleChange('wbs_description', e.target.value)}
-                            placeholder="프로젝트 설명을 입력하세요"
+                            placeholder="WBS 설명을 입력하세요"
                             />
                         </FormRow>
                     </FormGrid>
                 </FormSection>
                 <ButtonGroup>
-                    <Button type="button" variant="outline" onClick={onCancel}>
+                    {isEdit && initialData && (
+                        <Button 
+                            type="button" 
+                            variant="danger" 
+                            onClick={()=>handleDelete(initialData.id)}
+                        >
+                            삭제
+                        </Button>
+                    )}
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={onCancel}
+                    >
                         취소
                     </Button>
+
                     <Button 
                         type="submit" 
                         loading={isLoading}

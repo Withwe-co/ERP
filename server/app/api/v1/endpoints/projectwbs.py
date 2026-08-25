@@ -87,7 +87,7 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         raise HTTPException(status_code=500, detail=f"WBS 등록에 실패했습니다: {str(e)}")
 
 @router.put("/{wbs_id}",response_model=dict)
-def update_project(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
+def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
 
     """
         summary : WBS 수정 함수
@@ -154,8 +154,46 @@ def get_wbs_list(project_id: int = Query(...),db: Session = Depends(get_db),):
             - db (Session) : 데이터베이스
 
         desc :
-            - 
+            - 프로젝트 아이디에 해당하는 wbs 조회
 
     """
     # 프로젝트 아이디에 해당하는 wbs 조회
     return ( db.query(DBWbs).filter(DBWbs.project_id == project_id).order_by(DBWbs.wbs_order.asc(), DBWbs.id.asc()).all() )
+
+@router.delete("/{wbs_id}")
+def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
+    """
+        summary : WBS 삭제 함수
+
+        arg : 
+            - id(int) : 해당 WBS의 ID
+            - db(Session) : 데이터베이스
+        
+        desc :
+            - 해당 ID에 맞는 wbs 조회
+            - 조회 실패 시 -> 404에러
+            - db에서 wbs삭제
+            - 삭제 실패 시 -> 500에러
+    """
+    # 해당 ID에 맞는 wbs 조회
+    wbs=db.query(DBWbs).filter(DBWbs.id==wbs_id).first()
+
+    # 조회 실패 시 -> 404에러
+    if wbs is None:
+        raise HTTPException(status_code=404, detail="WBS를 찾을 수 없습니다.")
+
+    # db에서 wbs삭제
+    try:
+         
+        db.delete(wbs)
+        db.commit()
+    except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"WBS 삭제 중 오류가 발생했습니다: {str(e)}")
+
+    
+    return {
+        "success": 204,
+        "message": "재고 항목이 삭제되었습니다.",
+    }
+
