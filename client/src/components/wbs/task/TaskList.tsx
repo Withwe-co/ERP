@@ -7,6 +7,8 @@ import { TableColumn } from "../../../types";
 // 서버에서 조회한 태스크 데이터 타입
 import { TaskResponse } from "../../../types/task";
 
+import styled from "styled-components";
+import { Pencil, Archive } from "lucide-react";
 
 // TaskList가 부모 컴포넌트로부터 전달받는 값
 interface TaskListProps {
@@ -15,14 +17,16 @@ interface TaskListProps {
 
   // API 데이터를 불러오는 중인지 여부
   loading?: boolean;
+
+  // 수정 버튼을 눌렀을 때 선택한 태스크를 부모에게 전달
+  onEdit: (task: TaskResponse) => void;
+  // 보류 버튼
+  onHold?: (task: TaskResponse) => void;
 }
 
 
 // 태스크 목록 컴포넌트
-function TaskList({
-  tasks,
-  loading = false,
-}: TaskListProps) {
+function TaskList({tasks, loading = false, onEdit, onHold,}: TaskListProps) {
 
   // 태스크 목록 테이블의 열(Column) 구성
   const columns: TableColumn<TaskResponse>[] = [
@@ -107,6 +111,38 @@ function TaskList({
       width: "120px",
     },
 
+    {
+      key: "actions",
+      label: "관리",
+      width: "180px",
+
+      render: (_value, task) => (
+        <ActionButtons>
+          <ActionButton
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(task);
+            }}
+          >
+            <Pencil size={14} />
+            수정
+          </ActionButton>
+
+          <ActionButton
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onHold?.(task);
+            }}
+          >
+            <Archive size={14} />
+            보류
+          </ActionButton>
+        </ActionButtons>
+      ),
+    },
+
   ];
 
 
@@ -129,3 +165,34 @@ function TaskList({
 
 
 export default TaskList;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ActionButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 8px 14px;
+  border: 1px solid #6d7cff;
+  border-radius: 10px;
+  background: #ffffff;
+
+  color: #6d7cff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #f5f7ff;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+`;

@@ -8,7 +8,7 @@ import TaskCreateForm from "./task/TaskCreateForm";
 import { useQuery } from "@tanstack/react-query";
 import { taskApi } from "../../services/api";
 import TaskList from "./task/TaskList";
-import { TaskFilter } from "../../types/task";
+import { TaskFilter, TaskResponse, } from "../../types/task";
 
 // 현재 선택된 프로젝트의 ID와 이름을 전달받기 위한 Props
 interface TaskManagementPageProps {
@@ -20,6 +20,9 @@ interface TaskManagementPageProps {
 function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
   // 태스크 등록 Modal의 열림/닫힘 상태
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // 현재 수정 대상으로 선택된 태스크
+  const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
 
   // 현재 태스크 화면의 보기 방식
   // 처음 진입했을 때는 칸반 보기가 기본
@@ -78,6 +81,10 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
             <TaskList
               tasks={tasks}
               loading={isLoading}
+              onEdit={(task) => setSelectedTask(task)}
+              onHold={(task) => {
+                console.log("보류 클릭:", task);
+              }}
             />
           ) : (
             <KanbanPlaceholder>
@@ -104,6 +111,29 @@ function TaskManagementPage({projectId,projectName,}: TaskManagementPageProps) {
             onCancel={() => setIsCreateModalOpen(false)}
         />
       </Modal>     
+
+
+      {/* 태스크 수정 화면을 표시하는 Modal */}
+      <Modal
+        isOpen={selectedTask !== null}
+        onClose={() => setSelectedTask(null)}
+        title="태스크 수정"
+        size="lg"
+      >
+        {selectedTask && (
+          <TaskCreateForm
+            projectId={projectId}
+            projectName={projectName}
+            mode="edit"
+            initialData={selectedTask}
+            onSuccess={() => {
+              setSelectedTask(null);
+              refetch();
+            }}
+            onCancel={() => setSelectedTask(null)}
+          />
+        )}
+      </Modal>
     </>
   );
 }

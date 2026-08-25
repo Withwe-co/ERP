@@ -342,3 +342,49 @@ def test_get_missing_task_returns_404():
     response = client.get("/tasks/99999")
 
     assert response.status_code == 404
+
+
+# PUT /tasks/{task_id}
+def test_update_task():
+    """기존 태스크의 일부 정보를 정상적으로 수정할 수 있는지 확인한다."""
+
+    # 수정할 태스크를 먼저 등록
+    create_response = client.post(
+        "/tasks/",
+        json=valid_task_data(),
+    )
+
+    task_id = create_response.json()["data"]["id"]
+
+    # 수정할 필드만 전달
+    update_data = {
+        "task_name": "수정된 태스크명",
+        "status": "IN_PROGRESS",
+    }
+
+    response = client.put(
+        f"/tasks/{task_id}",
+        json=update_data,
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    # 전달한 값은 변경되어야 함
+    assert data["task_name"] == "수정된 태스크명"
+    assert data["status"] == "IN_PROGRESS"
+
+    # 전달하지 않은 값은 기존 값을 유지해야 함
+    assert data["assignee_name"] == "홍길동"
+    assert data["department"] == "개발팀"
+
+
+# PUT /tasks/{task_id} - 존재하지 않는 태스크
+def test_update_missing_task_returns_404():
+    """존재하지 않는 태스크를 수정하면 404를 반환하는지 확인한다."""
+
+    response = client.put("/tasks/99999", json={"task_name": "수정된 태스크명",},)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "태스크를 찾을 수 없습니다."
