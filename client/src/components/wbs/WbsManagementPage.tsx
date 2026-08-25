@@ -199,44 +199,33 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {/*{tasks.map((task) => {
-                                const depth = task.wbs_code.split('.').length;
-
-                                const matchedTask = taskByWbsCode.get(task.wbs_code);
-
-                                const chartStartDate = depth>2? matchedTask?.planned_start_date : task.start_date;
-                                const chartEndDate = depth>2? matchedTask?.planned_end_date : task.due_date;
-                                
-                                if (!chartStartDate || !chartEndDate) 
-                                    return null;
-
-                                const startOffset = getDayOffset(chartStartDate, timelineStart);
-                                const endOffset = getDayOffset(chartEndDate, timelineStart);
-
-                                const visibleStart = Math.max(0, startOffset);
-                                const visibleEnd = Math.min(days.length - 1, endOffset);
-
-                                if (visibleEnd < 0 || visibleStart >= days.length){
-                                    return null;
-                                }
-
-                                const leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
-                                const barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;*/}
                             {tableRows.map(({ parent, child, showParent }) => {
                                 const rowTask = child ?? parent;
                                 const matchedTask = taskByWbsCode.get(rowTask.wbs_code);
-                                const startOffset = getDayOffset(rowTask.start_date, timelineStart);
-                                const endOffset = getDayOffset(rowTask.due_date, timelineStart);
 
-                                const visibleStart = Math.max(0, startOffset);
-                                const visibleEnd = Math.min(days.length - 1, endOffset);
+                                const chartStartDate = matchedTask?.planned_start_date;
+                                const chartEndDate = matchedTask?.planned_end_date;
+                                const hasTaskSchedule = Boolean(chartStartDate && chartEndDate);
 
-                                if (visibleEnd < 0 || visibleStart >= days.length){
-                                    return null;
+                                let leftOffset = 0;
+                                let barWidth = 0;
+                                let showGanttBar = false;
+
+                                if (hasTaskSchedule) {
+                                    const startOffset = getDayOffset(chartStartDate, timelineStart);
+                                    const endOffset = getDayOffset(chartEndDate, timelineStart);
+
+                                    const visibleStart = Math.max(0, startOffset);
+                                    const visibleEnd = Math.min(days.length - 1, endOffset);
+
+                                    showGanttBar =visibleEnd >= 0 && visibleStart < days.length;
+
+                                    if (showGanttBar) {
+                                        leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
+
+                                        barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
+                                    }
                                 }
-
-                                const leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
-                                const barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
 
                                 return (
                                     <StyledRow key={rowTask.wbs_code}>
@@ -276,13 +265,14 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             style={{ width: `${cellWidth}px`, background: '#fff' }}
                                             />
                                         ))}
-
-                                        <GanttBar
-                                            style={{
-                                            left: `${leftOffset + 2}px`,
-                                            width: `${barWidth}px`,
-                                            }}
-                                        />
+                                        {showGanttBar && (
+                                            <GanttBar
+                                                style={{
+                                                left: `${leftOffset + 2}px`,
+                                                width: `${barWidth}px`,
+                                                }}
+                                            />
+                                        )}
                                     </StyledRow>
                                 );
                             })}

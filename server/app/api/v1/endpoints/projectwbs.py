@@ -25,7 +25,7 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         arg : db (Session) : DB 세션
 
         desc : 
-            - 필수 항목 검증 (WBS코드,WBS명 시작일, 종료일)
+            - 필수 항목 검증 (WBS코드,WBS명)
             - parse_date : 시작일,종료일 데이터 str-> datetime으로 변경 함수
             - DB에 데이터 저장
             - 필수 필드 누락 : 422 에러 반환
@@ -37,27 +37,16 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         print(f"WBS 생성 시작")
 
         # 필수 필드 검증
-        required_fields = ['wbs_code', 'wbs_name','start_date', 'due_date']
+        required_fields = ['wbs_code', 'wbs_name']
         for field in required_fields:
             if field not in request_in or not request_in[field]:
                 raise HTTPException(status_code=422,detail=f"필수 필드가 누락되었습니다: {field}")
-            
-        # string-> datetime을 위한 함수
-        def parse_date(date_str):
-            if not date_str:
-                return None
-            try:
-                return datetime.fromisoformat(str(date_str).strip())
-            except (ValueError, TypeError):
-                return None
             
         # 데이터 생성
         safe_data = {
             'wbs_code': str(request_in.get('wbs_code', '')).strip(),
             'wbs_name': str(request_in['wbs_name']).strip(),
             'parent_wbs': str(request_in['parent_wbs']).strip(),
-            'start_date': parse_date(request_in.get('start_date')),
-            'due_date': parse_date(request_in.get('due_date')),
             'wbs_order': int(request_in.get('wbs_order') or 0),
             'project_id':int(request_in.get('project_id') or 0),
             'wbs_description': request_in.get('wbs_description'),
@@ -82,8 +71,6 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
                 "wbs_code": wbs.wbs_code,
                 "wbs_name": wbs.wbs_name,
                 "parent_wbs": wbs.parent_wbs,
-                "start_date": wbs.start_date,
-                "due_date": wbs.due_date,
                 "project_id": wbs.project_id,
                 "wbs_description": wbs.wbs_description
             }

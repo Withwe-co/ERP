@@ -360,8 +360,6 @@ interface WbsUploadFormData {
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
     updated_at: string;
@@ -374,8 +372,6 @@ interface Wbs {
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
     project_id: number;

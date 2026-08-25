@@ -22,8 +22,6 @@ class Wbs(Base):
         wbs_code        | character varying(10)       |           | not null | WBS 코드
         wbs_name        | character varying(50)       |           | not null | WBS 이름
         parent_wbs      | character varying(10)       |           |          | 상위 WBS
-        start_date      | timestamp without time zone |           | not null | WBS 시작일
-        due_date        | timestamp without time zone |           | not null | WBS 종료일
         wbs_description | character varying(500)      |           |          | WBS 설명
         wbs_order       | integer                     |           |          | WBS 표시 순서
         updated_by      | character varying(20)       |           |          | 수정자
@@ -39,8 +37,6 @@ class Wbs(Base):
     wbs_code = Column(String,nullable=False)
     wbs_name = Column(String ,nullable=False)
     parent_wbs = Column(String ,nullable=True)
-    start_date = Column(Date ,nullable=False)
-    due_date = Column(Date ,nullable=False)
     wbs_description = Column(Text ,nullable=True)
     wbs_order = Column(Integer ,nullable=True)
     updated_by = Column(String ,nullable=True)

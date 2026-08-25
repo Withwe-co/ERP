@@ -17,8 +17,6 @@ interface WbsUploadFormData {
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
     updated_by: string;
@@ -30,8 +28,6 @@ interface Wbs {
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
     project_id: number;
@@ -184,8 +180,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                 wbs_code: '',
                 wbs_name: '',
                 parent_wbs: '',
-                start_date: '',
-                due_date: '',
                 wbs_description: '',
                 wbs_order: 0,
                 project_id: 0,
@@ -197,8 +191,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             wbs_code: initialData.wbs_code || '',
             wbs_name: initialData.wbs_name || '',
             parent_wbs: initialData.parent_wbs || '',
-            start_date: initialData.start_date || '',
-            due_date: initialData.due_date || '',
             wbs_description: initialData.wbs_description || '',
             wbs_order: initialData.wbs_order || 0,
             project_id: initialData.project_id || 0,
@@ -217,14 +209,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         if (!formData.wbs_name) {
           newErrors.wbs_name = 'WBS명을 입력해주세요.';
         }
-            
-        if (!formData.start_date) {
-          newErrors.start_date = '프로젝트 시작일을 선택해주세요.';
-        }
-
-        if (!formData.due_date) {
-          newErrors.due_date = '프로젝트 종료일을 선택해주세요.';
-        }
     
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -242,8 +226,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             wbs_name: formData.wbs_name,
             wbs_code: formData.wbs_code,
             parent_wbs: formData.parent_wbs,
-            start_date: formData.start_date? `${formData.start_date}T00:00:00` : null,
-            due_date: formData.due_date? `${formData.due_date}T23:59:59` : null,
             wbs_description: formData.wbs_description,
             wbs_order: formData.wbs_order,
             updated_by: formData.updated_by,
@@ -252,7 +234,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         console.log('submitData:', JSON.stringify(submitData, null, 2));
         
         // 필수 필드 체크
-        const requiredFields = ['wbs_name','wbs_code','start_date','due_date'];
+        const requiredFields = ['wbs_name','wbs_code'];
         const missingFields = requiredFields.filter(field => !submitData[field]);
         if (missingFields.length > 0) {
             console.error('누락된 필수 필드:', missingFields);
@@ -318,24 +300,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             value={formData.parent_wbs}
                             onChange={(e) => handleChange('parent_wbs', e.target.value)}
                             placeholder="상위 WBS"
-                            required
-                        />
-
-                        <Input
-                            label="WBS 시작일"
-                            type="date"
-                            value={formData.start_date}
-                            onChange={(e) => handleChange('start_date', e.target.value)}
-                            max={formData.due_date||undefined}
-                            required
-                        />
-
-                        <Input
-                            label="WBS 종료일"
-                            type="date"
-                            value={formData.due_date}
-                            onChange={(e) => handleChange('due_date', e.target.value)}
-                            min={formData.start_date||undefined}
                             required
                         />
 
