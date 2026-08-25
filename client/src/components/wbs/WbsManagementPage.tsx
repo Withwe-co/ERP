@@ -11,7 +11,7 @@ import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
 
 // Api
-import {WbsApi} from '../../services/api'
+import {WbsApi,taskApi} from '../../services/api'
 
 ////////////////////임시
 const TableWrapper = styled.div`
@@ -101,7 +101,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
 }) => {
 
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    //임시
+   
+    // wbs 목록 불러오기
     const {
         data: tasks = [],
         isLoading,
@@ -112,6 +113,13 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         enabled: Boolean(projectId),
     });
     
+    // Task 이름 + 일정 불러오기
+    const { data: taskList = [] } = useQuery({
+        queryKey: ['tasks', projectId],
+        queryFn: () => taskApi.getTasks(projectId),
+        enabled: Boolean(projectId),
+    });
+
     const Depth1 = 200;
     const Depth2 = 200;
     const Depth3 = 200;
@@ -144,6 +152,17 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     : []
 
     const tableWidth = Depth1+Depth2+Depth3 + days.length * cellWidth;
+    const taskByWbsCode = new Map(taskList.map((task) => [task.wbs_code, task]));
+    
+    const tableRows = tasks.filter((task) => task.wbs_code.split('.').length === 1)
+        .flatMap((parent) => {const children = tasks.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
+    
+        if (children.length === 0){
+            return [{parent,child: null,showParent: true,}];
+        }
+    
+        return children.map((child, index) => ({parent,child,showParent: index === 0}));
+    });
 
     return(
         <>
@@ -180,26 +199,47 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {tasks.map((task) => {
+                            {/*{tasks.map((task) => {
                                 const depth = task.wbs_code.split('.').length;
 
-                                if (depth > 2)
-                                    return null;
+                                const matchedTask = taskByWbsCode.get(task.wbs_code);
+
+                                const chartStartDate = depth>2? matchedTask?.planned_start_date : task.start_date;
+                                const chartEndDate = depth>2? matchedTask?.planned_end_date : task.due_date;
                                 
-                                const startOffset = getDayOffset(task.start_date, timelineStart);
-                                const endOffset = getDayOffset(task.due_date, timelineStart);
+                                if (!chartStartDate || !chartEndDate) 
+                                    return null;
+
+                                const startOffset = getDayOffset(chartStartDate, timelineStart);
+                                const endOffset = getDayOffset(chartEndDate, timelineStart);
 
                                 const visibleStart = Math.max(0, startOffset);
                                 const visibleEnd = Math.min(days.length - 1, endOffset);
 
-                                if (visibleEnd < 0 || visibleStart >= days.length)
+                                if (visibleEnd < 0 || visibleStart >= days.length){
                                     return null;
-                                
+                                }
+
+                                const leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
+                                const barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;*/}
+                            {tableRows.map(({ parent, child, showParent }) => {
+                                const rowTask = child ?? parent;
+                                const matchedTask = taskByWbsCode.get(rowTask.wbs_code);
+                                const startOffset = getDayOffset(rowTask.start_date, timelineStart);
+                                const endOffset = getDayOffset(rowTask.due_date, timelineStart);
+
+                                const visibleStart = Math.max(0, startOffset);
+                                const visibleEnd = Math.min(days.length - 1, endOffset);
+
+                                if (visibleEnd < 0 || visibleStart >= days.length){
+                                    return null;
+                                }
+
                                 const leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
                                 const barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
 
                                 return (
-                                    <StyledRow key={task.wbs_code}>
+                                    <StyledRow key={rowTask.wbs_code}>
                                         <td
                                             style={{
                                             fontWeight: '500',
@@ -207,7 +247,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             textAlign: 'center',
                                             }}
                                         >
-                                            {depth === 1 ? task.wbs_code +' / '+task.wbs_name : ''}
+                                            {showParent ? parent.wbs_code +' / '+ parent.wbs_name : ''}
                                         </td>
 
                                         <td
@@ -217,7 +257,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                            {depth === 2 ? task.wbs_code +' / '+task.wbs_name : ''}
+                                            {child? child.wbs_code +' / '+ child.wbs_name : ''}
                                         </td>
 
                                         <td
@@ -227,7 +267,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                            {/* Task 열은 비워 둠 */}
+                                           {child ? matchedTask?.task_name ?? '' : ''}
                                         </td>
 
                                         {days.map((day) => (
