@@ -77,7 +77,7 @@ describe("TaskList", () => {
       <ThemeProvider theme={theme}>
 
         {/* TaskList에 테스트용 태스크 배열 전달 */}
-        <TaskList tasks={tasks} onEdit={() => {}} />
+        <TaskList tasks={tasks} onEdit={() => {}} onDetail={() => {}} />
 
       </ThemeProvider>,
     );

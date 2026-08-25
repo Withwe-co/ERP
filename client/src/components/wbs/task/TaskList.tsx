@@ -22,11 +22,14 @@ interface TaskListProps {
   onEdit: (task: TaskResponse) => void;
   // 보류 버튼
   onHold?: (task: TaskResponse) => void;
+
+  // 상세페이지 열리도록 태스크 클릭
+  onDetail: (task: TaskResponse) => void;
 }
 
 
 // 태스크 목록 컴포넌트
-function TaskList({tasks, loading = false, onEdit, onHold,}: TaskListProps) {
+function TaskList({tasks, loading = false, onEdit, onHold, onDetail,}: TaskListProps) {
 
   // 태스크 목록 테이블의 열(Column) 구성
   const columns: TableColumn<TaskResponse>[] = [
@@ -159,6 +162,9 @@ function TaskList({tasks, loading = false, onEdit, onHold,}: TaskListProps) {
 
       // 조회 결과가 없을 때 표시할 문구
       emptyMessage="등록된 태스크가 없습니다."
+
+      // 태스크 행 누르면 상세 페이지로 넘어감
+      onRowClick={onDetail}
     />
   );
 }
