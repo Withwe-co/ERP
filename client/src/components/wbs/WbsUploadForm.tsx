@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import styled from 'styled-components';
-import {useMutation,useQueryClient} from '@tanstack/react-query';
+import {useMutation,useQueryClient,useQuery} from '@tanstack/react-query';
 
 // Components
 import {toast} from 'react-toastify';
@@ -266,6 +266,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         }
     };
 
+    // WBS 수정
     const handleChange = (field: keyof WbsUploadFormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         
@@ -279,11 +280,38 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         }
     };
 
+    // WBS 삭제
     const handleDelete = async (itemId: number) => {
-        if (window.confirm('정말로 이 품목을 삭제하시겠습니까?')) {
+        if (window.confirm('정말로 이 WBS을 삭제하시겠습니까?')) {
             deleteItemMutation.mutate(itemId);
         }
     };
+
+    // WBS 목록 조회
+    const { data: wbsList = [] } = useQuery({
+        queryKey: ['projectwbs', projectId],
+        queryFn: () => WbsApi.getWbsList(projectId),
+        enabled: Boolean(projectId),
+    });
+
+    // 상위 WBS 선택 옵션
+    const parentWbsOptions = [
+        {
+            value: '',
+            label: '최상위 WBS',
+        },
+        ...wbsList
+            .filter((wbs) => {
+                const isDepth1 = wbs.wbs_code.split('.').length === 1;
+                const isNotCurrentWbs = wbs.id !== initialData?.id;
+
+                return isDepth1 && isNotCurrentWbs;
+            })
+                .map((wbs) => ({
+                value: wbs.wbs_code,
+                label: `${wbs.wbs_code} / ${wbs.wbs_name}`,
+            })),
+    ];
 
     return(
         <FormContainer>
@@ -318,11 +346,11 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             required
                         />
 
-                        <Input
+                        < Select
                             label="상위 WBS"
                             value={formData.parent_wbs}
-                            onChange={(e) => handleChange('parent_wbs', e.target.value)}
-                            placeholder="상위 WBS"
+                            options={parentWbsOptions}
+                            onChange={(value) => handleChange('parent_wbs', value)}
                         />
 
                         <Input
