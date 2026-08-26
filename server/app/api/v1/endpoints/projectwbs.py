@@ -198,7 +198,6 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
 
     # db에서 wbs삭제
     try:
-         
         db.delete(wbs)
         db.commit()
     except Exception as e:
