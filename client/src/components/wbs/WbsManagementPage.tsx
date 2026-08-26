@@ -128,7 +128,23 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         queryFn: () => WbsApi.getWbsList(projectId),
         enabled: Boolean(projectId),
     });
-    
+
+    // wbs 순서 설정
+    const sortedWbs = [...tasks].sort((a, b) => {
+        const aOrder = a.wbs_order ?? Number.MAX_SAFE_INTEGER;
+        const bOrder = b.wbs_order ?? Number.MAX_SAFE_INTEGER;
+
+        // 1차: DB의 wbs_order 순서
+        if (aOrder !== bOrder) {
+            return aOrder - bOrder;
+        }
+
+        // 2차: 같은 순서값이거나 순서값이 없을 때 WBS 코드 순서
+        return a.wbs_code.localeCompare(b.wbs_code, undefined, {
+            numeric: true,
+        });
+    });
+
     // Task 이름 + 일정 불러오기
     const { data: taskList = [] } = useQuery({
         queryKey: ['tasks', projectId],
@@ -272,9 +288,9 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         return result;
     }, {});
         
-    const tableRows = tasks.filter((task) => task.wbs_code.split('.').length === 1) .flatMap((parent) => {
+    const tableRows = sortedWbs.filter((task) => task.wbs_code.split('.').length === 1) .flatMap((parent) => {
         const parentTasks = taskByWbsCode[parent.wbs_code] ?? [];
-        const children = tasks.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
+        const children = sortedWbs.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
         
         const parentTaskRows = parentTasks.map((linkedTask, index) => ({parent,child: null,linkedTask,showParent: index === 0,showChild: false,}));
 
