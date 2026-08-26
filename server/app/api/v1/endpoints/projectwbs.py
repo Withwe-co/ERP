@@ -100,7 +100,9 @@ def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
         desc : 
             - DB에서 전달받은 id와 같은 데이터 조회
             - 전달받은 id가 DB에 없으면 404 에러 반환
-            - WBS명 중복 -> 400에러 반환
+            - 실제로 전달된 부분과 변경된 부분 확인
+            - 변경된 값 X -> 400에러 반환
+            - 변경된 값 O & WBS명 중복 -> 400에러 반환
             - DB에 데이터 저장
             - 예외 처리 -> 500 에러 반환 & Rollback
     """

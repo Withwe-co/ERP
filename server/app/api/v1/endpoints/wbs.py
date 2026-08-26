@@ -123,7 +123,10 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
             - DB에서 전달받은 id와 같은 데이터 조회
             - 전달받은 id가 DB에 없으면 404 에러 반환
             - 프로젝트 코드 제거
+            - 실제로 전달된 부분과 변경된 부분 확인
+            - 변경된 값 X -> 400에러 반환
             - 날짜 유효성 검증 -> 400에러 반환
+            - 변경된 값 O & WBS명 중복 -> 400에러 반환
             - DB에 데이터 저장
             - 예외 처리 : 500 에러 반환 & Rollback
     """
@@ -142,6 +145,17 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
         # 프로젝트 코드가 전달되면 제거
         update_data.pop("project_code",None)
 
+        # 실제로 변경된 부분 확인 (updated_at은 제외)
+        changed_data = {
+            field: value
+            for field, value in update_data.items()
+            if field != "updated_at" and getattr(project, field) != value
+        }
+
+        # 실제로 변경된 값 X -> 400 에러
+        if not changed_data:
+            raise HTTPException(status_code=400,detail="수정 사항이 없습니다.")
+
         # 날짜 유효성 검증
         start_date=update_data.get("start_date",project.start_date)
         due_date=update_data.get("due_date",project.due_date)
@@ -151,11 +165,12 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
             raise HTTPException(status_code=400,detail="종료일은 시작일보다 빠를 수 없습니다.")
 
         # 프로젝트명 중복 -> 400에러
-        if db.query(DBProject.id).filter(func.lower(DBProject.project_name)==update_data.get("project_name",project.project_name).lower()).first():
-            raise HTTPException(status_code=400,detail="이미 등록된 프로젝트명입니다.")
+        if "project_name" in changed_data:
+            if db.query(DBProject.id).filter(func.lower(DBProject.project_name)==changed_data["project_name"].lower(),DBProject.id != project_id).first():
+                raise HTTPException(status_code=400,detail="이미 등록된 프로젝트명입니다.")
 
         # 수정값으로 변경
-        for field, value in update_data.items():
+        for field, value in changed_data.items():
             setattr(project,field,value)
 
         # 수정시간에 현재시간 저장
