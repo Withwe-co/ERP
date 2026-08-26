@@ -194,16 +194,50 @@ const ProjectPage: React.FC = () => {
     const navigate = useNavigate();
     const project = location.state?.project;
 
+    // 테스크 목록 조회
     const { data: taskList = [] } = useQuery({
             queryKey: ['tasks', project.id],
             queryFn: () => taskApi.getTasks(project.id),
             enabled: Boolean(project.id),
     });
 
-    const { totalTaskCount, delayedTaskCount, completeTaskCount } = useMemo(() => {
+    // 테스크 당 일정 합 계산
+    const getTaskDurationDays = (startDate?: string,endDate?: string) => {
+      if (!startDate || !endDate) {
+        return 0;
+      }
+
+      const start = Date.parse(`${startDate.slice(0, 10)}T00:00:00Z`);
+      const end = Date.parse(`${endDate.slice(0, 10)}T00:00:00Z`);
+
+      if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+        return 0;
+      }
+
+      const oneDay = 1000 * 60 * 60 * 24;
+
+      return Math.floor((end - start) / oneDay) + 1;
+    };
+
+    const { totalTaskCount, delayedTaskCount, completeTaskCount, progressRate} = useMemo(() => {
       const today = new Date().toLocaleDateString('en-CA', {
         timeZone: 'Asia/Seoul',
       });
+      // 전체 테스크 일정 합
+      const totalScheduleDays = taskList.reduce((sum, task) => {
+        return sum + getTaskDurationDays(
+          task.planned_start_date,
+          task.planned_end_date,
+        );
+      }, 0);
+
+      // 완료된 테스크 일정 합
+      const completedScheduleDays = taskList.filter((task) => task.status === 'DONE').reduce((sum, task) => {
+        return sum + getTaskDurationDays(
+          task.planned_start_date,
+          task.planned_end_date,
+        );
+      }, 0);
 
       // 지연된 테스크 개수
       const delayedCount = taskList.filter((task) => {
@@ -219,12 +253,20 @@ const ProjectPage: React.FC = () => {
       // 완료된 테스크 개수
       const completeCount = taskList.filter((task) => task.status === 'DONE').length;
 
+      // 진행률 계산
+      const progressRate = totalScheduleDays === 0 ? 0: Math.round((completedScheduleDays / totalScheduleDays) * 100);
+
       return {
         totalTaskCount: taskList.length,
         delayedTaskCount: delayedCount,
         completeTaskCount : completeCount,
+        progressRate : progressRate,
       };
     }, [taskList]);
+
+
+
+
     // 현재 선택된 프로젝트 상세 탭
     const [activeTab, setActiveTab] = useState<'wbs' | 'tasks'>('wbs');
     return(
@@ -263,7 +305,7 @@ const ProjectPage: React.FC = () => {
 
                 <InfoItem>
                   <InfoLabel>진행률</InfoLabel>
-                  <InfoValue>{'0'}</InfoValue>
+                  <InfoValue>{progressRate} %</InfoValue>
                 </InfoItem>
 
                 <InfoItem>
