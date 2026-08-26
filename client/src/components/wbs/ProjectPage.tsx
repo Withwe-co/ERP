@@ -9,8 +9,12 @@ import { Edit, Plus, RefreshCw } from 'lucide-react';
 import Card from '../common/Card';
 import TaskManagementPage from './TaskManagementPage';
 import WbsManagementPage from './WbsManagementPage';
+
 // Type
 import { TableColumn } from '../../types';
+
+// Api
+import {taskApi} from '../../services/api'
 
 const Container = styled.div`
   padding: 20px;
@@ -79,7 +83,7 @@ const ProjectCode = styled.p`
 // 프로젝트 정보 Grid
 const InfoGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 16px;
 `;
 
@@ -190,6 +194,37 @@ const ProjectPage: React.FC = () => {
     const navigate = useNavigate();
     const project = location.state?.project;
 
+    const { data: taskList = [] } = useQuery({
+            queryKey: ['tasks', project.id],
+            queryFn: () => taskApi.getTasks(project.id),
+            enabled: Boolean(project.id),
+    });
+
+    const { totalTaskCount, delayedTaskCount, completeTaskCount } = useMemo(() => {
+      const today = new Date().toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Seoul',
+      });
+
+      // 지연된 테스크 개수
+      const delayedCount = taskList.filter((task) => {
+        const plannedEndDate = task.planned_end_date?.slice(0, 10);
+
+        return (
+          Boolean(plannedEndDate) &&
+          plannedEndDate < today &&
+          task.status !== 'DONE'
+        );
+      }).length;
+
+      // 완료된 테스크 개수
+      const completeCount = taskList.filter((task) => task.status === 'DONE').length;
+
+      return {
+        totalTaskCount: taskList.length,
+        delayedTaskCount: delayedCount,
+        completeTaskCount : completeCount,
+      };
+    }, [taskList]);
     // 현재 선택된 프로젝트 상세 탭
     const [activeTab, setActiveTab] = useState<'wbs' | 'tasks'>('wbs');
     return(
@@ -233,12 +268,17 @@ const ProjectPage: React.FC = () => {
 
                 <InfoItem>
                   <InfoLabel>전체 태스크 수</InfoLabel>
-                  <InfoValue>{'0'}</InfoValue>
+                  <InfoValue>{totalTaskCount}</InfoValue>
                 </InfoItem>
                
                 <InfoItem>
                   <InfoLabel>지연 태스크 수</InfoLabel>
-                  <InfoValue>{'0'}</InfoValue>
+                  <InfoValue>{delayedTaskCount}</InfoValue>
+                </InfoItem>
+
+                <InfoItem>
+                  <InfoLabel>완료 태스크 수</InfoLabel>
+                  <InfoValue>{completeTaskCount}</InfoValue>
                 </InfoItem>
 
                 <DescGrid>
