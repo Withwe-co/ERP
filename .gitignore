@@ -12,3 +12,6 @@ data
 # Python local environment
 server/.venv/
 server/.pytest_cache/
+
+/logs/nginx/access.log
+/logs/nginx/error.log

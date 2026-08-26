@@ -2,7 +2,7 @@ import styled from "styled-components";
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {toast} from 'react-toastify';
-import {Edit,Plus,RefreshCw,Archive} from 'lucide-react'
+import {Edit,Plus,RefreshCw,Archive, Underline} from 'lucide-react'
 
 // Components
 import Card from "../common/Card";
@@ -11,7 +11,7 @@ import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
 
 // Api
-import {WbsApi} from '../../services/api'
+import {WbsApi, taskApi, type Wbs} from '../../services/api'
 
 ////////////////////임시
 const TableWrapper = styled.div`
@@ -101,7 +101,20 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
 }) => {
 
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    //임시
+    const [editingWbs, setEditingWbs] = useState<Wbs | null>(null);
+
+    // wbs 생성 모달 오픈
+    const openCreateModal = () => {
+        setEditingWbs(null);
+        setIsFormModalOpen(true);
+    }
+    // wbs 수정 모달 오픈
+    const openEditModal = (wbs:Wbs) =>{
+        setEditingWbs(wbs);
+        setIsFormModalOpen(true);
+    }
+
+    // wbs 목록 불러오기
     const {
         data: tasks = [],
         isLoading,
@@ -112,6 +125,13 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         enabled: Boolean(projectId),
     });
     
+    // Task 이름 + 일정 불러오기
+    const { data: taskList = [] } = useQuery({
+        queryKey: ['tasks', projectId],
+        queryFn: () => taskApi.getTasks(projectId),
+        enabled: Boolean(projectId),
+    });
+
     const Depth1 = 200;
     const Depth2 = 200;
     const Depth3 = 200;
@@ -144,6 +164,17 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     : []
 
     const tableWidth = Depth1+Depth2+Depth3 + days.length * cellWidth;
+    const taskByWbsCode = new Map(taskList.map((task) => [task.wbs_code, task]));
+    
+    const tableRows = tasks.filter((task) => task.wbs_code.split('.').length === 1)
+        .flatMap((parent) => {const children = tasks.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
+    
+        if (children.length === 0){
+            return [{parent,child: null,showParent: true,}];
+        }
+    
+        return children.map((child, index) => ({parent,child,showParent: index === 0}));
+    });
 
     return(
         <>
@@ -180,44 +211,56 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {tasks.map((task) => {
-                                const depth = task.wbs_code.split('.').length;
+                            {tableRows.map(({ parent, child, showParent }) => {
+                                const rowTask = child ?? parent;
+                                const matchedTask = taskByWbsCode.get(rowTask.wbs_code);
 
-                                if (depth > 2)
-                                    return null;
-                                
-                                const startOffset = getDayOffset(task.start_date, timelineStart);
-                                const endOffset = getDayOffset(task.due_date, timelineStart);
+                                const chartStartDate = matchedTask?.planned_start_date;
+                                const chartEndDate = matchedTask?.planned_end_date;
+                                const hasTaskSchedule = Boolean(chartStartDate && chartEndDate);
 
-                                const visibleStart = Math.max(0, startOffset);
-                                const visibleEnd = Math.min(days.length - 1, endOffset);
+                                let leftOffset = 0;
+                                let barWidth = 0;
+                                let showGanttBar = false;
 
-                                if (visibleEnd < 0 || visibleStart >= days.length)
-                                    return null;
-                                
-                                const leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
-                                const barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
+                                if (hasTaskSchedule) {
+                                    const startOffset = getDayOffset(chartStartDate, timelineStart);
+                                    const endOffset = getDayOffset(chartEndDate, timelineStart);
+
+                                    const visibleStart = Math.max(0, startOffset);
+                                    const visibleEnd = Math.min(days.length - 1, endOffset);
+
+                                    showGanttBar =visibleEnd >= 0 && visibleStart < days.length;
+
+                                    if (showGanttBar) {
+                                        leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
+
+                                        barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
+                                    }
+                                }
 
                                 return (
-                                    <StyledRow key={task.wbs_code}>
+                                    <StyledRow key={rowTask.wbs_code}>
                                         <td
+                                            onClick={showParent? () => openEditModal(parent): undefined}
                                             style={{
                                             fontWeight: '500',
                                             background: '#fafafa',
                                             textAlign: 'center',
                                             }}
                                         >
-                                            {depth === 1 ? task.wbs_code +' / '+task.wbs_name : ''}
+                                            {showParent ? parent.wbs_code +' / '+ parent.wbs_name : ''}
                                         </td>
 
                                         <td
+                                            onClick={child? ()=> openEditModal(child):undefined}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                            {depth === 2 ? task.wbs_code +' / '+task.wbs_name : ''}
+                                            {child? child.wbs_code +' / '+ child.wbs_name : ''}
                                         </td>
 
                                         <td
@@ -227,7 +270,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                            {/* Task 열은 비워 둠 */}
+                                           {child ? matchedTask?.task_name ?? '' : ''}
                                         </td>
 
                                         {days.map((day) => (
@@ -236,13 +279,14 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             style={{ width: `${cellWidth}px`, background: '#fff' }}
                                             />
                                         ))}
-
-                                        <GanttBar
-                                            style={{
-                                            left: `${leftOffset + 2}px`,
-                                            width: `${barWidth}px`,
-                                            }}
-                                        />
+                                        {showGanttBar && (
+                                            <GanttBar
+                                                style={{
+                                                left: `${leftOffset + 2}px`,
+                                                width: `${barWidth}px`,
+                                                }}
+                                            />
+                                        )}
                                     </StyledRow>
                                 );
                             })}
@@ -254,13 +298,22 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         <Modal
             isOpen={isFormModalOpen}
             onClose={() => setIsFormModalOpen(false)}
-            title="WBS 등록"
+            title={editingWbs ? "WBS 수정" : "WBS 등록"}
             size="xl"
             >
             <WbsUploadForm
+                key={editingWbs?.id ?? 'create'}
                 projectId={projectId}
-                onSuccess={() => setIsFormModalOpen(false)}
-                onCancel={() => setIsFormModalOpen(false)}
+                initialData={editingWbs ?? undefined}
+                isEdit={Boolean(editingWbs)}
+                onSuccess={() => {
+                    setIsFormModalOpen(false);
+                    setEditingWbs(null);
+                }}
+                onCancel={() => {
+                    setIsFormModalOpen(false);
+                    setEditingWbs(null);
+                }}
             />
         </Modal>
         </>

@@ -406,6 +406,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                                     value={formData.updated_by || ''}
                                     onChange={(e) => handleChange('updated_by', e.target.value)}
                                     placeholder="수정자명을 입력하세요"
+                                    required
                                 />
                             </FormRow>
                         )}

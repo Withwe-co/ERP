@@ -286,12 +286,12 @@ const WbsPage: React.FC = () => {
     },
     {
       key: 'total_task',
-      label: '전체 테스크',
+      label: '전체 태스크',
       width: '80px'
     },
     {
       key: 'delayed_task',
-      label: '지연 테스크',
+      label: '지연 태스크',
       width: '80px'
     },
     {

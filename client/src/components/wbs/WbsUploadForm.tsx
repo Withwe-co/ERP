@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import styled from 'styled-components';
-import {useMutation,useQueryClient} from '@tanstack/react-query';
+import {useMutation,useQueryClient,useQuery} from '@tanstack/react-query';
 
 // Components
 import {toast} from 'react-toastify';
@@ -17,10 +17,9 @@ interface WbsUploadFormData {
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
+    updated_at: Date;
     updated_by: string;
     project_id: number;
 }
@@ -30,11 +29,11 @@ interface Wbs {
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
     project_id: number;
+    updated_at?: string | null;
+    updated_by?: string | null;
 }
 
 interface WbsUploadFormProps {
@@ -176,6 +175,20 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         },
     });
 
+    //WBS 삭제
+    const deleteItemMutation = useMutation({
+        mutationFn: WbsApi.deleteWbs,
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['projectwbs'] });
+          queryClient.invalidateQueries({ queryKey: ['projectwbs-stats'] });
+          toast.success('WBS가 삭제되었습니다.');
+          onSuccess();
+        },
+        onError: (error: any) => {
+          toast.error(error.response?.data?.message || '삭제 중 오류가 발생했습니다.');
+        },
+    });
+
     const isLoading = createMutation.isPending || updateMutation.isPending;
 
     const getInitialFormData = (): WbsUploadFormData => {
@@ -183,9 +196,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             return {
                 wbs_code: '',
                 wbs_name: '',
-                parent_wbs: '',
-                start_date: '',
-                due_date: '',
+                parent_wbs: '없음',
                 wbs_description: '',
                 wbs_order: 0,
                 project_id: 0,
@@ -197,8 +208,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             wbs_code: initialData.wbs_code || '',
             wbs_name: initialData.wbs_name || '',
             parent_wbs: initialData.parent_wbs || '',
-            start_date: initialData.start_date || '',
-            due_date: initialData.due_date || '',
             wbs_description: initialData.wbs_description || '',
             wbs_order: initialData.wbs_order || 0,
             project_id: initialData.project_id || 0,
@@ -217,14 +226,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         if (!formData.wbs_name) {
           newErrors.wbs_name = 'WBS명을 입력해주세요.';
         }
-            
-        if (!formData.start_date) {
-          newErrors.start_date = '프로젝트 시작일을 선택해주세요.';
-        }
-
-        if (!formData.due_date) {
-          newErrors.due_date = '프로젝트 종료일을 선택해주세요.';
-        }
     
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -242,8 +243,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             wbs_name: formData.wbs_name,
             wbs_code: formData.wbs_code,
             parent_wbs: formData.parent_wbs,
-            start_date: formData.start_date? `${formData.start_date}T00:00:00` : null,
-            due_date: formData.due_date? `${formData.due_date}T23:59:59` : null,
             wbs_description: formData.wbs_description,
             wbs_order: formData.wbs_order,
             updated_by: formData.updated_by,
@@ -252,7 +251,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         console.log('submitData:', JSON.stringify(submitData, null, 2));
         
         // 필수 필드 체크
-        const requiredFields = ['wbs_name','wbs_code','start_date','due_date'];
+        const requiredFields = ['wbs_name','wbs_code'];
         const missingFields = requiredFields.filter(field => !submitData[field]);
         if (missingFields.length > 0) {
             console.error('누락된 필수 필드:', missingFields);
@@ -267,6 +266,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         }
     };
 
+    // WBS 수정
     const handleChange = (field: keyof WbsUploadFormData, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         
@@ -279,6 +279,39 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         });
         }
     };
+
+    // WBS 삭제
+    const handleDelete = async (itemId: number) => {
+        if (window.confirm('정말로 이 WBS을 삭제하시겠습니까?')) {
+            deleteItemMutation.mutate(itemId);
+        }
+    };
+
+    // WBS 목록 조회
+    const { data: wbsList = [] } = useQuery({
+        queryKey: ['projectwbs', projectId],
+        queryFn: () => WbsApi.getWbsList(projectId),
+        enabled: Boolean(projectId),
+    });
+
+    // 상위 WBS 선택 옵션
+    const parentWbsOptions = [
+        {
+            value: '',
+            label: '없음',
+        },
+        ...wbsList
+            .filter((wbs) => {
+                const isDepth1 = wbs.wbs_code.split('.').length === 1;
+                const isNotCurrentWbs = wbs.id !== initialData?.id;
+
+                return isDepth1 && isNotCurrentWbs;
+            })
+                .map((wbs) => ({
+                value: wbs.wbs_code,
+                label: `${wbs.wbs_code} / ${wbs.wbs_name}`,
+            })),
+    ];
 
     return(
         <FormContainer>
@@ -313,30 +346,11 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             required
                         />
 
-                        <Input
+                        < Select
                             label="상위 WBS"
                             value={formData.parent_wbs}
-                            onChange={(e) => handleChange('parent_wbs', e.target.value)}
-                            placeholder="상위 WBS"
-                            required
-                        />
-
-                        <Input
-                            label="WBS 시작일"
-                            type="date"
-                            value={formData.start_date}
-                            onChange={(e) => handleChange('start_date', e.target.value)}
-                            max={formData.due_date||undefined}
-                            required
-                        />
-
-                        <Input
-                            label="WBS 종료일"
-                            type="date"
-                            value={formData.due_date}
-                            onChange={(e) => handleChange('due_date', e.target.value)}
-                            min={formData.start_date||undefined}
-                            required
+                            options={parentWbsOptions}
+                            onChange={(value) => handleChange('parent_wbs', value)}
                         />
 
                         <Input
@@ -353,22 +367,54 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             required
                         />
 
+                        {isEdit &&(
+                            <FormRow style={{display:'grid',gridTemplateColumns: '1fr 1fr',gap: '16px'}}>
+                                <Input
+                                    label="최종 수정일"
+                                    value={initialData?.updated_at ? new Date(initialData.updated_at).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul'}) : '' }
+                                    disabled
+                                />
+
+                                <Input
+                                    label="수정자"
+                                    value={formData.updated_by || ''}
+                                    onChange={(e) => handleChange('updated_by', e.target.value)}
+                                    placeholder="수정자명을 입력하세요"
+                                    required
+                                />
+                            </FormRow>
+                        )}
+
                         <FormRow style={{ marginTop: '16px' }}>
                             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                            프로젝트 설명
+                            WBS 설명
                             </label>
                             <TextArea
-                            value={formData.wbs_description}
-                            onChange={(e) => handleChange('wbs_description', e.target.value)}
-                            placeholder="프로젝트 설명을 입력하세요"
+                                value={formData.wbs_description}
+                                onChange={(e) => handleChange('wbs_description', e.target.value)}
+                                placeholder="WBS 설명을 입력하세요"
                             />
                         </FormRow>
                     </FormGrid>
                 </FormSection>
                 <ButtonGroup>
-                    <Button type="button" variant="outline" onClick={onCancel}>
+                    {isEdit && initialData && (
+                        <Button 
+                            type="button" 
+                            variant="danger" 
+                            onClick={()=>handleDelete(initialData.id)}
+                        >
+                            삭제
+                        </Button>
+                    )}
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={onCancel}
+                    >
                         취소
                     </Button>
+
                     <Button 
                         type="submit" 
                         loading={isLoading}

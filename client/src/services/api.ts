@@ -365,8 +365,6 @@ interface WbsUploadFormData {
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
     updated_at: string;
@@ -374,13 +372,11 @@ interface WbsUploadFormData {
     project_id: number;
 }
 
-interface Wbs {
+export interface Wbs {
     id: number;
     wbs_code: string;
     wbs_name: string;
     parent_wbs: string;
-    start_date: string;
-    due_date: string;
     wbs_description: string;
     wbs_order: number;
     project_id: number;
@@ -1926,6 +1922,17 @@ export const WbsApi = {
       return response;
     } catch (error) {
       console.error('API 오류 상세:', error.response?.data);
+      throw error;
+    }
+  },
+
+  // Wbs 삭제
+  deleteWbs: async (id: number): Promise<any> => {
+    try {
+      const response = await apiRequest.delete(`/projectwbs/${id}`);
+      return response;
+    } catch (error) {
+      console.error('WBS 삭제 실패:', error);
       throw error;
     }
   },
