@@ -361,6 +361,13 @@ export interface TaskCreateResponse {
   data: TaskResponse;
 }
 
+// 태스크 수정 API 응답 타입
+export interface TaskUpdateResponse {
+  status_code: number;
+  message: string;
+  data: TaskResponse;
+}
+
 interface WbsUploadFormData {
     wbs_code: string;
     wbs_name: string;
@@ -398,13 +405,14 @@ export const taskApi = {
 
   // 프로젝트별 태스크 목록 조회
   // 검색 및 필터 조건이 있으면 query parameter에 함께 전달
-  getTasks: async (projectId: number,filters: TaskFilter = {},): Promise<TaskResponse[]> => {
+  getTasks: async (projectId: number,filters: TaskFilter = {}, isArchived = false,): Promise<TaskResponse[]> => {
     try {
       const response = await apiRequest.get("/tasks/", {
         // 현재 프로젝트의 태스크만 조회
         project_id: projectId,
 
-        // 검색어, 상태, 우선순위, 담당자, 부서 필터를 함께 전달
+        is_archived: isArchived,
+        // 검색어, WBS, 상태, 우선순위, 담당자, 부서 필터를 함께 전달
         ...filters,
       });
 
@@ -413,11 +421,20 @@ export const taskApi = {
   },
 
   // 태스크 수정
-  updateTask: async (taskId: number, data: TaskUpdateData,): Promise<TaskResponse> => {
+  updateTask: async (taskId: number, data: TaskUpdateData,): Promise<TaskUpdateResponse> => {
     try {
       const response = await apiRequest.put(`/tasks/${taskId}`, data,);
       return response;
-    } catch (error) {console.error("태스크 수정 실패:", error); throw error;}
+    } 
+    catch (error) {console.error("태스크 수정 실패:", error); throw error;}
+  },
+
+  archiveTask: async (taskId: number,): Promise<TaskUpdateResponse> => {
+    return apiRequest.patch(`/tasks/${taskId}/archive`,);
+  },
+
+  restoreTask: async (taskId: number,): Promise<TaskUpdateResponse> => {
+    return apiRequest.patch(`/tasks/${taskId}/restore`,);
   },
 
 };
@@ -641,6 +658,7 @@ export const purchaseApi = {
       const params = filters ? {
         ids: filters?.ids?.join(','),
         search: filters.search,
+        wbs_code: filters.wbs_code,
         status: filters.status,
         urgency: filters.urgency,
         department: filters.department,

@@ -73,7 +73,7 @@ class Task(Base):
         default="NORMAL",
     )
 
-    # 상태: TODO, IN_PROGRESS, ON_HOLD, DONE
+    # 상태: TODO, IN_PROGRESS, DONE
     status = Column(
         String(20),
         nullable=False,

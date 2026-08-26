@@ -50,24 +50,6 @@ describe("TaskKanbanBoard", () => {
         updated_at: "2026-08-25T10:00:00",
       },
       {
-        id: 3,
-        project_id: 1,
-        wbs_code: "1.3",
-        task_name: "보류 태스크",
-        assignee_name: "박담당",
-        department: "기획팀",
-        priority: "LOW",
-        status: "ON_HOLD",
-        planned_start_date: "2026-08-25",
-        planned_end_date: "2026-08-28",
-        description: "",
-        note: "",
-        is_archived: false,
-        archived_at: null,
-        created_at: "2026-08-25T10:00:00",
-        updated_at: "2026-08-25T10:00:00",
-      },
-      {
         id: 4,
         project_id: 1,
         wbs_code: "1.4",
@@ -98,12 +80,10 @@ describe("TaskKanbanBoard", () => {
 
     expect(html).toContain("대기");
     expect(html).toContain("진행 중");
-    expect(html).toContain("보류");
     expect(html).toContain("완료");
 
     expect(html).toContain("대기 태스크");
     expect(html).toContain("진행 태스크");
-    expect(html).toContain("보류 태스크");
     expect(html).toContain("완료 태스크");
   });
 
@@ -163,7 +143,7 @@ describe("TaskKanbanBoard", () => {
         expect(html).toContain("진행 중");
         expect(html).toContain(">0<");
 
-        expect(html).toContain("보류");
+        expect(html).not.toContain("보류");
         expect(html).toContain("완료");
         });
 

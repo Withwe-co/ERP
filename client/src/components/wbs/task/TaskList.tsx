@@ -8,7 +8,7 @@ import { TableColumn } from "../../../types";
 import { TaskResponse } from "../../../types/task";
 
 import styled from "styled-components";
-import { Pencil, Archive } from "lucide-react";
+import { Pencil, Archive, Play} from "lucide-react";
 
 // TaskList가 부모 컴포넌트로부터 전달받는 값
 interface TaskListProps {
@@ -20,26 +20,50 @@ interface TaskListProps {
 
   // 수정 버튼을 눌렀을 때 선택한 태스크를 부모에게 전달
   onEdit: (task: TaskResponse) => void;
-  // 보류 버튼
-  onHold?: (task: TaskResponse) => void;
 
   // 상세페이지 열리도록 태스크 클릭
   onDetail: (task: TaskResponse) => void;
+
+  onArchive?: (task: TaskResponse) => void;
+  onRestore?: (task: TaskResponse) => void;
+
+  archivedView?: boolean;
 }
 
 
 // 태스크 목록 컴포넌트
-function TaskList({tasks, loading = false, onEdit, onHold, onDetail,}: TaskListProps) {
+function TaskList({tasks, loading = false, onEdit, onDetail,  onArchive, onRestore, archivedView = false,}: TaskListProps) {
 
   // 태스크 목록 테이블의 열(Column) 구성
   const columns: TableColumn<TaskResponse>[] = [
     {
+      key: "status",
+      label: "상태",
+      width: "100px",
+
+      // 서버의 상태값을 사용자에게 한글로 표시
+      render: (value) => {
+        const status = value as TaskResponse["status"];
+
+        const statusLabel = {
+          TODO: "대기",
+          IN_PROGRESS: "진행 중",
+          DONE: "완료",
+        };
+
+        return (
+          <StatusBadge $status={status}>
+            {statusLabel[status]}
+          </StatusBadge>
+        );
+      },
+    },
+
+    {
       // TaskResponse의 task_name 값을 사용
       key: "task_name",
-
       // 테이블 상단에 표시할 제목
       label: "태스크명",
-
       // 열 너비
       width: "200px",
     },
@@ -83,26 +107,6 @@ function TaskList({tasks, loading = false, onEdit, onHold, onDetail,}: TaskListP
     },
 
     {
-      key: "status",
-      label: "상태",
-      width: "100px",
-
-      // 서버의 상태값을 사용자에게 한글로 표시
-      render: (value) => {
-        const statusLabel = {
-          TODO: "대기",
-          IN_PROGRESS: "진행 중",
-          ON_HOLD: "보류",
-          DONE: "완료",
-        };
-
-        return statusLabel[
-          value as keyof typeof statusLabel
-        ];
-      },
-    },
-
-    {
       key: "planned_start_date",
       label: "시작 예정일",
       width: "120px",
@@ -123,25 +127,29 @@ function TaskList({tasks, loading = false, onEdit, onHold, onDetail,}: TaskListP
         <ActionButtons>
           <ActionButton
             type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onEdit(task);
-            }}
+            onClick={(event) => {event.stopPropagation(); onEdit(task);}}
           >
             <Pencil size={14} />
             수정
           </ActionButton>
 
-          <ActionButton
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onHold?.(task);
-            }}
-          >
-            <Archive size={14} />
-            보류
-          </ActionButton>
+          {archivedView ? (
+            <ActionButton
+              type="button"
+              onClick={(event) => {event.stopPropagation(); onRestore?.(task);}}
+            >
+              <Play size={14} />
+              진행
+            </ActionButton>
+          ) : (
+            <ActionButton
+              type="button"
+              onClick={(event) => {event.stopPropagation(); onArchive?.(task);}}
+            >
+              <Archive size={14} />
+              보류
+            </ActionButton>
+          )}
         </ActionButtons>
       ),
     },
@@ -201,4 +209,38 @@ const ActionButton = styled.button`
   &:active {
     transform: translateY(1px);
   }
+`;
+
+const StatusBadge = styled.span<{$status: TaskResponse["status"];}>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 64px;
+  padding: 4px 10px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  ${({ $status }) => {
+    if ($status === "DONE") {
+      return `
+        color: #15803d;
+        background: #dcfce7;
+      `;
+    }
+
+    if ($status === "IN_PROGRESS") {
+      return `
+        color: #2563eb;
+        background: #dbeafe;
+      `;
+    }
+
+    return `
+      color: #4b5563;
+      background: #f3f4f6;
+    `;
+  }}
 `;

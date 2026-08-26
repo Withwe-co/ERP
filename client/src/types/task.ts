@@ -1,7 +1,7 @@
 // 태스크 데이터 구조 정의
 
 // TaskStatus: 태스크 상태로 허용할 값 정의
-export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
+export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE";
 
 // TaskPriority: 우선순위로 허용할 값 정의
 export type TaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";

@@ -24,48 +24,47 @@ import { Pencil, Archive } from "lucide-react";
 // TaskList 컴포넌트 테스트 모음
 describe("TaskList", () => {
 
+  // 테스트에 사용할 가짜 태스크 데이터
+  // 실제 GET /api/v1/tasks/ 응답과 같은 TaskResponse 구조를 사용
+  const tasks: TaskResponse[] = [
+    {
+      id: 1,
+
+      // 해당 태스크가 속한 프로젝트 ID
+      project_id: 1,
+
+      // 해당 태스크가 속한 WBS CODE
+      wbs_code: "1.3",
+
+      // 태스크 기본 정보
+      task_name: "태스크 목록 구현",
+      assignee_name: "담당자씨",
+      department: "개발팀",
+
+      // 우선순위와 상태
+      priority: "HIGH",
+      status: "IN_PROGRESS",
+
+      // 태스크 예정 일정
+      planned_start_date: "2026-08-21",
+      planned_end_date: "2026-08-22",
+
+      // 선택 입력값
+      description: "TaskList 구현",
+      note: "",
+
+      // 서버 응답에 포함되는 보관 정보
+      is_archived: false,
+      archived_at: null,
+
+      // 서버에서 관리하는 생성/수정 시간
+      created_at: "2026-08-21T10:00:00",
+      updated_at: "2026-08-21T10:00:00",
+    },
+  ];
+
   // 서버에서 받은 태스크 데이터가 실제 목록에 표시되는지 확인
   it("태스크 목록 데이터를 테이블에 표시한다", () => {
-
-    // 테스트에 사용할 가짜 태스크 데이터
-    // 실제 GET /api/v1/tasks/ 응답과 같은 TaskResponse 구조를 사용
-    const tasks: TaskResponse[] = [
-      {
-        id: 1,
-
-        // 해당 태스크가 속한 프로젝트 ID
-        project_id: 1,
-
-        // 해당 태스크가 속한 WBS CODE
-        wbs_code: "1.3",
-
-        // 태스크 기본 정보
-        task_name: "태스크 목록 구현",
-        assignee_name: "담당자씨",
-        department: "개발팀",
-
-        // 우선순위와 상태
-        priority: "HIGH",
-        status: "IN_PROGRESS",
-
-        // 태스크 예정 일정
-        planned_start_date: "2026-08-21",
-        planned_end_date: "2026-08-22",
-
-        // 선택 입력값
-        description: "TaskList 구현",
-        note: "",
-
-        // 서버 응답에 포함되는 보관 정보
-        is_archived: false,
-        archived_at: null,
-
-        // 서버에서 관리하는 생성/수정 시간
-        created_at: "2026-08-21T10:00:00",
-        updated_at: "2026-08-21T10:00:00",
-      },
-    ];
-
 
     // TaskList를 실제 브라우저에 띄우는 대신
     // HTML 문자열로 렌더링하여 결과를 검사
@@ -94,5 +93,68 @@ describe("TaskList", () => {
 
     // 태스크 수정 기능으로 이동할 수 있는 수정 버튼이 표시되는지 확인
     expect(html).toContain("수정");
+  });
+
+  it("상태를 첫 번째 열에 표시한다", () => {
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskList
+          tasks={tasks}
+        />
+      </ThemeProvider>,
+    );
+
+    const statusIndex = html.indexOf("상태");
+    const taskNameIndex = html.indexOf("태스크명");
+
+    expect(statusIndex).toBeGreaterThan(-1);
+    expect(taskNameIndex).toBeGreaterThan(-1);
+    expect(statusIndex).toBeLessThan(taskNameIndex);
+  });
+
+  it("태스크 상태를 한글로 표시한다", () => {
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskList tasks={tasks} />
+      </ThemeProvider>,
+    );
+
+    expect(html).toContain("진행 중");
+  });
+
+  it("전체 태스크 목록에서는 보류 버튼을 표시한다", () => {
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskList
+          tasks={tasks}
+          onEdit={() => {}}
+          onDetail={() => {}}
+          onArchive={() => {}}
+          onRestore={() => {}}
+          archivedView={false}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(html).toContain("보류");
+    expect(html).not.toContain(">진행<");
+  });
+
+  it("보류 태스크 목록에서는 진행 버튼을 표시한다", () => {
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskList
+          tasks={tasks}
+          onEdit={() => {}}
+          onDetail={() => {}}
+          onArchive={() => {}}
+          onRestore={() => {}}
+          archivedView={true}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(html).toContain("진행");
+    expect(html).not.toContain(">보류<");
   });
 });

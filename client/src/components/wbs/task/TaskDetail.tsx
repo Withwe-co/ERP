@@ -22,7 +22,6 @@ function TaskDetail({task,onEdit,onClose,}: TaskDetailProps) {
   const statusLabel = {
     TODO: "대기",
     IN_PROGRESS: "진행 중",
-    ON_HOLD: "보류",
     DONE: "완료",
   };
 
