@@ -103,6 +103,10 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [editingWbs, setEditingWbs] = useState<Wbs | null>(null);
 
+    // 차트 일정 보기 조절
+    type GanttViewMode = 'day' | 'week' | 'month';
+    const [ganttViewMode, setGanttViewMode] = useState<GanttViewMode>('day');
+
     // wbs 생성 모달 오픈
     const openCreateModal = () => {
         setEditingWbs(null);
@@ -124,7 +128,23 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         queryFn: () => WbsApi.getWbsList(projectId),
         enabled: Boolean(projectId),
     });
-    
+
+    // wbs 순서 설정
+    const sortedWbs = [...tasks].sort((a, b) => {
+        const aOrder = a.wbs_order ?? Number.MAX_SAFE_INTEGER;
+        const bOrder = b.wbs_order ?? Number.MAX_SAFE_INTEGER;
+
+        // 1차: DB의 wbs_order 순서
+        if (aOrder !== bOrder) {
+            return aOrder - bOrder;
+        }
+
+        // 2차: 같은 순서값이거나 순서값이 없을 때 WBS 코드 순서
+        return a.wbs_code.localeCompare(b.wbs_code, undefined, {
+            numeric: true,
+        });
+    });
+
     // Task 이름 + 일정 불러오기
     const { data: taskList = [] } = useQuery({
         queryKey: ['tasks', projectId],
@@ -135,7 +155,13 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     const Depth1 = 200;
     const Depth2 = 200;
     const Depth3 = 200;
-    const cellWidth = 40;
+    const cellWidthByMode: Record<GanttViewMode, number> = {
+        day: 40,
+        week: 160,
+        month: 250,
+    };
+    const cellWidth = cellWidthByMode[ganttViewMode];
+
     const timelineStart = projectStartDate?.slice(0,10) ?? '';
     const timelineEnd = projectDueDate?.slice(0,10)?? '';
 
@@ -151,35 +177,169 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         return Math.floor((toUtcDate(dateString) - toUtcDate(baseDate)) / oneDay);
     };
 
-    const days =
-    timelineStart && timelineEnd
-        ? Array.from(
-            { length: getDayOffset(timelineEnd, timelineStart) + 1 },
-            (_, i) => {
-            const date = new Date(`${timelineStart}T00:00:00Z`);
-            date.setUTCDate(date.getUTCDate() + i);
-            return date.toISOString().slice(0, 10);
-            },
-        )
-    : []
+    interface TimelineColumn {
+        key: string;
+        label: string;
+        startDate: string;
+        endDate: string;
+    }
 
-    const tableWidth = Depth1+Depth2+Depth3 + days.length * cellWidth;
-    const taskByWbsCode = new Map(taskList.map((task) => [task.wbs_code, task]));
-    
-    const tableRows = tasks.filter((task) => task.wbs_code.split('.').length === 1)
-        .flatMap((parent) => {const children = tasks.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
-    
-        if (children.length === 0){
-            return [{parent,child: null,showParent: true,}];
+    const formatDate = (date: Date) => date.toISOString().slice(0, 10);
+
+    const addDays = (dateString: string, amount: number) => {
+        const date = new Date(`${dateString}T00:00:00Z`);
+        date.setUTCDate(date.getUTCDate() + amount);
+        return formatDate(date);
+    };
+
+    const getMonthStart = (dateString: string) => `${dateString.slice(0, 7)}-01`;
+    const getMonthEnd = (dateString: string) => {
+        const date = new Date(`${getMonthStart(dateString)}T00:00:00Z`);
+        date.setUTCMonth(date.getUTCMonth() + 1);
+        date.setUTCDate(0);
+        return formatDate(date);
+    };
+
+    const timelineColumns: TimelineColumn[] = (() => {
+        if (!timelineStart || !timelineEnd) {
+            return [];
         }
+
+        // 일 단위
+        if (ganttViewMode === 'day') {
+            return Array.from(
+                { length: getDayOffset(timelineEnd, timelineStart) + 1 },
+                (_, index) => {
+                    const date = addDays(timelineStart, index);
+
+                    return {
+                    key: date,
+                    label: String(new Date(`${date}T00:00:00Z`).getUTCDate()),
+                    startDate: date,
+                    endDate: date,
+                    };
+                },
+            );
+        }
+
+        // 주 단위
+        if (ganttViewMode === 'week') {
+            const columns: TimelineColumn[] = [];
+
+            const firstDate = new Date(`${timelineStart}T00:00:00Z`);
+            const dayOfWeek = (firstDate.getUTCDay() + 6) % 7; // 월요일: 0
+            firstDate.setUTCDate(firstDate.getUTCDate() - dayOfWeek);
+
+            let cursor = formatDate(firstDate);
+
+            while (cursor <= timelineEnd) {
+            const weekEnd = addDays(cursor, 6);
+
+            // 프로젝트 기간 밖의 부분은 잘라냄
+            const columnStart = cursor < timelineStart ? timelineStart : cursor;
+            const columnEnd = weekEnd > timelineEnd ? timelineEnd : weekEnd;
+
+            columns.push({
+                key: cursor,
+                label: `${columnStart.slice(5).replace('-', '/')} ~ ${columnEnd
+                .slice(5)
+                .replace('-', '/')}`,
+                startDate: columnStart,
+                endDate: columnEnd,
+            });
+
+            cursor = addDays(cursor, 7);
+            }
+
+            return columns;
+        }
+
+        // 월 단위
+        const columns: TimelineColumn[] = [];
+        let cursor = getMonthStart(timelineStart);
+
+        while (cursor <= timelineEnd) {
+            const monthEnd = getMonthEnd(cursor);
+
+            const columnStart = cursor < timelineStart ? timelineStart : cursor;
+            const columnEnd = monthEnd > timelineEnd ? timelineEnd : monthEnd;
+
+            const [year, month] = cursor.slice(0, 7).split('-');
+
+            columns.push({
+            key: cursor,
+            label: `${year}년 ${Number(month)}월`,
+            startDate: columnStart,
+            endDate: columnEnd,
+            });
+
+            const nextMonth = new Date(`${cursor}T00:00:00Z`);
+            nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+            cursor = formatDate(nextMonth);
+        }
+
+        return columns;
+    })();
+
+    const tableWidth = Depth1 + Depth2 + Depth3 + timelineColumns.length * cellWidth;
+    const taskByWbsCode = taskList.reduce<Record<string, typeof taskList>>((result, task) => {
+        (result[task.wbs_code] ??= []).push(task);
+
+        return result;
+    }, {});
+        
+    const tableRows = sortedWbs.filter((task) => task.wbs_code.split('.').length === 1) .flatMap((parent) => {
+        const parentTasks = taskByWbsCode[parent.wbs_code] ?? [];
+        const children = sortedWbs.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
+        
+        const parentTaskRows = parentTasks.map((linkedTask, index) => ({parent,child: null,linkedTask,showParent: index === 0,showChild: false,}));
+
+        const childRows=children.flatMap((child, childIndex) => {
+            const childTasks = taskByWbsCode[child.wbs_code] ?? [];
     
-        return children.map((child, index) => ({parent,child,showParent: index === 0}));
+            if (childTasks.length === 0){
+                return [{parent,child,linkedTask: null,showParent: parentTasks.length === 0 && childIndex === 0,showChild: true}];
+            }
+
+            return childTasks.map((linkedTask, index) => ({parent,child,linkedTask,showParent:parentTasks.length === 0 && childIndex === 0 && index === 0,showChild: index === 0}));
+        });
+
+        if (parentTaskRows.length === 0 && childRows.length === 0) {
+            return [{parent,child: null,linkedTask: null,showParent: true,showChild: false,}];
+        }
+
+        return [...parentTaskRows, ...childRows];
     });
 
     return(
         <>
         <Container>
             <FilterContainer>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    <Button
+                        size="sm"
+                        variant={ganttViewMode === 'day' ? 'primary' : 'outline'}
+                        onClick={() => setGanttViewMode('day')}
+                    >
+                        일
+                    </Button>
+
+                    <Button
+                        size="sm"
+                        variant={ganttViewMode === 'week' ? 'primary' : 'outline'}
+                        onClick={() => setGanttViewMode('week')}
+                    >
+                        주
+                    </Button>
+
+                    <Button
+                        size="sm"
+                        variant={ganttViewMode === 'month' ? 'primary' : 'outline'}
+                        onClick={() => setGanttViewMode('month')}
+                    >
+                        월
+                    </Button>
+                </div>
                 <ActionButtons>
                     <Button
                         onClick={() => setIsFormModalOpen(true)}       
@@ -197,8 +357,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             <col style={{ width: `${Depth1}px` }} />
                             <col style={{ width: `${Depth2}px` }} />
                             <col style={{ width: `${Depth3}px` }} />
-                            {days.map((day) => (
-                            <col key={day} style={{ width: `${cellWidth}px` }} />
+                            {timelineColumns.map((column) => (
+                                <col key={column.key} style={{ width: `${cellWidth}px` }} />
                             ))}
                         </colgroup>
 
@@ -207,16 +367,21 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             <th style={{textAlign: 'center'}}>Depth 1</th>
                             <th style={{textAlign: 'center'}}>Depth 2</th>
                             <th style={{textAlign: 'center'}}>Task</th>
-                            {days.map((date) => ( <th key={date}>{new Date(`${date}T00:00:00Z`).getUTCDate()}</th>))}
+                            {timelineColumns.map((column) => (
+                                <th key={column.key}>{column.label}</th>
+                            ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {tableRows.map(({ parent, child, showParent }) => {
-                                const rowTask = child ?? parent;
-                                const matchedTask = taskByWbsCode.get(rowTask.wbs_code);
+                            {tableRows.map(({ parent, child,linkedTask, showParent, showChild,}) => {
+                                /*const rowTask = child ?? parent;
+                                const matchedTask = taskByWbsCode[rowTask.wbs_code] ?? [];
+                                
+                                const gantTask = matchedTask[0];*/
 
-                                const chartStartDate = matchedTask?.planned_start_date;
-                                const chartEndDate = matchedTask?.planned_end_date;
+
+                                const chartStartDate = linkedTask?.planned_start_date;
+                                const chartEndDate = linkedTask?.planned_end_date;
                                 const hasTaskSchedule = Boolean(chartStartDate && chartEndDate);
 
                                 let leftOffset = 0;
@@ -224,23 +389,34 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                 let showGanttBar = false;
 
                                 if (hasTaskSchedule) {
-                                    const startOffset = getDayOffset(chartStartDate, timelineStart);
-                                    const endOffset = getDayOffset(chartEndDate, timelineStart);
+                                    const startColumnIndex = timelineColumns.findIndex(
+                                        (column) =>
+                                            chartStartDate >= column.startDate &&
+                                            chartStartDate <= column.endDate,
+                                    );
 
-                                    const visibleStart = Math.max(0, startOffset);
-                                    const visibleEnd = Math.min(days.length - 1, endOffset);
+                                    const endColumnIndex = timelineColumns.findIndex(
+                                        (column) =>
+                                            chartEndDate >= column.startDate &&
+                                            chartEndDate <= column.endDate,
+                                    );
 
-                                    showGanttBar =visibleEnd >= 0 && visibleStart < days.length;
+                                    showGanttBar = startColumnIndex !== -1 && endColumnIndex !== -1;
 
                                     if (showGanttBar) {
-                                        leftOffset = Depth1 + Depth2 + Depth3 + visibleStart * cellWidth;
+                                        const firstColumn = Math.min(startColumnIndex, endColumnIndex);
+                                        const lastColumn = Math.max(startColumnIndex, endColumnIndex);
 
-                                        barWidth = (visibleEnd - visibleStart + 1) * cellWidth - 4;
+                                        leftOffset =
+                                            Depth1 + Depth2 + Depth3 + firstColumn * cellWidth;
+
+                                        barWidth = (lastColumn - firstColumn + 1) * cellWidth - 4;
                                     }
                                 }
+                                const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Seoul',});
 
                                 return (
-                                    <StyledRow key={rowTask.wbs_code}>
+                                    <StyledRow key={`${child?.id ?? parent.id}-${linkedTask?.id ?? 'empty'}`}>
                                         <td
                                             onClick={showParent? () => openEditModal(parent): undefined}
                                             style={{
@@ -249,36 +425,44 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             textAlign: 'center',
                                             }}
                                         >
-                                            {showParent ? parent.wbs_code +' / '+ parent.wbs_name : ''}
+                                            {showParent ? parent.wbs_code +' | '+ parent.wbs_name : ''}
                                         </td>
 
                                         <td
-                                            onClick={child? ()=> openEditModal(child):undefined}
+                                            onClick={showChild && child ? () => openEditModal(child) : undefined}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                            {child? child.wbs_code +' / '+ child.wbs_name : ''}
+                                            {showChild && child ? child.wbs_code + ' | ' + child.wbs_name : ''}
                                         </td>
 
                                         <td
                                             style={{
-                                            textAlign: 'left',
+                                            textAlign: 'center',
                                             fontWeight: '500',
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                           {child ? matchedTask?.task_name ?? '' : ''}
+                                           {linkedTask?.task_name ?? ''}
                                         </td>
 
-                                        {days.map((day) => (
-                                            <td
-                                            key={day}
-                                            style={{ width: `${cellWidth}px`, background: '#fff' }}
-                                            />
-                                        ))}
+                                        {timelineColumns.map((column) => {
+                                            const isTodayColumn =
+                                                today >= column.startDate && today <= column.endDate;
+
+                                            return (
+                                                <td
+                                                key={column.key}
+                                                style={{
+                                                    width: `${cellWidth}px`,
+                                                    background: isTodayColumn ? '#FFF3CD' : '#fff',
+                                                }}
+                                                />
+                                            );
+                                        })}
                                         {showGanttBar && (
                                             <GanttBar
                                                 style={{
