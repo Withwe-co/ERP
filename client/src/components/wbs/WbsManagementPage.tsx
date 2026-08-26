@@ -164,16 +164,33 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     : []
 
     const tableWidth = Depth1+Depth2+Depth3 + days.length * cellWidth;
-    const taskByWbsCode = new Map(taskList.map((task) => [task.wbs_code, task]));
+    const taskByWbsCode = taskList.reduce<Record<string, typeof taskList>>((result, task) => {
+        (result[task.wbs_code] ??= []).push(task);
+
+        return result;
+    }, {});
+        
+    const tableRows = tasks.filter((task) => task.wbs_code.split('.').length === 1) .flatMap((parent) => {
+        const parentTasks = taskByWbsCode[parent.wbs_code] ?? [];
+        const children = tasks.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
+        
+        const parentTaskRows = parentTasks.map((linkedTask, index) => ({parent,child: null,linkedTask,showParent: index === 0,showChild: false,}));
+
+        const childRows=children.flatMap((child, childIndex) => {
+            const childTasks = taskByWbsCode[child.wbs_code] ?? [];
     
-    const tableRows = tasks.filter((task) => task.wbs_code.split('.').length === 1)
-        .flatMap((parent) => {const children = tasks.filter((task) =>  task.wbs_code.split('.').length === 2 &&task.parent_wbs === parent.wbs_code);
-    
-        if (children.length === 0){
-            return [{parent,child: null,showParent: true,}];
+            if (childTasks.length === 0){
+                return [{parent,child,linkedTask: null,showParent: parentTasks.length === 0 && childIndex === 0,showChild: true}];
+            }
+
+            return childTasks.map((linkedTask, index) => ({parent,child,linkedTask,showParent:parentTasks.length === 0 && childIndex === 0 && index === 0,showChild: index === 0}));
+        });
+
+        if (parentTaskRows.length === 0 && childRows.length === 0) {
+            return [{parent,child: null,linkedTask: null,showParent: true,showChild: false,}];
         }
-    
-        return children.map((child, index) => ({parent,child,showParent: index === 0}));
+
+        return [...parentTaskRows, ...childRows];
     });
 
     return(
@@ -211,12 +228,15 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {tableRows.map(({ parent, child, showParent }) => {
-                                const rowTask = child ?? parent;
-                                const matchedTask = taskByWbsCode.get(rowTask.wbs_code);
+                            {tableRows.map(({ parent, child,linkedTask, showParent, showChild,}) => {
+                                /*const rowTask = child ?? parent;
+                                const matchedTask = taskByWbsCode[rowTask.wbs_code] ?? [];
+                                
+                                const gantTask = matchedTask[0];*/
 
-                                const chartStartDate = matchedTask?.planned_start_date;
-                                const chartEndDate = matchedTask?.planned_end_date;
+
+                                const chartStartDate = linkedTask?.planned_start_date;
+                                const chartEndDate = linkedTask?.planned_end_date;
                                 const hasTaskSchedule = Boolean(chartStartDate && chartEndDate);
 
                                 let leftOffset = 0;
@@ -241,7 +261,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                 const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Seoul',});
 
                                 return (
-                                    <StyledRow key={rowTask.wbs_code}>
+                                    <StyledRow key={`${child?.id ?? parent.id}-${linkedTask?.id ?? 'empty'}`}>
                                         <td
                                             onClick={showParent? () => openEditModal(parent): undefined}
                                             style={{
@@ -250,28 +270,28 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             textAlign: 'center',
                                             }}
                                         >
-                                            {showParent ? parent.wbs_code +' / '+ parent.wbs_name : ''}
+                                            {showParent ? parent.wbs_code +' | '+ parent.wbs_name : ''}
                                         </td>
 
                                         <td
-                                            onClick={child? ()=> openEditModal(child):undefined}
+                                            onClick={showChild && child ? () => openEditModal(child) : undefined}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                            {child? child.wbs_code +' / '+ child.wbs_name : ''}
+                                            {showChild && child ? child.wbs_code + ' | ' + child.wbs_name : ''}
                                         </td>
 
                                         <td
                                             style={{
-                                            textAlign: 'left',
+                                            textAlign: 'center',
                                             fontWeight: '500',
                                             paddingLeft: '12px',
                                             }}
                                         >
-                                           {child ? matchedTask?.task_name ?? '' : ''}
+                                           {linkedTask?.task_name ?? ''}
                                         </td>
 
                                         {days.map((day) => (
