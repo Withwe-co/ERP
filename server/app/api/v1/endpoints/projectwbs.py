@@ -116,12 +116,24 @@ def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
         # 실제로 전달된 항목만 추출
         update_data = request_in.model_dump(exclude_unset=True)
 
-        # WBS명 중복 -> 400에러
-        if db.query(DBWbs.id).filter(func.lower(DBWbs.wbs_name)==update_data.get("wbs_name",wbs.wbs_name).lower()).first():
-            raise HTTPException(status_code=400,detail="이미 등록된 WBS명입니다.")
+        # 실제로 변경된 부분 확인 (updated_at은 제외)
+        changed_data = {
+            field: value
+            for field, value in update_data.items()
+            if field != "updated_at" and getattr(wbs, field) != value
+        }
+
+        # 실제로 변경된 값 X -> 400 에러
+        if not changed_data:
+            raise HTTPException(status_code=400,detail="수정 사항이 없습니다.")
+        
+        # WBS명 중복 -> 400 에러
+        if "wbs_name" in changed_data:
+            if db.query(DBWbs.id).filter(func.lower(DBWbs.wbs_name)==changed_data["wbs_name"].lower(),DBWbs.id != wbs_id).first():
+                raise HTTPException(status_code=400,detail="이미 등록된 WBS명입니다.")
 
         # 수정값으로 변경
-        for field, value in update_data.items():
+        for field, value in changed_data.items():
             setattr(wbs,field,value)
 
         # 수정시간에 현재시간 저장
