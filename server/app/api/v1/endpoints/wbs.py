@@ -9,16 +9,66 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 from pydantic import BaseModel, Field
+from collections import defaultdict
+from zoneinfo import ZoneInfo
 
 from app import crud
 from app.core.database import get_db
 from app.core.config import settings
 from app.schemas.projects import (ProjectsBase,UpdateProject,ProjectsList,ProjectInDB)
 
-#from app.crud.purchase_request import project as crud_project
 from app.models.projects import Project as DBProject
-
+from app.models.tasks import Task as DBTask
 router = APIRouter()
+
+def make_project_list_items(db: Session, projects: list[DBProject]):
+    """
+        summary : 프로젝트 목록에 태스크 정보 연동 함수
+
+        arg : 
+
+        desc : 
+
+    """
+
+    # 프로젝트 아이디만 저장
+    project_ids = [project.id for project in projects]
+
+    if not project_ids:
+        return []
+
+    # 보류되지 않은 태스크만 불러오는 쿼리
+    tasks = db.query(DBTask).filter(DBTask.project_id.in_(project_ids),DBTask.is_archived == False).all()
+
+    tasks_by_project = defaultdict(list)
+
+    for task in tasks:
+        tasks_by_project[task.project_id].append(task)
+
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    result = []
+
+    for project in projects:
+        task_list = tasks_by_project[project.id]
+
+        total_schedule_days = sum((task.planned_end_date - task.planned_start_date).days + 1 for task in task_list)
+        completed_schedule_days = sum((task.planned_end_date - task.planned_start_date).days + 1 for task in task_list if task.status == "DONE")
+        progress_rate = (round(completed_schedule_days / total_schedule_days * 100) if total_schedule_days > 0 else 0)
+        delayed_task = sum(1 for task in task_list if task.planned_end_date < today and task.status != "DONE")
+        complete_task = sum(1 for task in task_list if task.status == "DONE")
+
+        item = ProjectInDB.model_validate(project).model_dump()
+
+        item.update({
+                "progress_rate": progress_rate,
+                "total_task": len(task_list),
+                "delayed_task": delayed_task,
+                "complete_task":complete_task,
+            })
+
+        result.append(item)
+
+    return result
 
 @router.post("/",response_model=dict)
 def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
@@ -247,10 +297,7 @@ def read_projectlist(
         print(f"조회된 항목 수: {len(items)}")
 
         # Response 객체로 반환
-        response_items = [
-            ProjectInDB.model_validate(item)
-            for item in items
-        ]
+        response_items = make_project_list_items(db,items)
 
         result = {
             "items": response_items,
@@ -320,10 +367,7 @@ def read_on_hold_projectlist(
         print(f"조회된 항목 수: {len(items)}")
 
         # Response 객체로 반환
-        response_items = [
-            ProjectInDB.model_validate(item)
-            for item in items
-        ]
+        response_items = make_project_list_items(db, items)
 
         result = {
             "items": response_items,

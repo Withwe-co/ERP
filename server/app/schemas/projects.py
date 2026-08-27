@@ -30,6 +30,10 @@ class ProjectInDB(ProjectsBase):
     id : int
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
+    progress_rate: int = 0
+    total_task: int = 0
+    delayed_task: int = 0
+    complete_task: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
