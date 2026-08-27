@@ -3,9 +3,16 @@ import styled from "styled-components";
 import { TaskResponse } from "../../../types/task";
 import TaskCard from "./TaskCard";
 
+import { DndContext, DragEndEvent, PointerSensor, useDroppable, useSensor, useSensors,} from "@dnd-kit/core";
+import { ReactNode } from "react";
+
 
 // TaskKanbanBoard 컴포넌트가 부모 컴포넌트로부터 전달받는 값 정의
-interface TaskKanbanBoardProps {tasks: TaskResponse[]; onDetail: (task: TaskResponse) => void;}
+interface TaskKanbanBoardProps {
+  tasks: TaskResponse[]; 
+  onDetail: (task: TaskResponse) => void;
+  onStatusChange?: (taskId: number, status: TaskResponse["status"]) => void;
+}
 
 
 // 칸반에 표시할 상태별 컬럼 정보
@@ -22,86 +29,163 @@ const KANBAN_COLUMNS: {status: TaskResponse["status"]; label: string;}[] = [
     { status: "DONE", label: "완료" },
 ];
 
+export const getDropStatus = (columnId: string,): TaskResponse["status"] | null => {
+        if (columnId === "TODO" || columnId === "IN_PROGRESS" || columnId === "DONE") {
+          return columnId;
+        }
+        return null;
+};
 
-// 태스크 칸반 보드
-function TaskKanbanBoard({tasks,onDetail,}: TaskKanbanBoardProps) {
+// 단순 클릭과 Drag를 구분하기 위한 Drag 시작 조건
+export const getDragSensorOptions = () => ({activationConstraint: {distance: 8,},});
+
+// 드래그한 태스크 ID와 드롭한 컬럼을 상태 변경 정보로 변환
+export const getTaskStatusChange = (taskId: number, columnId: string, currentStatus?: TaskResponse["status"],) => {
+  const status = getDropStatus(columnId);
+
+  // 칸반 상태가 아닌 영역에 드롭한 경우 상태 변경하지 않음
+  if (!status) return null;
+
+  // 현재 상태와 같은 컬럼에 드롭한 경우 상태 변경하지 않음
+  if (currentStatus === status) return null;
+
+  return {taskId, status,};
+};
+
+// Drag 종료 시 태스크의 현재 상태와 Drop 컬럼을 비교해 상태 변경 콜백 실행
+export const handleTaskDragEnd = (
+  taskId: number,
+  columnId: string,
+  tasks: TaskResponse[],
+  onStatusChange: (taskId: number, status: TaskResponse["status"]) => void,
+) => {
+  // 드래그한 태스크 조회
+  const task = tasks.find((item) => item.id === taskId);
+
+  // 존재하지 않는 태스크면 상태 변경하지 않음
+  if (!task) return;
+
+  const change = getTaskStatusChange(taskId, columnId, task.status);
+
+  // 같은 컬럼 또는 잘못된 영역이면 상태 변경하지 않음
+  if (!change) return;
+
+  onStatusChange(change.taskId, change.status);
+};
+
+interface DroppableColumnProps {
+  status: TaskResponse["status"];
+  children: ReactNode;
+}
+
+// 각 상태 컬럼을 태스크 카드를 놓을 수 있는 Drop 영역으로 만듦
+function DroppableColumn({ status, children }: DroppableColumnProps) {
+  // status를 Drop 영역의 고유 ID로 사용
+  const { setNodeRef } = useDroppable({id: status,});
 
   return (
+    <KanbanColumn
+      ref={setNodeRef}
+      data-column-id={status}
+    >
+      {children}
+    </KanbanColumn>
+  );
+}
 
-    // 네 개의 상태 컬럼을 감싸는 칸반 전체 영역
-    <KanbanBoard>
+// 태스크 칸반 보드
+function TaskKanbanBoard({tasks,onDetail, onStatusChange}: TaskKanbanBoardProps) {
 
-      {/* 
-        KANBAN_COLUMNS 배열을 순회하면서
-        TODO / IN_PROGRESS / DONE
-        총 4개의 칸반 컬럼을 생성
-      */}
-      {KANBAN_COLUMNS.map((column) => {const columnTasks = tasks.filter((task) => task.status === column.status,);
+  // 포인터가 8px 이상 이동했을 때만 Drag를 시작하여 단순 Click과 구분
+  const sensors = useSensors(useSensor(PointerSensor, getDragSensorOptions()),);
 
-        return (
-          <KanbanColumn key={column.status}>
+  // Drag 종료 시 태스크 ID와 Drop 컬럼을 읽어 상태 변경 처리
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-            {/* 컬럼 제목과 태스크 개수가 표시되는 상단 영역 */}
-            <ColumnHeader>
+    // 칸반 컬럼이 아닌 영역에 놓은 경우 상태 변경하지 않음
+    if (!over || !onStatusChange) return;
 
-              {/* 사용자에게 보여주는 상태 이름 */}
-              <ColumnTitle>
-                    <StatusDot $status={column.status} />
+    const taskId = Number(active.id);
+    const columnId = String(over.id);
 
-                    {column.label}
+    handleTaskDragEnd(taskId, columnId, tasks, onStatusChange);
+  };
 
-                </ColumnTitle>
+  return (
+    // 칸반 전체 영역에서 Drag&Drop 이벤트를 감지
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      {/* 3 개의 상태 컬럼을 감싸는 칸반 전체 영역 */}
+      <KanbanBoard> 
 
-              {/* 현재 컬럼에 들어있는 태스크 개수 표시*/}
-              <TaskCount>
-                {columnTasks.length}
-              </TaskCount>
+        {/* KANBAN_COLUMNS 배열을 순회하면서 TODO / IN_PROGRESS / DONE 총 3개의 칸반 컬럼을 생성*/}
+        {KANBAN_COLUMNS.map((column) => {const columnTasks = tasks.filter((task) => task.status === column.status,);
 
-            </ColumnHeader>
+          return (
+            <DroppableColumn key={column.status} status={column.status}>
+
+              {/* 컬럼 제목과 태스크 개수가 표시되는 상단 영역 */}
+              <ColumnHeader>
+
+                {/* 사용자에게 보여주는 상태 이름 */}
+                <ColumnTitle>
+                      <StatusDot $status={column.status} />
+
+                      {column.label}
+
+                  </ColumnTitle>
+
+                {/* 현재 컬럼에 들어있는 태스크 개수 표시*/}
+                <TaskCount>
+                  {columnTasks.length}
+                </TaskCount>
+
+              </ColumnHeader>
 
 
-            {/* 현재 상태에 해당하는 태스크 카드들이 들어가는 영역 */}
-            <CardList>
+              {/* 현재 상태에 해당하는 태스크 카드들이 들어가는 영역 */}
+              <CardList>
 
-              {/* 현재 컬럼에 태스크가 하나도 없는 경우와 태스크가 존재하는 경우를 구분해서 렌더링*/}
-              {columnTasks.length === 0 ? (
-                // 해당 상태에 태스크가 없으면 빈 상태 메시지 표시
-                <EmptyMessage>
-                  등록된 태스크가 없습니다.
-                </EmptyMessage>
+                {/* 현재 컬럼에 태스크가 하나도 없는 경우와 태스크가 존재하는 경우를 구분해서 렌더링*/}
+                {columnTasks.length === 0 ? (
+                  // 해당 상태에 태스크가 없으면 빈 상태 메시지 표시
+                  <EmptyMessage>
+                    등록된 태스크가 없습니다.
+                  </EmptyMessage>
 
-              ) : (
+                ) : (
 
-                /*태스크가 존재하면 현재 컬럼의 모든 태스크를 순회하면서 각각 TaskCard 컴포넌트로 표시*/
-                columnTasks.map((task) => (
+                  /*태스크가 존재하면 현재 컬럼의 모든 태스크를 순회하면서 각각 TaskCard 컴포넌트로 표시*/
+                  columnTasks.map((task) => (
 
-                  <TaskCard
+                    <TaskCard
 
-                    // 각 태스크는 고유한 id를 가지므로
-                    // React 반복 렌더링 key로 사용
-                    key={task.id}
+                      // 각 태스크는 고유한 id를 가지므로
+                      // React 반복 렌더링 key로 사용
+                      key={task.id}
 
-                    // TaskCard에서 표시할 태스크 정보 전달
-                    task={task}
+                      // TaskCard에서 표시할 태스크 정보 전달
+                      task={task}
 
-                    /*
-                      사용자가 TaskCard를 클릭하면TaskCard 내부에서 onDetail(task)가 실행됨
+                      /*
+                        사용자가 TaskCard를 클릭하면TaskCard 내부에서 onDetail(task)가 실행됨
 
-                      이 함수는 최종적으로 TaskManagementPage의 setDetailTask(task)를 호출하여 기존 TaskDetail Modal을 열게 됨
-                    */
-                    onDetail={onDetail}
-                  />
+                        이 함수는 최종적으로 TaskManagementPage의 setDetailTask(task)를 호출하여 기존 TaskDetail Modal을 열게 됨
+                      */
+                      onDetail={onDetail}
+                    />
 
-                ))
-              )}
+                  ))
+                )}
 
-            </CardList>
+              </CardList>
 
-          </KanbanColumn>
-        );
-      })}
+            </DroppableColumn>
+          );
+        })}
 
-    </KanbanBoard>
+      </KanbanBoard>
+    </DndContext>
   );
 }
 

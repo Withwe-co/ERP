@@ -1,6 +1,8 @@
 import styled from "styled-components";
 
 import { TaskResponse } from "../../../types/task";
+import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 
 interface TaskCardProps {
@@ -71,14 +73,31 @@ const getDeadlineStatus = (task: TaskResponse) => {
 // 칸반에 표시되는 태스크 카드
 function TaskCard({task, onDetail, }: TaskCardProps) {
 
+  // 태스크 ID를 기준으로 현재 카드를 Drag 가능한 요소로 등록
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+  });
+
+  // 드래그 중 카드가 마우스 이동을 따라가도록 좌표를 CSS transform으로 변환
+  const dragStyle = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+
   // 현재 태스크의 완료 예정일을 기준으로
   // 마감 임박 / 오늘 마감 / 지연 여부 계산
   const deadlineStatus = getDeadlineStatus(task);
 
   return (
     <CardContainer
+      ref={setNodeRef}
       type="button"
+      data-task-id={task.id}
+      style={dragStyle}
       onClick={() => onDetail(task)}
+      {...listeners}
+      {...attributes}
     >
 
       {/* 카드에서 가장 중요한 태스크명 */}

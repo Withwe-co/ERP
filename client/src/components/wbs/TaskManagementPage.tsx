@@ -24,6 +24,23 @@ interface TaskManagementPageProps {
   projectDueDate: string;
 }
 
+// 지정한 태스크의 status만 변경한 새로운 태스크 목록을 반환
+export const updateTaskStatusInList = (tasks: TaskResponse[], taskId: number, status: TaskResponse["status"],) => {
+  return tasks.map((task) => {
+    if (task.id !== taskId) return task;
+
+    return {...task, status,};
+  });
+};
+
+// API 실패 시 지정한 태스크의 status를 이전 상태로 복구
+export const restoreTaskStatusInList = (tasks: TaskResponse[], taskId: number, previousStatus: TaskResponse["status"],) => {
+  return tasks.map((task) => {
+    if (task.id !== taskId) return task;
+    return {...task, status: previousStatus,};
+  });
+};
+
 // 태스크 관리 페이지
 function TaskManagementPage({projectId,projectName, projectStartDate, projectDueDate,}: TaskManagementPageProps) {
   
@@ -86,20 +103,42 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
       const response = await taskApi.archiveTask(task.id);
       toast.success(response.message);
       await queryClient.invalidateQueries({queryKey: ["tasks", projectId],});
-    } 
+    }
     catch {toast.error("태스크 보류 중 오류가 발생했습니다.",);}
   };
 
   const handleRestore = async (task: TaskResponse,) => {
     try {
       const response = await taskApi.restoreTask(task.id);
-
       toast.success(response.message);
-
       await queryClient.invalidateQueries({queryKey: ["tasks", projectId],});
     } 
     catch {toast.error("태스크 진행 처리 중 오류가 발생했습니다.",);}
   };
+
+  // 칸반 상태 변경 시 화면을 먼저 갱신하고 API 실패 시 이전 상태로 복구
+  const handleStatusChange = async (taskId: number, status: TaskResponse["status"]) => {
+    const queryKey = ["tasks", projectId, filters, taskScope];
+
+    // Optimistic Update 전에 현재 태스크 목록을 저장
+    const previousTasks = queryClient.getQueryData<TaskResponse[]>(queryKey) ?? [];
+
+    // API 응답을 기다리지 않고 화면의 태스크 상태를 먼저 변경
+    queryClient.setQueryData<TaskResponse[]>(queryKey, (oldTasks = []) => {
+      return updateTaskStatusInList(oldTasks, taskId, status);
+    });
+
+    try {
+      await taskApi.updateTask(taskId, { status });
+      // API 성공 후 서버의 최종 데이터와 다시 동기화
+      await queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+    } catch {
+      // API 실패 시 Optimistic Update 이전 태스크 목록으로 복구
+      queryClient.setQueryData(queryKey, previousTasks);
+      toast.error("태스크 상태 변경에 실패하여 이전 상태로 복구했습니다.");
+    }
+  };
+
 
   return (
     <>
@@ -150,9 +189,8 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
           ) : (
             <TaskKanbanBoard
               tasks={tasks}
-              onDetail={(task) =>
-                setDetailTask(task)
-              }
+              onDetail={(task) => setDetailTask(task)}
+              onStatusChange = {handleStatusChange}
             />
           )}
         </ContentCard>

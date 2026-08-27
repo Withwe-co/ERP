@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { theme } from "../../styles/theme";
 import { TaskResponse } from "../../types/task";
 
-import TaskManagementPage from "./TaskManagementPage";
+import TaskManagementPage, { restoreTaskStatusInList, updateTaskStatusInList } from "./TaskManagementPage";
 
 
 describe("TaskManagementPage", () => { it("기본 칸반 화면에 조회된 태스크를 표시한다", () => {
@@ -54,5 +54,61 @@ describe("TaskManagementPage", () => { it("기본 칸반 화면에 조회된 태
     expect(html).toContain("칸반 화면 연결");
     expect(html).toContain("WBS 1.3");
     expect(html).toContain("담당자씨");
+  });
+
+  // Optimistic Update 시 해당 태스크의 status만 먼저 변경되는지 확인
+  it("상태 변경 시 해당 태스크만 새로운 상태로 변경한다", () => {
+    const tasks: TaskResponse[] = [
+      {
+        id: 1,
+        project_id: 1,
+        wbs_code: "1.1",
+        task_name: "대기 태스크",
+        assignee_name: "SYA",
+        department: "개발팀",
+        priority: "NORMAL",
+        status: "TODO",
+        planned_start_date: "2026-08-27",
+        planned_end_date: "2026-08-28",
+        description: "",
+        note: "",
+        is_archived: false,
+        archived_at: null,
+        created_at: "2026-08-27T10:00:00",
+        updated_at: "2026-08-27T10:00:00",
+      },
+    ];
+
+    const result = updateTaskStatusInList(tasks, 1, "IN_PROGRESS");
+
+    expect(result[0].status).toBe("IN_PROGRESS");
+  });
+
+  // API 실패 시 Optimistic Update 이전 상태로 태스크를 복구
+  it("상태 변경 실패 시 태스크를 이전 상태로 복구한다", () => {
+    const tasks: TaskResponse[] = [
+      {
+        id: 1,
+        project_id: 1,
+        wbs_code: "1.1",
+        task_name: "Rollback 태스크",
+        assignee_name: "SYA",
+        department: "개발팀",
+        priority: "NORMAL",
+        status: "IN_PROGRESS",
+        planned_start_date: "2026-08-27",
+        planned_end_date: "2026-08-28",
+        description: "",
+        note: "",
+        is_archived: false,
+        archived_at: null,
+        created_at: "2026-08-27T10:00:00",
+        updated_at: "2026-08-27T10:00:00",
+      },
+    ];
+
+    const result = restoreTaskStatusInList(tasks, 1, "TODO");
+
+    expect(result[0].status).toBe("TODO");
   });
 });
