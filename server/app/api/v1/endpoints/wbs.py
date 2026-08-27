@@ -26,8 +26,15 @@ def make_project_list_items(db: Session, projects: list[DBProject]):
         summary : 프로젝트 목록에 태스크 정보 연동 함수
 
         arg : 
+            - db (Session) : DB
+            - projects(list) : Project Table List로 불러오기
 
         desc : 
+            - DB에서 보류되지 않은 Task만 불러오기
+            - 진행률 = (완료된 Task 기간 합 / 전체 Task 기간 총 합 )*100
+            - 전체 태스크 수 = task_list의 길이
+            - 지연 태스크 수 = Task 종료일 < 오늘 날짜 and Task 상태 != 완료
+            - 완료 태스크 수 = Task 상태 == 완료
 
     """
 
