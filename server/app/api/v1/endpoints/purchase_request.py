@@ -1,16 +1,21 @@
-# server/app/api/v1/endpoints/purchase_request.py - 완전히 수정된 버전
-from typing import List, Optional, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
+"""
+server/app/api/v1/endpoints/purchase_request.py - 완전히 수정된 버전
+구매 요청 목록 조회
+"""
+    
+from typing import List, Optional, Any, Literal
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text, func, or_, and_
+from sqlalchemy import text, func, or_, and_, extract
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import crud
 from app.core.database import get_db
+from app.core.config import settings
 from app.enums import RequestStatus, UrgencyLevel
 from app.schemas.purchase_request import (
     PurchaseRequest,
@@ -23,8 +28,64 @@ from app.schemas.purchase_request import (
 )
 from app.crud.purchase_request import purchase_request as crud_purchase_request
 from app.models.purchase_request import PurchaseRequest as DBPurchaseRequest
+from app.services.notifications import (
+    AlimtalkNotificationService,
+    NotificationConfig,
+    SMTPConfig,
+    SMTPEmailService,
+)
 
 router = APIRouter()
+
+class BulkStatusUpdate(BaseModel):
+    """
+        summary : 구매 요청 상태 업데이트 요청 스키마
+
+        arg : BaseModel 상속
+
+        desc : 구매 상태 업데이트를 위한 요청 데이터 구조를 정의하는 스키마
+    """
+
+    request_ids: List[int] = Field(..., min_items=1)
+    status: Literal["COMPLETED", "CANCELLED", "SUBMITTED"]
+
+# Notification 서비스 초기화
+notification_service = AlimtalkNotificationService(NotificationConfig.from_settings(settings))
+smtp_email_service = SMTPEmailService(SMTPConfig.from_settings(settings))
+
+def send_purchase_request_notification(background_tasks: BackgroundTasks,purchase_request: DBPurchaseRequest) -> None:
+    """
+        summary : 구매 요청 알림톡 함수
+
+        arg : background_tasks (BackgroundTasks) : 백그라운드 작업 관리자
+              purchase_request (DBPurchaseRequest) : 알림톡을 발송할 구매 요청 객체
+
+        desc : 
+            - 저장이 완료된 구매요청의 알림톡 발송을 백그라운드 작업으로 등록한다.
+            - smtp_email_service을 사용하여 현재는 email로 알림톡을 발송. -> 향후 카카오 알림톡으로 변경 예정
+    """
+
+    # 알림톡 발송을 위한 payload 생성
+    notification_payload = {
+        "id": purchase_request.id,
+        "request_number": purchase_request.request_number,
+        "item_name": purchase_request.item_name,
+        "quantity": purchase_request.quantity,
+        "unit": purchase_request.unit,
+        "total_budget": purchase_request.total_budget,
+        "urgency": purchase_request.urgency,
+        "requester_name": purchase_request.requester_name,
+        "department": purchase_request.department,
+        "request_date": purchase_request.request_date,
+        "justification": purchase_request.justification,
+        "detail_url": (f"{settings.ERP_PUBLIC_BASE_URL.rstrip('/')}/purchase-requests"if settings.ERP_PUBLIC_BASE_URL.strip()else ""),
+    }
+
+    # 백그라운드 작업으로 알림톡 발송 등록
+    background_tasks.add_task(
+        smtp_email_service.send_purchase_request, notification_payload
+    )
+
 
 # 🔥 CRUD 대신 직접 DB 쿼리로 구현
 @router.get("/", response_model=PurchaseRequestList)
@@ -222,10 +283,10 @@ def complete_purchase_request(
                 "is_active": True,
                 "notes": f"구매요청 #{request_id}에서 생성됨",
                 "created_at": datetime.now(),
-                "total_received": int(received_quantity) if received_quantity else 0,
-                "current_quantity": int(received_quantity) if received_quantity else 0,
+                "total_received": 0,
+                "current_quantity": 0,
                 "reserved_quantity": 0,
-                "available_quantity": int(received_quantity) if received_quantity else 0
+                "available_quantity": 0
             })
             
             inventory_item_id = result.fetchone()[0]
@@ -318,6 +379,7 @@ def complete_purchase_request(
 def create_purchase_request(
     *,
     db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks,
     request_in: dict  # 🔥 스키마 대신 dict 사용
 ):
     """
@@ -397,6 +459,10 @@ def create_purchase_request(
         db.add(purchase_request)
         db.commit()
         db.refresh(purchase_request)
+
+        # 알림톡 발송 함수 호출 
+        # 현재는 이메일 발송으로 구현
+        send_purchase_request_notification(background_tasks, purchase_request)
         
         print(f"✅ 구매 요청 생성 완료: ID={purchase_request.id}")
         
@@ -426,6 +492,104 @@ def create_purchase_request(
             detail=f"구매 요청 생성에 실패했습니다: {str(e)}"
         )
 
+@router.patch("/bulk-status")
+def bulk_update_status(payload:BulkStatusUpdate,db:Session=Depends(get_db)):
+    """
+        summary : 구매 요청 상태 업데이트 및 에러 처리
+
+        arg : payload (BulkStatusUpdate) : 상태 업데이트 요청 데이터 스키마
+              db (Session) : DB 세션
+        
+        desc :
+            - 요청된 ID의 구매 요청을 조회하고, 상태가 'SUBMITTED'인 경우에만 업데이트
+            - 요청된 ID 중 DB에서 찾지 못한 ID가 있으면 404 에러 반환
+            - 요청 상태가 'SUBMITTED'이 아닌 구매 요청이 있으면 400 에러 반환, 처리 불가 id 출력
+            - 상태 업데이트 후 DB 커밋 완료 메시지 출력
+            - 예외 처리: DB 롤백 및 500 에러 반환
+    """
+    # 요청 ID (set을 통한 ID 중복 제거)
+    request_ids=list(set(payload.request_ids))
+    # DB에서 해당 ID의 구매 요청 조회
+    requests=db.query(DBPurchaseRequest).filter(DBPurchaseRequest.id.in_(request_ids)).all()
+    # 요청된 ID 중 실제로 찾은 ID
+    found_ids={request.id for request in requests}
+    # 요청된 ID 중 DB에서 찾지 못한 ID
+    missing_ids=sorted(set(request_ids)-found_ids)
+
+    # 찾지 못한 ID가 있으면 404 에러 반환
+    if missing_ids:
+        raise HTTPException(status_code=404,detail=f"다음 ID의 구매 요청을 찾을 수 없습니다: {missing_ids}")
+
+    # 현재 상태가 'SUBMITTED'이 아닌 ID만 추출
+    invalid_ids=[request.id for request in requests if request.status != 'SUBMITTED']
+    # invalid_ids를 문자열로 변환하여 에러 메시지에 포함
+    invalid_numbers = ", ".join(f"#{request_id}" for request_id in invalid_ids)
+
+    # 요청 상태가 'SUBMITTED'이 아닌 구매 요청이 있으면 400 에러 반환
+    if invalid_ids:
+        raise HTTPException(status_code=400,detail=(f"요청됨 상태인 구매 요청만 일괄 승인 또는 반려할 수 있습니다.\n처리 불가 번호: {invalid_numbers}"))
+
+    # 상태 업데이트 후 DB 커밋 완료 메시지 출력
+    try:
+        for request in requests:
+            request.status=payload.status
+        db.commit()
+        return {"success":True,"message":f"{len(requests)}개의 구매 요청 상태가 {payload.status=='COMPLETED' and '승인' or '반려'}되었습니다.", "status":payload.status}
+
+    # 예외 처리: DB 롤백 및 500 에러 반환
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500,detail=f"상태 업데이트 중 오류가 발생했습니다: {str(e)}")
+
+@router.patch("/bulk-reset")
+def bulk_status_reset(payload:BulkStatusUpdate,db:Session=Depends(get_db)):
+    """
+        summary : 구매완료/구매반려 상태를 구매요청 상태로 초기화하는 함수
+
+        arg : payload (BulkStatusUpdate) : 상태 업데이트 요청 데이터 스키마
+              db (Session) : DB 세션
+        
+        desc :
+            - 요청된 ID의 구매 요청을 조회하고, 상태가 ''COMPLETED' 또는 'CANCELLED'인 경우에만 업데이트
+            - 요청된 ID 중 DB에서 찾지 못한 ID가 있으면 404 에러 반환
+            - 요청 상태가 'COMPLETED' 또는 'CANCELLED'이 아닌 구매 요청이 있으면 400 에러 반환, 처리 불가 id 출력
+            - 상태 업데이트 후 DB 커밋 완료 메시지 출력
+            - 예외 처리: DB 롤백 및 500 에러 반환
+    """
+    # 요청 ID (set을 통한 ID 중복 제거)
+    request_ids=list(set(payload.request_ids))
+    # DB에서 해당 ID의 구매 요청 조회
+    requests=db.query(DBPurchaseRequest).filter(DBPurchaseRequest.id.in_(request_ids)).all()
+    # 요청된 ID 중 실제로 찾은 ID
+    found_ids={request.id for request in requests}
+    # 요청된 ID 중 DB에서 찾지 못한 ID
+    missing_ids=sorted(set(request_ids)-found_ids)
+
+    # 찾지 못한 ID가 있으면 404 에러 반환
+    if missing_ids:
+        raise HTTPException(status_code=404,detail=f"다음 ID의 [구매완료/구매반려]를 찾을 수 없습니다: {missing_ids}")
+
+    # 현재 상태가 'COMPLETED' 또는 'CANCELLED'이 아닌 ID만 추출
+    invalid_ids=[request.id for request in requests if request.status == 'SUBMITTED']
+    # invalid_ids를 문자열로 변환하여 에러 메시지에 포함
+    invalid_numbers = ", ".join(f"#{request_id}" for request_id in invalid_ids)
+
+    # 요청 상태가 'COMPLETED' 또는 'CANCELLED' 이 아닌 구매 요청이 있으면 400 에러 반환
+    if invalid_ids:
+        raise HTTPException(status_code=400,detail=(f"[구매완료/구매반려] 상태인 품목만 재상신 할 수 있습니다.\n처리 불가 번호: {invalid_numbers}"))
+
+    # 상태 업데이트 후 DB 커밋 완료 메시지 출력
+    try:
+        for request in requests:
+            request.status=payload.status
+        db.commit()
+        return {"success":True,"message":f"{len(requests)}개의 구매 요청 상태가 재상신 되었습니다.", "status":payload.status}
+
+    # 예외 처리: DB 롤백 및 500 에러 반환
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500,detail=f"상태 업데이트 중 오류가 발생했습니다: {str(e)}")
+    
 @router.get("/stats", response_model=PurchaseRequestStats)
 def read_purchase_request_stats(db: Session = Depends(get_db)):
     """
@@ -789,11 +953,8 @@ def delete_purchase_request(
 # server/app/api/v1/endpoints/purchase_request.py - project 필드 제거 버전
 
 @router.post("/bulk-upload", response_model=dict)
-def bulk_upload_purchase_requests(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db)
-):
-    """Excel 파일로 구매 요청 일괄 업로드 - 실제 DB 스키마에 맞춘 버전"""
+def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Depends(get_db)):
+    """ Excel 업로드"""
     try:
         print(f"📁 구매요청 Excel 업로드 시작: {file.filename}")
         
@@ -965,6 +1126,7 @@ def bulk_upload_purchase_requests(
 @router.get("/export/excel")
 def export_purchase_requests_excel(
     db: Session = Depends(get_db),
+    ids: Optional[str] = Query(default=None),
     search: Optional[str] = Query(default=None),
     status: Optional[RequestStatus] = Query(default=None),
     urgency: Optional[UrgencyLevel] = Query(default=None),
@@ -974,7 +1136,27 @@ def export_purchase_requests_excel(
     date_to: Optional[str] = Query(default=None)
 ):
     """
-    구매 요청 목록을 Excel 파일로 내보내기
+        summary: 구매 요청 목록을 Excel 파일로 내보내기
+
+        args:
+            db : 데이터베이스 세션
+            ids : 내보낼 구매 요청 ID 목록
+            search : 검색어
+            status : 요청 상태 
+            urgency : 긴급도 
+            department : 부서 
+            category : 카테고리 
+            date_from : 시작 날짜
+            date_to : 종료 날짜
+        
+        desc:
+            - 선택된 ID가 있으면 해당 ID의 구매 요청만 내보냄
+            - 선택된 ID가 없으면 필터 조건에 맞는 구매 요청을 조회하여 내보냄
+            - 조회된 구매 요청이 없으면 404 에러 반환
+            - 조회된 데이터를 DataFrame으로 변환 후 Excel 파일로 생성
+            - 컬럼 너비 자동 조정 및 스타일링 적용
+            - 한글 파일명을 위한 RFC 5987 인코딩 적용
+            - 성공 시 StreamingResponse로 Excel 파일 반환
     """
     # 필터 설정
     try:
@@ -987,11 +1169,14 @@ def export_purchase_requests_excel(
             date_from=pd.to_datetime(date_from) if date_from else None,
             date_to=pd.to_datetime(date_to) if date_to else None
         )
-        
-        # 모든 데이터 조회 (제한 없음)
-        requests = crud.purchase_request.get_multi_with_filter(
-            db=db, skip=0, limit=10000, filters=filters
-        )
+
+        # 선택된 ID가 있으면 해당 ID의 구매 요청만 조회, 없으면 필터 조건에 맞는 구매 요청 조회
+        if ids:
+            selected_ids = [int(id) for id in ids.split(",") if id.strip()]
+
+            requests=(db.query(DBPurchaseRequest).filter(DBPurchaseRequest.id.in_(selected_ids)).all())
+        else:
+            requests=crud.purchase_request.get_multi_with_filter(db=db, skip=0, limit=10000, filters=filters)
         
         if not requests:
                 raise HTTPException(
@@ -1273,10 +1458,10 @@ def complete_purchase_request(
                 "maximum_stock": int(received_quantity) * 2 if received_quantity else 2,
                 "is_active": True,
                 "notes": f"구매요청 #{request_id}에서 생성",
-                "total_received": int(received_quantity) if received_quantity else 0,
-                "current_quantity": int(received_quantity) if received_quantity else 0,
+                "total_received": 0,
+                "current_quantity": 0,
                 "reserved_quantity": 0,
-                "condition_quantities": {"excellent": 0, "good": int(received_quantity) if received_quantity else 0, "damaged": 0, "defective": 0},
+                "condition_quantities": {"excellent": 0, "good": 0, "damaged": 0, "defective": 0},
                 "receipt_history": [],
                 "image_urls": [],
                 "tags": ["구매완료"]

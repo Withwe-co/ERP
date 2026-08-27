@@ -1,19 +1,80 @@
 // client/src/components/dashboard/DashboardPage.tsx
-import React from 'react';
+import React ,{useState} from 'react';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  Package, 
-  ShoppingCart, 
+import {  
+  ClipboardList, 
   CheckCircle, 
   Clock, 
-  DollarSign,
+  PackageCheck,
+  Clock10Icon,
   AlertTriangle 
 } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { dashboardApi } from '../../services/api';
+import Table from '../common/Table';
+import { TableColumn } from '../../types';
+import {ResponsiveContainer,LineChart,Line,XAxis,YAxis,CartesianGrid,Tooltip, Legend, BarChart} from 'recharts';
+
+interface DashboardPurchaseRequest {
+  id: number;
+  itemName: string;
+  quantity: number;
+  requesterName: string;
+  status: string;
+  requestDate: string | null;
+  totalBudget: number | null;
+  currency: string;
+}
+
+const recentPurchaseColumns: TableColumn<DashboardPurchaseRequest>[] = [
+  {
+    key: 'itemName',
+    label: '품목명',
+    width: '180px',
+    render: (value) => (
+      <span style={{ fontWeight: 600 }}>
+        {value || '품목명 없음'}
+      </span>
+    ),
+  },
+  {
+    key: 'quantity',
+    label: '수량',
+    width: '70px',
+    render: (value) => value ?? '-',
+  },
+  {
+    key: 'requesterName',
+    label: '요청자',
+    width: '90px',
+    render: (value) => value || '-',
+  },
+  {
+    key: 'requestDate',
+    label: '요청일',
+    width: '110px',
+    render: (value) =>
+      value ? new Date(value).toLocaleDateString('ko-KR') : '-',
+  },
+  {
+      key: 'totalBudget',
+      label: '예상금액',
+      width: '130px',
+      render: (value, item) => {
+        if (!value || value === 0) return '-';
+        const currency = item.currency || '원';
+        return `${currency} ${value.toLocaleString()}`;
+      },
+    },
+];
+const RecentRequestTableArea = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+`;
 
 const Container = styled.div`
   padding: 20px;
@@ -85,7 +146,7 @@ const StatCard = styled(Card)<{ color: string }>`
 
 const ContentGrid = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 30px;
   
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
@@ -94,117 +155,119 @@ const ContentGrid = styled.div`
 `;
 
 const RecentActivity = styled(Card)`
+  display: flex;
+  flex-direction: column;
+  height: 520px;
+
+  .activity-header {
+    flex-shrink: 0;
+    margin-bottom: 20px;
+  }
+`;
+const TotalDashboardChart = styled(Card)`
+  display: flex;
+  flex-direction: column;
+  height: 520px;
+
   .activity-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
-    
-    h3 {
-      margin: 0;
-      font-size: 1.2rem;
-    }
-  }
-  
-  .activity-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .activity-item {
-    display: flex;
-    align-items: center;
     gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    transition: background 0.2s;
-    
-    &:hover {
-      background: ${props => props.theme.colors.background};
-    }
-  }
-  
-  .activity-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     flex-shrink: 0;
-  }
-  
-  .activity-content {
-    flex: 1;
-    
-    .activity-title {
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-    
-    .activity-time {
-      font-size: 0.8rem;
-      color: ${props => props.theme.colors.textSecondary};
-    }
-  }
-`;
-
-const QuickActions = styled(Card)`
-  h3 {
     margin-bottom: 20px;
-    font-size: 1.2rem;
   }
-  
-  .actions-grid {
-    display: grid;
-    gap: 12px;
-  }
-  
-  .action-item {
+
+  .chart-tabs {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    border: 1px solid ${props => props.theme.colors.border};
-    border-radius: 8px;
+    gap: 6px;
+  }
+
+  .chart-tab {
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 10px;
     cursor: pointer;
-    transition: all 0.2s;
-    text-decoration: none;
-    color: inherit;
-    
-    &:hover {
-      border-color: ${props => props.theme.colors.primary};
-      background: ${props => props.theme.colors.primary}05;
-      transform: translateY(-1px);
-    }
+    background: #f3f4f6;
+    color: #6b7280;
   }
-  
-  .action-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: ${props => props.theme.colors.primary}15;
-    color: ${props => props.theme.colors.primary};
-  }
-  
-  .action-content {
-    .action-title {
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-    
-    .action-desc {
-      font-size: 0.85rem;
-      color: ${props => props.theme.colors.textSecondary};
-    }
+
+  .chart-tab.active {
+    background: #3b82f6;
+    color: white;
   }
 `;
 
+const CategoryDashboardChart = styled(Card)`
+  display: flex;
+  flex-direction: column;
+  height: 520px;
+
+  .activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    margin-bottom: 20px;
+  }
+
+  .chart-tabs {
+    display: flex;
+    gap: 6px;
+  }
+
+  .chart-tab {
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 10px;
+    cursor: pointer;
+    background: #f3f4f6;
+    color: #6b7280;
+  }
+
+  .chart-tab.active {
+    background: #3b82f6;
+    color: white;
+  }
+`;
+
+const categoryColors: Record<CategoryChartTab, string> = {
+  OFFICE_SUPPLIES: '#3B82F6',
+  ELECTRONICS: '#8B5CF6',
+  FURNITURE: '#10B981',
+  SOFTWARE: '#F59E0B',
+  MAINTENANCE: '#EF4444',
+  SERVICES: '#06B6D4',
+  OTHER: '#6B7280',
+};
+
+type TotalChartTab = 'monthly_total' | `other:${string}`;
+
+interface TotalChartTabItem {
+  key: TotalChartTab;
+  label: string;
+  itemName?: string;
+}
+
+
+
+type CategoryChartTab = 'OFFICE_SUPPLIES' | 'ELECTRONICS' | 'FURNITURE' | 'SOFTWARE'| 'MAINTENANCE' | 'SERVICES' | 'OTHER';
+
+const CategoryChartTabs: { key: CategoryChartTab; label: string }[] = [
+  { key: 'OFFICE_SUPPLIES', label: '사무용품' },
+  { key: 'ELECTRONICS', label: 'IT 장비' },
+  { key: 'FURNITURE', label: '가구' },
+  { key: 'SOFTWARE', label: '소프트웨어' },
+  { key: 'MAINTENANCE', label: '유지보수' },
+  { key: 'SERVICES', label: '서비스' },
+  { key: 'OTHER', label: '기타' },
+];
 const DashboardPage: React.FC = () => {
+  //const [TotalactiveChart, setTotalActiveChart] = useState<TotalChartTab>('monthly_total');
+  const [CategoryactiveChart, setCategoryActiveChart] = useState<CategoryChartTab[]>(['OFFICE_SUPPLIES']);
+  const [TotalactiveChart, setTotalActiveChart] = useState<TotalChartTab>('monthly_total');
+
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: dashboardApi.getStats,
@@ -212,6 +275,12 @@ const DashboardPage: React.FC = () => {
     retry: 3,
     staleTime: 1000 * 60 * 5, // 5분
   });
+
+const statusLabel: Record<string, string> = {
+  SUBMITTED: '요청됨',
+  COMPLETED: '구매 완료',
+  CANCELLED: '취소됨',
+};
 
   console.log('Dashboard data:', { stats, isLoading, error }); // 디버깅용
 
@@ -237,8 +306,74 @@ const DashboardPage: React.FC = () => {
     );
   }
 
+  const toggleCategory = (category: CategoryChartTab) => {
+  setCategoryActiveChart((previous) => previous.includes(category) ? previous.filter((item) => item !== category) : [...previous, category]);
+};
+
   // 백엔드에서 받은 데이터 또는 기본값 사용
   const dashboardStats = stats?.data || {};
+
+  interface MonthlyAmount {
+  month: string;
+  amount: number;
+  category?: string;
+  }
+
+  const fillMissingMonths = (rows: MonthlyAmount[]) => {
+  const amountByMonth = new Map(
+    rows.map((row) => [row.month, Number(row.amount)])
+  );
+  
+  const currentMonth = new Date().getMonth() + 1;
+
+  return Array.from({ length: currentMonth }, (_, index) => {
+    const month = String(index + 1).padStart(2, '0');
+
+    return {
+      month,
+      amount: amountByMonth.get(month) ?? 0,
+    };
+  });
+  };
+
+  const thisMonthOtherItems =
+  dashboardStats?.this_month_other_items ?? [];
+
+  const otherItemMonthlyAmounts =
+    dashboardStats?.other_item_monthly_amounts ?? [];
+    
+  const TotalChartTabs: TotalChartTabItem[] = [
+    { key: 'monthly_total', label: '전체' },
+
+    ...thisMonthOtherItems.map((itemName) => ({
+      key: `${itemName}` as TotalChartTab,
+      label: itemName,
+      itemName,
+    })),
+  ]; 
+
+  const activeTab = TotalChartTabs.find(tab => tab.key === TotalactiveChart);
+
+  const selectedItemName = activeTab?.itemName || null;
+
+  const TotalChartData = fillMissingMonths(dashboardStats?.monthlyPurchaseAmounts || []);
+
+  const chartData= selectedItemName ? otherItemMonthlyAmounts.find(item => item.item_name === selectedItemName)?.monthly_amounts ?? [] : TotalChartData;
+  
+  const CategoryChartData = Array.from({ length: new Date().getMonth() + 1 },(_, index) => {
+
+    const month = String(index + 1).padStart(2, '0');
+    const row: Record<string, string | number> = { month };
+
+    CategoryactiveChart.forEach((category) => {
+      const item = (dashboardStats?.monthlyCategoryPurchaseAmounts || []).find((data: { month: string; category: string }) =>data.month === month && data.category === category);
+
+      row[category] = Number(item?.amount ?? 0);
+    });
+
+    return row;
+  }
+  );
 
   return (
     <Container>
@@ -247,127 +382,141 @@ const DashboardPage: React.FC = () => {
 
       <StatsGrid>
         <StatCard color="#3B82F6">
-          <div className="stat-header">
+          <a href="/purchase-requests" className="stat-header">
             <div>
-              <div className="stat-value">{dashboardStats?.totalItems || 0}</div>
-              <div className="stat-label">전체 품목</div>
+              <div className="stat-value">{dashboardStats?.submittedPurchaseRequests || 0}</div>
+              <div className="stat-label">구매 요청</div>
             </div>
             <div className="stat-icon">
-              <Package size={24} />
+              <ClipboardList size={24} />
             </div>
-          </div>
-          <div className="stat-change positive">
-            이번 달 +{dashboardStats?.newItemsThisMonth || 0}
-          </div>
-        </StatCard>
-
-        <StatCard color="#F59E0B">
-          <div className="stat-header">
-            <div>
-              <div className="stat-value">{dashboardStats?.lowStockItems || 0}</div>
-              <div className="stat-label">재고 부족</div>
-            </div>
-            <div className="stat-icon">
-              <AlertTriangle size={24} />
-            </div>
-          </div>
+          </a>
         </StatCard>
 
         <StatCard color="#10B981">
-          <div className="stat-header">
+          <a href="/inventory" className="stat-header">
             <div>
-              <div className="stat-value">{dashboardStats?.recentPurchases || 0}</div>
-              <div className="stat-label">최근 구매</div>
+              <div className="stat-value">{dashboardStats?.completedPurchaseRequests || 0}</div>
+              <div className="stat-label">구매 완료</div>
             </div>
             <div className="stat-icon">
-              <ShoppingCart size={24} />
+              <CheckCircle size={24} />
             </div>
-          </div>
+          </a>
+        </StatCard>
+
+        <StatCard color="#F59E0B">
+          <a href="/inventory" className="stat-header">
+            <div>
+              <div className="stat-value">{dashboardStats?.unreceiptUnifiedInventory || 0}</div>
+              <div className="stat-label">수령 대기</div>
+            </div>
+            <div className="stat-icon">
+              <Clock size={24} />
+            </div>
+          </a>
         </StatCard>
 
         <StatCard color="#8B5CF6">
-          <div className="stat-header">
+          <a href="/inventory" className="stat-header">
             <div>
-              <div className="stat-value">₩{(dashboardStats?.totalValue || 0).toLocaleString()}</div>
-              <div className="stat-label">총 재고 가치</div>
+              <div className="stat-value">{dashboardStats?.receiptUnifiedInventory || 0}</div>
+              <div className="stat-label">수령 완료</div>
             </div>
             <div className="stat-icon">
-              <DollarSign size={24} />
+              <PackageCheck size={24} />
             </div>
-          </div>
+          </a>
         </StatCard>
       </StatsGrid>
 
       <ContentGrid>
         <RecentActivity>
           <div className="activity-header">
-            <h3>최근 활동</h3>
-            <span style={{ fontSize: '0.9rem', color: '#666' }}>최근 24시간</span>
+            <h3>구매 요청 목록</h3>
           </div>
-          
-          <div className="activity-list">
-            {dashboardStats?.recentActivities?.length > 0 ? (
-              dashboardStats.recentActivities.slice(0, 5).map((activity: any, index: number) => (
-                <div key={activity.id || index} className="activity-item">
-                  <div 
-                    className="activity-icon"
-                    style={{ background: '#10B98120', color: '#10B981' }}
-                  >
-                    <Package size={20} />
-                  </div>
-                  <div className="activity-content">
-                    <div className="activity-title">
-                      {activity.description || '활동 없음'}
-                    </div>
-                    <div className="activity-time">
-                      {activity.createdAt ? new Date(activity.createdAt).toLocaleString('ko-KR') : '시간 정보 없음'}
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
-                최근 활동이 없습니다.
-              </div>
-            )}
-          </div>
+          <RecentRequestTableArea>
+            <Table
+            columns={recentPurchaseColumns}
+            data={dashboardStats?.recentPurchaseRequests || []}
+            emptyMessage='구매 요청이 없습니다.'  
+            />
+          </RecentRequestTableArea>
         </RecentActivity>
 
-        <QuickActions>
-          <h3>빠른 작업</h3>
-          <div className="actions-grid">
-            <a href="/inventory" className="action-item">
-              <div className="action-icon">
-                <Package size={20} />
-              </div>
-              <div className="action-content">
-                <div className="action-title">재고 관리</div>
-                <div className="action-desc">품목 현황 확인 및 관리</div>
-              </div>
-            </a>
-
-            <a href="/upload" className="action-item">
-              <div className="action-icon">
-                <ShoppingCart size={20} />
-              </div>
-              <div className="action-content">
-                <div className="action-title">파일 업로드</div>
-                <div className="action-desc">Excel로 일괄 등록</div>
-              </div>
-            </a>
-
-            <a href="/statistics" className="action-item">
-              <div className="action-icon">
-                <CheckCircle size={20} />
-              </div>
-              <div className="action-content">
-                <div className="action-title">통계 분석</div>
-                <div className="action-desc">현황 분석 및 리포트</div>
-              </div>
-            </a>
+        <TotalDashboardChart>
+          <div className="activity-header">
+            <h3>
+              {'월별 전체 구매금액'}
+            </h3>
+            <div className="chart-tabs">
+              {TotalChartTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={`chart-tab ${TotalactiveChart === tab.key ? 'active' : ''}`}
+                  onClick={() => setTotalActiveChart(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </QuickActions>
-      </ContentGrid>
+          
+          <div style={{flex:1,minHeight:0}}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tickFormatter={(month) => `${month}월`} tickMargin={15} />
+                <YAxis tickFormatter={(amount) => `₩${(amount / 10000).toLocaleString()}만`} />
+                <Tooltip formatter={(amount:number) => `₩${amount.toLocaleString('ko-KR')}` } labelFormatter={(month) => `${month}월`} />
+                <Legend />
+                <Line type="monotone" dataKey="amount" name="구매금액" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }}/>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </TotalDashboardChart>
+      </ContentGrid><br></br>
+      <CategoryDashboardChart>
+          <div className="activity-header">
+            <h3>
+              {`카테고리 구매금액`}
+            </h3>
+            <div className="chart-tabs">
+              {CategoryChartTabs.map((tab) => (
+                <label key={tab.key} className='chart-tab'>
+                  <input
+                    type="checkbox"
+                    checked={CategoryactiveChart.includes(tab.key)}
+                    onChange={() => toggleCategory(tab.key)}
+                  />
+                {tab.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          
+          <div style={{flex:1,minHeight:0}}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={CategoryChartData}
+                margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" tickFormatter={(month) => `${month}월`} tickMargin={15} />
+                <YAxis tickFormatter={(amount) => `₩${(amount / 10000).toLocaleString()}만`} />
+                <Tooltip formatter={(amount:number) => `₩${amount.toLocaleString('ko-KR')}` } labelFormatter={(month) => `${month}월`} />
+                <Legend />
+                {CategoryactiveChart.map((category) => (
+                  <Line key={category} type="monotone" dataKey={category} name={CategoryChartTabs.find((tab) => tab.key === category)?.label} stroke={categoryColors[category]} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }}/>
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CategoryDashboardChart>
     </Container>
   );
 };

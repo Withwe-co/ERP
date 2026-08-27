@@ -26,6 +26,7 @@ import { UnifiedInventoryItem as InventoryItem } from '../../services/api';
 
 // Types
 import { TableColumn, SearchFilters } from '../../types';
+import { normalizeInventoryName } from '../../utils/inventoryGrouping';
 
 interface InventoryItem {
   id: number;
@@ -454,6 +455,9 @@ const InventoryPage: React.FC = () => {
   const [selectedItemForTransaction, setSelectedItemForTransaction] = useState<UnifiedInventoryItem  | null>(null);
   const [selectedTransactionUrl, setSelectedTransactionUrl] = useState<string | null>(null);
   const [selectedTransactionName, setSelectedTransactionName] = useState<string>('');
+  const [pendingInventoryFormData, setPendingInventoryFormData] = useState<any | null>(null);
+  const [similarInventoryItems, setSimilarInventoryItems] = useState<any[]>([]);
+  const [isCheckingSimilarItems, setIsCheckingSimilarItems] = useState(false);
 
   // 재고 목록 조회
   const { 
@@ -486,39 +490,7 @@ const InventoryPage: React.FC = () => {
       itemId: number; 
       receiptData: any; 
       images: File[] 
-    }) => {
-      const formData = new FormData();
-      
-      // 수령 데이터를 FormData에 추가
-      formData.append('received_quantity', receiptData.received_quantity.toString());
-      formData.append('receiver_name', receiptData.receiver_name);
-      if (receiptData.receiver_email) formData.append('receiver_email', receiptData.receiver_email);
-      formData.append('department', receiptData.department);
-      formData.append('received_date', receiptData.received_date);
-      if (receiptData.location) formData.append('location', receiptData.location);
-      formData.append('condition', receiptData.condition || 'good');
-      if (receiptData.notes) formData.append('notes', receiptData.notes);
-      
-      // 이미지 파일들 추가
-      images.forEach((image, index) => {
-        formData.append('images', image);
-      });
-      
-      // API 호출
-      const response = await fetch(`http://211.197.16.248:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
-      // const response = await fetch(`http://211.44.183.165:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
-      // const response = await fetch(`http://192.168.0.16:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || '수령 처리 중 오류가 발생했습니다.');
-      }
-      
-      return response.json();
-    },
+    }) => api.inventory.completeReceiptWithImages(itemId, receiptData, images),
     onSuccess: (responseData, variables) => {
       console.log('수령 완료 성공:', responseData);
       
@@ -537,7 +509,7 @@ const InventoryPage: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('수령 처리 오류:', error);
-      toast.error(error.message || '수령 처리 중 오류가 발생했습니다.');
+      toast.error(error.response?.data?.detail || error.message || '수령 처리 중 오류가 발생했습니다.');
     },
   });
 
@@ -548,6 +520,8 @@ const InventoryPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['unified-inventory'] });
       queryClient.invalidateQueries({ queryKey: ['unified-inventory-stats'] });
       toast.success('품목이 등록되었습니다.');
+      setPendingInventoryFormData(null);
+      setSimilarInventoryItems([]);
       handleFormModalClose();
     },
     onError: (error: any) => {
@@ -566,6 +540,32 @@ const InventoryPage: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || '품목 수정 중 오류가 발생했습니다.');
+    },
+  });
+
+  const mergeFormItemMutation = useMutation({
+    mutationFn: ({ existingItem, data }: { existingItem: any; data: any }) => {
+      return api.inventory.createItem({
+        ...data,
+        item_code: existingItem.item_code,
+        reuse_item_code: true,
+        notes: [
+          data.notes,
+          `수령관리 묶음 기준 품목: ${existingItem.item_code}`,
+        ].filter(Boolean).join('\n'),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unified-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['unified-inventory-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['receipt-inventory-items'] });
+      toast.success('새 품목으로 등록했습니다. 수령관리에서는 선택한 동일 품목과 합산됩니다.');
+      setPendingInventoryFormData(null);
+      setSimilarInventoryItems([]);
+      handleFormModalClose();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || '새 품목을 등록하지 못했습니다.');
     },
   });
 
@@ -686,25 +686,23 @@ const InventoryPage: React.FC = () => {
       default: return '#6B7280';
     }
   };
-  const getFullImageUrl = (imageUrl) => {
-    console.log('🔍 getFullImageUrl 입력:', JSON.stringify(imageUrl));
-    
-    if (!imageUrl) return null;
-    
-    // 이미 전체 URL인 경우
-    if (imageUrl.startsWith('http')) {
-      console.log('🔍 이미 완전한 URL:', imageUrl);
-      return imageUrl;
+  const getFullImageUrl = (imageUrl?: string): string => {
+    if (!imageUrl) return '';
+    if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) return imageUrl;
+
+    try {
+      const parsedUrl = new URL(imageUrl, window.location.origin);
+
+      // 업로드 파일은 현재 웹 서버의 /uploads 프록시를 이용한다.
+      // 기존 localhost/외부 IP 형태로 저장된 URL도 같은 방식으로 정규화한다.
+      if (parsedUrl.pathname.startsWith('/uploads/')) {
+        return `${parsedUrl.pathname}${parsedUrl.search}`;
+      }
+
+      return parsedUrl.toString();
+    } catch {
+      return imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
     }
-    
-    // URL 정리 - 불필요한 슬래시 제거
-    const cleanUrl = imageUrl.replace(/^\/+/, ''); // 앞의 모든 슬래시 제거
-    const fullUrl = `http://211.197.16.248:8000/${cleanUrl}`;
-    // const fullUrl = `http://211.44.183.165:8000/${cleanUrl}`;
-    // const fullUrl = `http://192.168.0.16:8000/${cleanUrl}`;
-    
-    console.log('🔍 생성된 URL:', fullUrl);
-    return fullUrl;
   };
   const handleImageClick = (imageUrl: string, itemName: string, imageIndex: number) => {
     setSelectedImageUrl(getFullImageUrl(imageUrl));
@@ -1171,13 +1169,49 @@ const InventoryPage: React.FC = () => {
   const handleFormModalClose = () => {
     setIsFormModalOpen(false);
     setEditingItem(null);
+    setPendingInventoryFormData(null);
+    setSimilarInventoryItems([]);
   };
 
-  const handleFormSubmit = (formData: any) => {
+  const handleFormSubmit = async (formData: any) => {
     if (editingItem) {
       updateItemMutation.mutate({ id: editingItem.id, data: formData });
-    } else {
+      return;
+    }
+
+    try {
+      setIsCheckingSimilarItems(true);
+      const response = await api.inventory.getItems(1, 1000, {}, {
+        sort_by: 'item_name',
+        sort_order: 'asc',
+      });
+      const allInventoryItems = response?.data?.items || [];
+      const matchingItems = allInventoryItems.filter((inventoryItem: any) =>
+        Boolean(normalizeInventoryName(formData.item_name))
+        && normalizeInventoryName(inventoryItem.item_name) === normalizeInventoryName(formData.item_name)
+      );
+      const candidates = Array.from(matchingItems.reduce((byCode: Map<string, any>, inventoryItem: any) => {
+        const code = (inventoryItem.item_code || '').trim().toLocaleUpperCase('en-US');
+        const existing = byCode.get(code);
+        if (!existing) byCode.set(code, { ...inventoryItem });
+        else {
+          existing.current_quantity = (Number(existing.current_quantity) || 0) + (Number(inventoryItem.current_quantity) || 0);
+          existing.total_received = (Number(existing.total_received) || 0) + (Number(inventoryItem.total_received) || 0);
+        }
+        return byCode;
+      }, new Map<string, any>()).values());
+
+      if (candidates.length > 0) {
+        setPendingInventoryFormData(formData);
+        setSimilarInventoryItems(candidates);
+        return;
+      }
+
       createItemMutation.mutate(formData);
+    } catch (error) {
+      toast.error('기존 품목을 확인하지 못했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsCheckingSimilarItems(false);
     }
   };
 
@@ -1321,8 +1355,73 @@ const InventoryPage: React.FC = () => {
           item={editingItem}
           onSubmit={handleFormSubmit}
           onCancel={handleFormModalClose}
-          loading={createItemMutation.isPending || updateItemMutation.isPending}
+          loading={createItemMutation.isPending || updateItemMutation.isPending || isCheckingSimilarItems}
         />
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(pendingInventoryFormData)}
+        onClose={() => {
+          setPendingInventoryFormData(null);
+          setSimilarInventoryItems([]);
+        }}
+        title="동일 품목 확인"
+        size="lg"
+      >
+        <div style={{ marginBottom: '18px', color: '#4b5563', lineHeight: 1.6 }}>
+          같은 품목명으로 등록된 품목코드 목록입니다. 수령관리에서 재고를 합산할 품목코드를 선택하세요.
+          선택하면 품목관리에도 해당 품목코드로 새 등록 기록이 추가됩니다.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {similarInventoryItems.map(item => (
+            <div key={item.id} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px',
+              padding: '16px', border: '2px solid #3b82f6', borderRadius: '8px', background: '#eff6ff'
+            }}>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: '6px' }}>
+                  {item.item_name} <span style={{ color: '#2563eb', fontSize: '0.8rem' }}>(선택 가능)</span>
+                </div>
+                <div style={{ color: '#6b7280', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                  코드: {item.item_code} · 브랜드: {item.brand || '-'}<br />
+                  카테고리: {item.category || '-'}<br />
+                  규격/모델: {item.specifications || '-'} · 단위: {item.unit || '개'}<br />
+                  현재 재고: {(item.current_quantity || 0).toLocaleString()}
+                </div>
+              </div>
+              <Button
+                onClick={() => pendingInventoryFormData && mergeFormItemMutation.mutate({
+                  existingItem: item,
+                  data: pendingInventoryFormData,
+                })}
+                loading={mergeFormItemMutation.isPending}
+                disabled={mergeFormItemMutation.isPending || createItemMutation.isPending}
+              >
+                이 품목코드로 등록
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setPendingInventoryFormData(null);
+              setSimilarInventoryItems([]);
+            }}
+            disabled={mergeFormItemMutation.isPending || createItemMutation.isPending}
+          >
+            입력 화면으로 돌아가기
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => pendingInventoryFormData && createItemMutation.mutate(pendingInventoryFormData)}
+            loading={createItemMutation.isPending}
+            disabled={mergeFormItemMutation.isPending || createItemMutation.isPending}
+          >
+            새 품목으로 등록
+          </Button>
+        </div>
       </Modal>
 
       {/* 🔥 수령완료 모달 (이미지 포함) */}

@@ -31,6 +31,26 @@ class Settings(BaseSettings):
     
     # 카카오 API 설정 (필요시)
     KAKAO_API_KEY: Optional[str] = None
+
+    # NHN Cloud KakaoTalk Bizmessage Alimtalk
+    NOTIFICATION_ENABLED: bool = False
+    ERP_PUBLIC_BASE_URL: str = ""
+    KAKAO_ALIMTALK_APP_KEY: str = ""
+    KAKAO_ALIMTALK_SECRET_KEY: str = ""
+    KAKAO_ALIMTALK_SENDER_KEY: str = ""
+    KAKAO_ALIMTALK_TEMPLATE_CODE: str = ""
+    KAKAO_ALIMTALK_RECIPIENTS: str = ""
+
+    # SMTP email notification
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_RECIPIENTS: str = ""
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
     
     class Config:
         env_file = ".env"

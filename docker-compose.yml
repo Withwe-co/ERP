@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8'
 
 services:
   # PostgreSQL 데이터베이스
@@ -105,11 +105,11 @@ services:
       - ./logs/nginx:/var/log/nginx
       # - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro  # 커스텀 nginx 설정
     environment:
-      # - VITE_API_URL=http://localhost:8000/api/v1
+       - VITE_API_URL=http://localhost:8000/api/v1
       # - VITE_API_URL=http://211.44.183.165:8000/api/v1
-      - VITE_API_URL=http://211.197.16.248:8000/api/v1
+      # - VITE_API_URL=http://211.197.16.248:8000/api/v1
       # - VITE_API_URL=http://192.168.0.16:8000/api/v1
-      - VITE_APP_TITLE=Inventory Management System
+       - VITE_APP_TITLE=Inventory Management System
     depends_on:
       api-server:
         condition: service_healthy

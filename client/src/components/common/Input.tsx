@@ -48,6 +48,10 @@ interface InputProps {
   disabled?: boolean;
   required?: boolean;
   className?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 const Input: React.FC<InputProps> = ({
@@ -58,7 +62,11 @@ const Input: React.FC<InputProps> = ({
   placeholder,
   disabled = false,
   required = false,
-  className
+  className,
+  min,
+  max,
+  step,
+  onKeyDown
 }) => {
   return (
     <InputContainer className={className}>
@@ -70,11 +78,15 @@ const Input: React.FC<InputProps> = ({
       )}
       <StyledInput
         type={type}
-        value={value || ''}
+        value={value ?? ''}
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
         required={required}
+        min={min}
+        max={max}
+        step={step}
+        onKeyDown={onKeyDown}
       />
     </InputContainer>
   );

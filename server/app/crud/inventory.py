@@ -41,9 +41,14 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         sort_options: Optional[Dict[str, str]] = None
     ) -> List[UnifiedInventory]:
         """필터링된 재고 목록 조회"""
-        query = db.query(UnifiedInventory).filter(UnifiedInventory.is_active == True)
+        query = db.query(UnifiedInventory)
         
         if filters:
+            if filters.is_receipt_only is not None:
+                query = query.filter(UnifiedInventory.is_receipt_only == filters.is_receipt_only)
+            if filters.is_active is not None:
+                query = query.filter(UnifiedInventory.is_active == filters.is_active)
+
             # 텍스트 검색
             if filters.search:
                 search_term = f"%{filters.search}%"
@@ -80,7 +85,12 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
             # 재고 상태 필터
             if filters.stock_status:
                 if filters.stock_status == "low_stock":
-                    query = query.filter(UnifiedInventory.current_quantity <= UnifiedInventory.minimum_stock)
+                    query = query.filter(
+                        and_(
+                            UnifiedInventory.current_quantity > 0,
+                            UnifiedInventory.current_quantity <= UnifiedInventory.minimum_stock
+                        )
+                    )
                 elif filters.stock_status == "out_of_stock":
                     query = query.filter(UnifiedInventory.current_quantity == 0)
                 elif filters.stock_status == "overstocked":
@@ -196,9 +206,14 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         filters: Optional[UnifiedInventoryFilter] = None
     ) -> int:
         """필터링된 재고 총 개수"""
-        query = db.query(func.count(UnifiedInventory.id)).filter(UnifiedInventory.is_active == True)
+        query = db.query(func.count(UnifiedInventory.id))
         
         if filters:
+            if filters.is_receipt_only is not None:
+                query = query.filter(UnifiedInventory.is_receipt_only == filters.is_receipt_only)
+            if filters.is_active is not None:
+                query = query.filter(UnifiedInventory.is_active == filters.is_active)
+
             # 동일한 필터 로직 적용
             if filters.search:
                 search_term = f"%{filters.search}%"
@@ -229,7 +244,12 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
             
             if filters.stock_status:
                 if filters.stock_status == "low_stock":
-                    query = query.filter(UnifiedInventory.current_quantity <= UnifiedInventory.minimum_stock)
+                    query = query.filter(
+                        and_(
+                            UnifiedInventory.current_quantity > 0,
+                            UnifiedInventory.current_quantity <= UnifiedInventory.minimum_stock
+                        )
+                    )
                 elif filters.stock_status == "out_of_stock":
                     query = query.filter(UnifiedInventory.current_quantity == 0)
                 elif filters.stock_status == "overstocked":
@@ -368,7 +388,20 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         """재고 수량 업데이트"""
         db_obj = self.get(db, id=item_id)
         if db_obj:
+            previous_quantity = db_obj.current_quantity
             db_obj.current_quantity = max(0, db_obj.current_quantity + quantity)
+            db_obj.quantity_history = [
+                *(db_obj.quantity_history or []),
+                {
+                    "type": "outbound" if quantity < 0 else "adjustment",
+                    "quantity_change": quantity,
+                    "previous_quantity": previous_quantity,
+                    "result_quantity": db_obj.current_quantity,
+                    "user_name": "시스템",
+                    "department": "-",
+                    "created_at": datetime.now().isoformat(),
+                },
+            ]
             db_obj.updated_at = datetime.now()
             db.commit()
             db.refresh(db_obj)
@@ -435,8 +468,23 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
             return None
         
         # 수량 변경
+        previous_quantity = inventory.current_quantity
         new_quantity = max(0, inventory.current_quantity + quantity_change)
         inventory.current_quantity = new_quantity
+        inventory.quantity_history = [
+            *(inventory.quantity_history or []),
+            {
+                "type": "outbound" if quantity_change < 0 else "adjustment",
+                "quantity_change": quantity_change,
+                "previous_quantity": previous_quantity,
+                "result_quantity": new_quantity,
+                "user_name": user_name,
+                "department": department,
+                "purpose": purpose,
+                "notes": notes,
+                "created_at": datetime.now().isoformat(),
+            },
+        ]
         
         # 소모품인 경우 예약 수량 업데이트
         if inventory.is_consumable and quantity_change < 0:
@@ -461,20 +509,23 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         """재고 통계 조회 - LOG 관련 제거"""
         # 기본 통계
         total_items = db.query(func.count(UnifiedInventory.id)).filter(
-            UnifiedInventory.is_active == True
+            UnifiedInventory.is_active == True,
+            UnifiedInventory.is_receipt_only == False
         ).scalar() or 0
         
         low_stock_items = db.query(func.count(UnifiedInventory.id)).filter(
             and_(
                 UnifiedInventory.current_quantity <= UnifiedInventory.minimum_stock,
-                UnifiedInventory.is_active == True
+                UnifiedInventory.is_active == True,
+                UnifiedInventory.is_receipt_only == False
             )
         ).scalar() or 0
         
         out_of_stock_items = db.query(func.count(UnifiedInventory.id)).filter(
             and_(
                 UnifiedInventory.current_quantity == 0,
-                UnifiedInventory.is_active == True
+                UnifiedInventory.is_active == True,
+                UnifiedInventory.is_receipt_only == False
             )
         ).scalar() or 0
         
@@ -482,7 +533,8 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
             and_(
                 UnifiedInventory.maximum_stock.isnot(None),
                 UnifiedInventory.current_quantity >= UnifiedInventory.maximum_stock,
-                UnifiedInventory.is_active == True
+                UnifiedInventory.is_active == True,
+                UnifiedInventory.is_receipt_only == False
             )
         ).scalar() or 0
         
@@ -492,6 +544,7 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         ).filter(
             and_(
                 UnifiedInventory.is_active == True,
+                UnifiedInventory.is_receipt_only == False,
                 UnifiedInventory.unit_price.isnot(None)
             )
         ).scalar() or 0
@@ -503,6 +556,7 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         ).filter(
             and_(
                 UnifiedInventory.is_active == True,
+                UnifiedInventory.is_receipt_only == False,
                 UnifiedInventory.category.isnot(None)
             )
         ).group_by(UnifiedInventory.category).all()
@@ -522,7 +576,8 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         recent_receipts = db.query(func.count(UnifiedInventory.id)).filter(
             and_(
                 UnifiedInventory.last_received_date >= recent_date,
-                UnifiedInventory.is_active == True
+                UnifiedInventory.is_active == True,
+                UnifiedInventory.is_receipt_only == False
             )
         ).scalar() or 0
         
@@ -537,7 +592,10 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
             func.avg(
                 case(*whens, else_=0)  # else_를 0으로 직접 설정 (default_value 대신)
             )
-        ).filter(UnifiedInventory.is_active == True).scalar() or 0
+        ).filter(
+            UnifiedInventory.is_active == True,
+            UnifiedInventory.is_receipt_only == False
+        ).scalar() or 0
         
         return UnifiedInventoryStats(
             total_items=total_items,
@@ -1143,8 +1201,12 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         
         # URL 생성
         # file_url = f"http://211.44.183.165:8000/uploads/transaction_documents/{unique_filename}"
-        file_url = f"http://211.197.16.248:8000/uploads/transaction_documents/{unique_filename}"
+        # file_url = f"http://211.197.16.248:8000/uploads/transaction_documents/{unique_filename}"
         
+        #file_url = f"http://211.197.16.248:8000/uploads/transaction_documents/{unique_filename}"
+        file_url = f"http://localhost:8000/uploads/transaction_documents/{unique_filename}"
+        
+
         # 🔥 새로운 컬럼들 업데이트
         inventory.transaction_document_url = file_url
         inventory.transaction_upload_date = datetime.now()
