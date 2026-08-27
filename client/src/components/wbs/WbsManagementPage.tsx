@@ -315,9 +315,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         <>
         <Container>
             <FilterContainer>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <ActionButtons>
                     <Button
-                        size="sm"
                         variant={ganttViewMode === 'day' ? 'primary' : 'outline'}
                         onClick={() => setGanttViewMode('day')}
                     >
@@ -325,7 +324,6 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                     </Button>
 
                     <Button
-                        size="sm"
                         variant={ganttViewMode === 'week' ? 'primary' : 'outline'}
                         onClick={() => setGanttViewMode('week')}
                     >
@@ -333,14 +331,11 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                     </Button>
 
                     <Button
-                        size="sm"
                         variant={ganttViewMode === 'month' ? 'primary' : 'outline'}
                         onClick={() => setGanttViewMode('month')}
                     >
                         월
                     </Button>
-                </div>
-                <ActionButtons>
                     <Button
                         onClick={() => setIsFormModalOpen(true)}       
                         title="WBS 추가"
