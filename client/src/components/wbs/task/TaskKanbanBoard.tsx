@@ -18,9 +18,6 @@ const KANBAN_COLUMNS: {status: TaskResponse["status"]; label: string;}[] = [
     // IN_PROGRESS 상태의 태스크는 "진행 중" 컬럼에 표시
     { status: "IN_PROGRESS", label: "진행 중" },
 
-    // ON_HOLD 상태의 태스크는 "보류" 컬럼에 표시
-    { status: "ON_HOLD", label: "보류" },
-
     // DONE 상태의 태스크는 "완료" 컬럼에 표시
     { status: "DONE", label: "완료" },
 ];
@@ -36,7 +33,7 @@ function TaskKanbanBoard({tasks,onDetail,}: TaskKanbanBoardProps) {
 
       {/* 
         KANBAN_COLUMNS 배열을 순회하면서
-        TODO / IN_PROGRESS / ON_HOLD / DONE
+        TODO / IN_PROGRESS / DONE
         총 4개의 칸반 컬럼을 생성
       */}
       {KANBAN_COLUMNS.map((column) => {const columnTasks = tasks.filter((task) => task.status === column.status,);
@@ -120,7 +117,7 @@ export default TaskKanbanBoard;
 // 칸반 전체 영역
 const KanbanBoard = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
   gap: 16px;
   overflow-x: auto;
 `;
@@ -200,7 +197,6 @@ const StatusDot = styled.span<{$status: TaskResponse["status"];}>`
 
     TODO → 아직 작업 전이므로 중립적인 회색
     IN_PROGRESS → 현재 작업 중이므로 파란색
-    ON_HOLD → 잠시 멈춘 상태이므로 주황색
     DONE → 완료 상태이므로 초록색
   */
 
@@ -212,9 +208,6 @@ const StatusDot = styled.span<{$status: TaskResponse["status"];}>`
 
       case "IN_PROGRESS":
         return "#3b82f6";
-
-      case "ON_HOLD":
-        return "#f59e0b";
 
       case "DONE":
         return "#22c55e";

@@ -36,7 +36,7 @@ describe("TaskManagementPage", () => { it("기본 칸반 화면에 조회된 태
 
     // TaskManagementPage에서 사용하는 queryKey와 동일한 키에
     // 테스트용 태스크 데이터를 미리 저장
-    queryClient.setQueryData(["tasks", 1, {}], tasks,);
+    queryClient.setQueryData(["tasks", 1, {}, "active"],tasks,);
 
     const html = renderToStaticMarkup(
       <QueryClientProvider client={queryClient}>
@@ -44,6 +44,8 @@ describe("TaskManagementPage", () => { it("기본 칸반 화면에 조회된 태
           <TaskManagementPage
             projectId={1}
             projectName="테스트 프로젝트"
+            projectStartDate="2026-08-01"
+            projectDueDate="2026-09-30"
           />
         </ThemeProvider>
       </QueryClientProvider>,

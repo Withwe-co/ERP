@@ -7,7 +7,7 @@ import Select from "../../common/Select";
 
 import {TaskCreateData,TaskPriority,TaskStatus,TaskResponse,} from "../../../types/task";
 import { toast } from "react-toastify";
-import { validateTaskCreateData } from "./taskValidation";
+import { hasTaskChanges, validateTaskCreateData } from "./taskValidation";
 import { taskApi } from "../../../services/api";
 
 
@@ -24,6 +24,13 @@ interface TaskCreateFormProps {
   // 수정할 기존 태스크 데이터
   initialData?: TaskResponse;
 
+  //WBS 코드 
+  wbsCodes: string[];
+
+  // 프로젝트 기간
+  projectStartDate: string;
+  projectDueDate: string;
+
   // 등록 또는 수정 성공 시 실행
   onSuccess: () => void;
 
@@ -33,224 +40,270 @@ interface TaskCreateFormProps {
 
 
 // 태스크 등록 Form
-function TaskCreateForm({projectId, projectName, mode = "create", initialData, onSuccess, onCancel,}: TaskCreateFormProps) {
-    // 태스크 등록 Form의 입력값을 하나의 객체로 관리
-    const [formData, setFormData] = useState<TaskCreateData>(() => ({
-        project_id: initialData?.project_id ?? projectId,
-        wbs_code: initialData?.wbs_code ?? "",
-        task_name: initialData?.task_name ?? "",
-        assignee_name: initialData?.assignee_name ?? "",
-        department: initialData?.department ?? "",
-        priority: initialData?.priority ?? "NORMAL",
-        status: initialData?.status ?? "TODO",
-        planned_start_date: initialData?.planned_start_date ?? "",
-        planned_end_date: initialData?.planned_end_date ?? "",
-        description: initialData?.description ?? "",
-        note: initialData?.note ?? "",
-    }));
+function TaskCreateForm({
+    projectId, 
+    projectName, 
+    wbsCodes,   
+    projectStartDate,
+    projectDueDate, 
+    mode = "create", 
+    initialData, 
+    onSuccess, 
+    onCancel,
+    }: TaskCreateFormProps) {
+        // 태스크 등록 Form의 입력값을 하나의 객체로 관리
+        const [formData, setFormData] = useState<TaskCreateData>(() => ({
+            project_id: initialData?.project_id ?? projectId,
+            wbs_code: initialData?.wbs_code ?? "",
+            task_name: initialData?.task_name ?? "",
+            assignee_name: initialData?.assignee_name ?? "",
+            department: initialData?.department ?? "",
+            priority: initialData?.priority ?? "NORMAL",
+            status: initialData?.status ?? "TODO",
+            planned_start_date: initialData?.planned_start_date ?? "",
+            planned_end_date: initialData?.planned_end_date ?? "",
+            description: initialData?.description ?? "",
+            note: initialData?.note ?? "",
+        }));
 
-    // POST 요청이 진행 중인지 관리
-    // 중복으로 등록 버튼을 누르는 것을 방지하기 위해 사용
-    const [isSubmitting, setIsSubmitting] = useState(false);
+        // POST 요청이 진행 중인지 관리
+        // 중복으로 등록 버튼을 누르는 것을 방지하기 위해 사용
+        const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // 등록 버튼 클릭 시 실행
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>,) => {
+        // date input 범위
+        const projectStart = projectStartDate?.slice(0, 10);
+        const projectDue = projectDueDate?.slice(0, 10);
 
-    // Form 제출 시 브라우저 새로고침 방지
-    event.preventDefault();
+        // 등록 버튼 클릭 시 실행
+        const handleSubmit = async (event: React.FormEvent<HTMLFormElement>,) => {
 
-    // 사용자가 입력한 태스크 데이터를 검증
-    const errorMessage = validateTaskCreateData(formData);
+            // Form 제출 시 브라우저 새로고침 방지
+            event.preventDefault();
+            // 사용자가 입력한 태스크 데이터를 검증
+            const errorMessage = validateTaskCreateData(formData);
+            // 검증에 실패하면 오류 메시지를 보여주고 등록 중단
+            if (errorMessage) {toast.error(errorMessage); return;}
+            // 수정 모드에서 실제 변경된 값이 없으면 API 요청하지 않음
+            if (mode === "edit" && initialData && !hasTaskChanges(initialData, formData)) {
+                toast.info("수정사항이 없습니다.");
+                return;
+            }
 
-    // 검증에 실패하면 오류 메시지를 보여주고 등록 중단
-    if (errorMessage) {toast.error(errorMessage); return;}
+            try {
+                // API 요청 시작
+                setIsSubmitting(true);
 
-    try {
-        // API 요청 시작
-        setIsSubmitting(true);
+                if (mode === "edit" && initialData) {
+                    const response = await taskApi.updateTask(initialData.id, formData,);
+                    toast.success(response.message);
+                }
+                else {
+                    const response = await taskApi.createTask(formData);
+                    toast.success(response.message);
+                }
 
-        if (mode === "edit" && initialData) {
-            await taskApi.updateTask( initialData.id, formData,);
-            toast.success("태스크가 성공적으로 수정되었습니다.");
-        } 
-        else {
-            const response = await taskApi.createTask(formData);
-            toast.success(response.message);
-        }
+                onSuccess();
 
-        onSuccess();
+            } catch (error: any) {
+                // FastAPI가 문자열 형태의 detail을 반환한 경우 사용
+                const detail = error.response?.data?.detail;
 
-    } catch (error: any) {
-        // FastAPI가 문자열 형태의 detail을 반환한 경우 사용
-        const detail = error.response?.data?.detail;
+                if (typeof detail === "string") {toast.error(detail); return;}
 
-        if (typeof detail === "string") {toast.error(detail); return;}
+                // FastAPI 입력값 검증 실패
+                if (error.response?.status === 422) {toast.error("입력값 형식을 확인해주세요."); return;}
 
-        // FastAPI 입력값 검증 실패
-        if (error.response?.status === 422) {toast.error("입력값 형식을 확인해주세요."); return;}
-
-        // 그 외 서버/네트워크 오류
-        toast.error(
-            mode === "edit"
-                ? "태스크 수정 중 오류가 발생했습니다."
-                : "태스크 등록 중 오류가 발생했습니다.",
-        );
-    } finally {setIsSubmitting(false);}  // 성공/실패와 관계없이 API 요청 상태 종료
-    };
+                // 그 외 서버/네트워크 오류
+                toast.error(
+                    mode === "edit"
+                        ? "태스크 수정 중 오류가 발생했습니다."
+                        : "태스크 등록 중 오류가 발생했습니다.",
+                );
+            } finally {setIsSubmitting(false);}  // 성공/실패와 관계없이 API 요청 상태 종료
+        };
 
 
-  return (
-    <>
-        {/* 브라우저 기본 검증 대신 직접 만든 검증 로직 사용 */}
-        <Form onSubmit={handleSubmit} noValidate>
-        {/* 현재 프로젝트 정보와 WBS ID 입력 영역 */}
-        <FormGrid>
-            <Input
-            label="프로젝트"
-            value={projectName}
-            disabled
-            />
+    return (
+        <>
+            {/* 브라우저 기본 검증 대신 직접 만든 검증 로직 사용 */}
+            <Form onSubmit={handleSubmit} noValidate>
+            {/* 현재 프로젝트 정보와 WBS ID 입력 영역 */}
+            <FormGrid>
+                <Input
+                label="프로젝트"
+                value={projectName}
+                disabled
+                />
 
-            <Input
-                label="WBS 코드"
-                value={formData.wbs_code}
+                <Select
+                    label="WBS 코드"
+                    value={formData.wbs_code}
+                    required
+                    placeholder="WBS 코드를 선택하세요"
+                    options={wbsCodes.map((code) => ({value: code, label: code,}))}
+                    onChange={(value) => setFormData({...formData, wbs_code: String(value),})}
+                />
+            </FormGrid>
+
+
+            {/* 태스크 기본 정보 */}
+            <FormGrid>
+                <Input
+                label="태스크명"
+                value={formData.task_name}
                 required
-                placeholder="예: 1.1"
-                onChange={(event) =>setFormData({...formData, wbs_code: event.target.value,})}
-            />
-        </FormGrid>
+                placeholder="태스크명을 입력하세요."
+                onChange={(event) =>setFormData({...formData, task_name: event.target.value,})}
+                />
+
+                <Input
+                label="담당자"
+                value={formData.assignee_name}
+                required
+                placeholder="담당자명을 입력하세요."
+                onChange={(event) =>setFormData({...formData, assignee_name: event.target.value,})}
+                />
+            </FormGrid>
 
 
-        {/* 태스크 기본 정보 */}
-        <FormGrid>
-            <Input
-            label="태스크명"
-            value={formData.task_name}
-            required
-            placeholder="태스크명을 입력하세요."
-            onChange={(event) =>setFormData({...formData, task_name: event.target.value,})}
-            />
-
-            <Input
-            label="담당자"
-            value={formData.assignee_name}
-            required
-            placeholder="담당자명을 입력하세요."
-            onChange={(event) =>setFormData({...formData, assignee_name: event.target.value,})}
-            />
-        </FormGrid>
-
-
-        {/* 담당 부서 */}
-        <Input
-            label="담당 부서"
-            value={formData.department}
-            required
-            placeholder="담당 부서를 입력하세요."
-            onChange={(event) =>setFormData({...formData, department: event.target.value,})}
-        />
-
-
-        {/* 우선순위와 상태 */}
-        <FormGrid>
+            {/* 담당 부서 */}
             <Select
-            label="우선순위"
-            value={formData.priority}
-            required
-            options={[
-                { value: "LOW", label: "낮음" },
-                { value: "NORMAL", label: "보통" },
-                { value: "HIGH", label: "높음" },
-                { value: "URGENT", label: "긴급" },
-            ]}
-            onChange={(value) =>setFormData({...formData, priority: value as TaskPriority,})}
+                label="담당 부서"
+                value={formData.department}
+                required
+                placeholder="담당 부서를 선택하세요"
+                options={[
+                    {
+                    value: "H/W 개발팀",
+                    label: "H/W 개발팀",
+                    },
+                    {
+                    value: "S/W 개발팀",
+                    label: "S/W 개발팀",
+                    },
+                    {
+                    value: "총무부",
+                    label: "총무부",
+                    },
+                    {
+                    value: "사무관리팀",
+                    label: "사무관리팀",
+                    },
+                    {
+                    value: "영업팀",
+                    label: "영업팀",
+                    },
+                    {
+                    value: "인사팀",
+                    label: "인사팀",
+                    },
+                ]}
+                onChange={(value) =>setFormData({...formData, department: String(value),})
+                }
             />
 
-            <Select
-                label="상태"
-                value={formData.status}
+
+            {/* 우선순위와 상태 */}
+            <FormGrid>
+                <Select
+                label="우선순위"
+                value={formData.priority}
                 required
                 options={[
-                { value: "TODO", label: "대기" },
-                { value: "IN_PROGRESS", label: "진행 중" },
-                { value: "ON_HOLD", label: "보류" },
-                { value: "DONE", label: "완료" },
+                    { value: "LOW", label: "낮음" },
+                    { value: "NORMAL", label: "보통" },
+                    { value: "HIGH", label: "높음" },
+                    { value: "URGENT", label: "긴급" },
                 ]}
-                onChange={(value) => setFormData({...formData, status: value as TaskStatus,})}
-            />
+                onChange={(value) =>setFormData({...formData, priority: value as TaskPriority,})}
+                />
 
-        </FormGrid>
+                <Select
+                    label="상태"
+                    value={formData.status}
+                    required
+                    options={[
+                    { value: "TODO", label: "대기" },
+                    { value: "IN_PROGRESS", label: "진행 중" },
+                    { value: "DONE", label: "완료" },
+                    ]}
+                    onChange={(value) => setFormData({...formData, status: value as TaskStatus,})}
+                />
 
-
-        {/* 태스크 일정 */}
-        <FormGrid>
-            <Input
-            label="시작 예정일"
-            type="date"
-            value={formData.planned_start_date}
-            max={formData.planned_end_date || undefined}
-            required
-            onChange={(event) =>setFormData({...formData, planned_start_date: event.target.value,})}
-            />
-
-            <Input
-            label="완료 예정일"
-            type="date"
-            value={formData.planned_end_date}
-            min={formData.planned_start_date || undefined}
-            required
-            onChange={(event) =>setFormData({...formData, planned_end_date: event.target.value,})}
-            />
-        </FormGrid>
+            </FormGrid>
 
 
-        {/* 태스크 설명 */}
-        <TextAreaGroup>
-            <Label>설명</Label>
+            {/* 태스크 일정 */}
+            <FormGrid>
+                <Input
+                    label="시작 예정일"
+                    type="date"
+                    value={formData.planned_start_date}
+                    min={projectStart || undefined}
+                    max={formData.planned_end_date ||projectDue || undefined}
+                    required
+                    onChange={(event) =>setFormData({...formData, planned_start_date: event.target.value,})}
+                />
 
-            <TextArea
-            value={formData.description || ""}
-            placeholder="태스크에 대한 설명을 입력하세요."
-            onChange={(event) =>setFormData({...formData, description: event.target.value,})}
-            />
-        </TextAreaGroup>
+                <Input
+                    label="완료 예정일"
+                    type="date"
+                    value={formData.planned_end_date}
+                    min={formData.planned_start_date || projectStart || undefined}
+                    max={projectDue || undefined}
+                    required
+                    onChange={(event) =>setFormData({...formData, planned_end_date: event.target.value,})}
+                />
+            </FormGrid>
 
 
-        {/* 비고 */}
-        <TextAreaGroup>
-            <Label>비고</Label>
+            {/* 태스크 설명 */}
+            <TextAreaGroup>
+                <Label>설명</Label>
 
-            <TextArea
-            value={formData.note || ""}
-            placeholder="추가로 기록할 내용을 입력하세요."
-            onChange={(event) =>setFormData({...formData, note: event.target.value,})}
-            />
-        </TextAreaGroup>
+                <TextArea
+                value={formData.description || ""}
+                placeholder="태스크에 대한 설명을 입력하세요."
+                onChange={(event) =>setFormData({...formData, description: event.target.value,})}
+                />
+            </TextAreaGroup>
 
 
-        {/* Form 하단 버튼 영역 */}
-        <ButtonArea>
-            {/* 취소 버튼은 Modal을 닫음 */}
-            <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-            >
-            취소
-            </Button>
+            {/* 비고 */}
+            <TextAreaGroup>
+                <Label>비고</Label>
 
-            {/* API 요청 중에는 버튼을 비활성화하여 중복 등록 방지 */}
-            <Button
-                type="submit"
-                loading={isSubmitting}
-                disabled={isSubmitting}
-            >
-                {mode === "edit" ? "수정 저장" : "등록"}
-            </Button>
-        </ButtonArea>
-        </Form>
-    </>
-  );
+                <TextArea
+                value={formData.note || ""}
+                placeholder="추가로 기록할 내용을 입력하세요."
+                onChange={(event) =>setFormData({...formData, note: event.target.value,})}
+                />
+            </TextAreaGroup>
+
+
+            {/* Form 하단 버튼 영역 */}
+            <ButtonArea>
+                {/* 취소 버튼은 Modal을 닫음 */}
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onCancel}
+                >
+                취소
+                </Button>
+
+                {/* API 요청 중에는 버튼을 비활성화하여 중복 등록 방지 */}
+                <Button
+                    type="submit"
+                    loading={isSubmitting}
+                    disabled={isSubmitting}
+                >
+                    {mode === "edit" ? "수정 저장" : "등록"}
+                </Button>
+            </ButtonArea>
+            </Form>
+        </>
+    );
 }
 
 

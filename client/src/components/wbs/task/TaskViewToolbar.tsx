@@ -4,13 +4,19 @@ import Button from "../../common/Button";
 // 태스크 화면의 보기 방식
 export type TaskViewMode = "kanban" | "list";
 
+export type TaskScope = "active" | "archived";
+
 // 태스크 보기 도구 영역에서 사용할 Props
 interface TaskViewToolbarProps {
   // 현재 선택된 보기 방식
   viewMode: TaskViewMode;
 
+  taskScope: TaskScope;
+
   // 칸반/목록 보기 버튼을 클릭했을 때 실행할 함수
   onViewModeChange: (viewMode: TaskViewMode) => void;
+
+  onTaskScopeChange: (taskScope: TaskScope) => void;
 
   // 태스크 등록 버튼을 클릭했을 때 실행할 함수
   onCreateTask: () => void;
@@ -18,7 +24,7 @@ interface TaskViewToolbarProps {
 
 // 태스크 보기 방식 전환 및 등록 버튼 영역
 // 부모 컴포넌트에서 현재 보기 방식과 보기 변경 함수, 태스크 등록 함수를 전달받음
-function TaskViewToolbar({viewMode, onViewModeChange, onCreateTask,}: TaskViewToolbarProps) {
+function TaskViewToolbar({viewMode, taskScope, onViewModeChange,onTaskScopeChange,  onCreateTask,}: TaskViewToolbarProps) {
   return (
     <ActionArea>
       <ViewArea>
@@ -40,10 +46,38 @@ function TaskViewToolbar({viewMode, onViewModeChange, onCreateTask,}: TaskViewTo
         </Button>
       </ViewArea>
 
-      {/* 태스크 등록 Modal을 열기 위한 버튼 */}
-      <Button onClick={onCreateTask}>
-        태스크 등록
-      </Button>
+      {/* 보류 태스크/진행 태스크/태스크 등록 Modal을 열기 위한 버튼 */}
+      <TaskActionArea>
+        <Button
+          variant={
+            taskScope === "archived"
+              ? undefined
+              : "outline"
+          }
+          size="sm"
+          onClick={() => onTaskScopeChange("archived")}
+        >
+          보류 태스크
+        </Button>
+
+        <Button
+          variant={
+            taskScope === "active"
+              ? undefined
+              : "outline"
+          }
+          size="sm"
+          onClick={() =>
+            onTaskScopeChange("active")
+          }
+        >
+          전체 태스크
+        </Button>
+
+        <Button onClick={onCreateTask}>
+          태스크 등록
+        </Button>
+      </TaskActionArea>
     </ActionArea>
   );
 }
@@ -62,4 +96,10 @@ const ActionArea = styled.div`
 const ViewArea = styled.div`
   display: flex;
   gap: 8px;
+`;
+
+const TaskActionArea = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
 `;

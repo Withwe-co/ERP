@@ -17,7 +17,6 @@ TaskPriority = Literal[
 TaskStatus = Literal[
     "TODO",
     "IN_PROGRESS",
-    "ON_HOLD",
     "DONE",
 ]
 
@@ -132,6 +131,12 @@ class TaskResponse(TaskBase):
 
 # 태스크 등록 API 응답 스키마
 class TaskCreateResponse(BaseModel):
+    status_code: int
+    message: str
+    data: TaskResponse
+
+# 태스크 수정 API 응답 스키마
+class TaskUpdateResponse(BaseModel):
     status_code: int
     message: str
     data: TaskResponse

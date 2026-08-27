@@ -1,4 +1,4 @@
-import {TaskCreateData,} from "../../../types/task";
+import {TaskCreateData,TaskResponse,} from "../../../types/task";
 
 // 태스크 등록 데이터를 검증하고,
 // 문제가 있으면 사용자에게 표시할 오류 메시지를 반환
@@ -25,4 +25,29 @@ export function validateTaskCreateData(task: TaskCreateData,): string | null {
 
     // 검증을 모두 통과하면 오류 없음
     return null;
+}
+
+// 수정 전 태스크와 현재 입력값을 비교하여
+// 실제 변경된 값이 있는지 확인
+export function hasTaskChanges(originalTask: TaskResponse, currentTask: TaskCreateData,): boolean {
+  const fields: (keyof TaskCreateData)[] = [
+    "project_id",
+    "wbs_code",
+    "task_name",
+    "assignee_name",
+    "department",
+    "priority",
+    "status",
+    "planned_start_date",
+    "planned_end_date",
+    "description",
+    "note",
+  ];
+
+  return fields.some((field) => {
+    const originalValue = originalTask[field] ?? "";
+    const currentValue = currentTask[field] ?? "";
+    
+    return originalValue !== currentValue;
+  });
 }

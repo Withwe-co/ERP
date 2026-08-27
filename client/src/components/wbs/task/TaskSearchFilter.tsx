@@ -8,21 +8,21 @@ import {TaskFilter, TaskPriority, TaskStatus,} from "../../../types/task";
 
 
 // 부모 컴포넌트에 현재 검색/필터 조건을 전달하기 위한 Props
-interface TaskSearchFilterProps {onFilter: (filters: TaskFilter) => void;}
+interface TaskSearchFilterProps {
+  onFilter: (filters: TaskFilter) => void;
+  wbsCodes: string[];
+}
 
 
 // 태스크 검색 및 필터 영역
-function TaskSearchFilter({onFilter,}: TaskSearchFilterProps) {
+function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
 
   // 현재 적용된 검색 및 필터 조건
   const [filters, setFilters] = useState<TaskFilter>({});
 
 
   // 검색어나 Select 값이 변경될 때 실행
-  const handleFilterChange = (
-    key: keyof TaskFilter,
-    value: string,
-  ) => {
+  const handleFilterChange = (key: keyof TaskFilter, value: string,) => {
     const newFilters = { ...filters };
 
     // 값이 있으면 해당 필터를 추가 또는 변경
@@ -67,6 +67,7 @@ function TaskSearchFilter({onFilter,}: TaskSearchFilterProps) {
   const getFilterDisplayName = (key: string, value: string,) => {
     const names: Record<string, string> = {
       search: "검색",
+      wbs_code: "WBS",
       status: "상태",
       priority: "우선순위",
       assignee_name: "담당자",
@@ -78,7 +79,6 @@ function TaskSearchFilter({onFilter,}: TaskSearchFilterProps) {
       const labels: Record<string, string> = {
         TODO: "대기",
         IN_PROGRESS: "진행 중",
-        ON_HOLD: "보류",
         DONE: "완료",
       };
 
@@ -122,21 +122,33 @@ function TaskSearchFilter({onFilter,}: TaskSearchFilterProps) {
           />
         </SearchGroup>
 
+        {/* WBS 코드 필터 */}
+        <FilterSelect
+          value={filters.wbs_code || ""}
+          onChange={(event) => handleFilterChange("wbs_code", event.target.value,)}
+        >
+          <option value="">전체 WBS</option>
+
+          {wbsCodes.map((code) => (
+            <option
+              key={code}
+              value={code}
+            >
+              {code}
+            </option>
+          ))}
+        </FilterSelect>
+
+
 
         {/* 상태 필터 */}
         <FilterSelect
           value={filters.status || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "status",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("status", event.target.value,)}
         >
           <option value="">전체 상태</option>
           <option value="TODO">대기</option>
           <option value="IN_PROGRESS">진행 중</option>
-          <option value="ON_HOLD">보류</option>
           <option value="DONE">완료</option>
         </FilterSelect>
 
@@ -144,12 +156,7 @@ function TaskSearchFilter({onFilter,}: TaskSearchFilterProps) {
         {/* 우선순위 필터 */}
         <FilterSelect
           value={filters.priority || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "priority",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("priority", event.target.value,)}
         >
           <option value="">전체 우선순위</option>
           <option value="LOW">낮음</option>
@@ -164,12 +171,7 @@ function TaskSearchFilter({onFilter,}: TaskSearchFilterProps) {
           type="text"
           placeholder="담당자"
           value={filters.assignee_name || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "assignee_name",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("assignee_name", event.target.value,)}
         />
 
 
@@ -178,58 +180,52 @@ function TaskSearchFilter({onFilter,}: TaskSearchFilterProps) {
           type="text"
           placeholder="부서"
           value={filters.department || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "department",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("department", event.target.value,)}
         />
 
 
         {/* 전체 검색/필터 초기화 */}
-        <FilterButton
-          variant="outline"
-          onClick={clearAllFilters}
-          disabled={!hasActiveFilters}
-        >
-          <Filter size={16} />
+        <FilterActionArea>
+          <FilterButton
+            variant="outline"
+            onClick={clearAllFilters}
+            disabled={!hasActiveFilters}
+          >
+            <Filter size={16} />
 
-          {hasActiveFilters
-            ? "필터 초기화"
-            : "필터"}
-        </FilterButton>
-      </FilterContainer>
+            {hasActiveFilters
+              ? "필터 초기화"
+              : "필터"}
+          </FilterButton>
 
+          {hasActiveFilters && (
+            <ActiveFilters>
+              {Object.entries(filters).map(
+                ([key, value]) => (
+                  <FilterTag key={key}>
+                    <span>
+                      {getFilterDisplayName(
+                        key,
+                        String(value),
+                      )}
+                    </span>
 
-      {/* 현재 적용된 검색/필터를 태그 형태로 표시 */}
-      {hasActiveFilters && (
-        <ActiveFilters>
-          {Object.entries(filters).map(
-            ([key, value]) => (
-              <FilterTag key={key}>
-                <span>
-                  {getFilterDisplayName(
-                    key,
-                    String(value),
-                  )}
-                </span>
-
-                {/* 개별 필터 제거 */}
-                <X
-                  size={12}
-                  className="remove-filter"
-                  onClick={() =>
-                    removeFilter(
-                      key as keyof TaskFilter,
-                    )
-                  }
-                />
-              </FilterTag>
-            ),
+                    <X
+                      size={12}
+                      className="remove-filter"
+                      onClick={() =>
+                        removeFilter(
+                          key as keyof TaskFilter,
+                        )
+                      }
+                    />
+                  </FilterTag>
+                ),
+              )}
+            </ActiveFilters>
           )}
-        </ActiveFilters>
-      )}
+        </FilterActionArea>
+      </FilterContainer>
     </SearchCard>
   );
 }
@@ -256,8 +252,9 @@ const FilterContainer = styled.div`
 // 검색창과 검색 아이콘을 묶는 영역
 const SearchGroup = styled.div`
   position: relative;
-  flex: 1;
-  min-width: 200px;
+  flex: 0 0 260px;
+  width: 260px;
+  max-width: 260px;
 `;
 
 
@@ -335,7 +332,6 @@ const ActiveFilters = styled.div`
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
-  margin-top: 12px;
 `;
 
 
@@ -358,4 +354,11 @@ const FilterTag = styled.div`
       opacity: 1;
     }
   }
+`;
+
+const FilterActionArea = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 `;

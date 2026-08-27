@@ -9,6 +9,7 @@ from app.models.projects import Project
 from app.models.tasks import Task
 from app.api.v1.endpoints.tasks import router
 
+from datetime import datetime
 
 # 테스트용 SQLite DB
 engine = create_engine(
@@ -371,13 +372,17 @@ def test_update_task():
 
     data = response.json()
 
-    # 전달한 값은 변경되어야 함
-    assert data["task_name"] == "수정된 태스크명"
-    assert data["status"] == "IN_PROGRESS"
+    assert data["status_code"] == 200
+    assert data["message"] == "태스크가 성공적으로 수정되었습니다."
 
-    # 전달하지 않은 값은 기존 값을 유지해야 함
-    assert data["assignee_name"] == "홍길동"
-    assert data["department"] == "개발팀"
+    task_data = data["data"]
+
+    assert task_data["task_name"] == "수정된 태스크명"
+    assert task_data["status"] == "IN_PROGRESS"
+
+    # 전달하지 않은 값은 그대로 유지
+    assert task_data["assignee_name"] == "홍길동"
+    assert task_data["department"] == "개발팀"
 
 
 # PUT /tasks/{task_id} - 존재하지 않는 태스크
@@ -388,3 +393,216 @@ def test_update_missing_task_returns_404():
 
     assert response.status_code == 404
     assert response.json()["detail"] == "태스크를 찾을 수 없습니다."
+
+def test_create_task_rejects_on_hold_status():
+    """태스크 상태로 ON_HOLD를 사용할 수 없다."""
+
+    task_data = valid_task_data()
+    task_data["status"] = "ON_HOLD"
+
+    response = client.post("/tasks/", json=task_data,)
+
+    assert response.status_code == 422
+
+def test_update_task_rejects_on_hold_status():
+    """태스크 수정 시 ON_HOLD 상태를 사용할 수 없다."""
+
+    create_response = client.post("/tasks/", json=valid_task_data(),)
+
+    task_id = create_response.json()["data"]["id"]
+
+    response = client.put(f"/tasks/{task_id}", json={"status": "ON_HOLD"},)
+
+    assert response.status_code == 422
+
+def test_create_task_rejects_date_before_project_start():
+    """태스크 시작 예정일은 프로젝트 시작일보다 빠를 수 없다."""
+
+    db = TestingSessionLocal()
+
+    project = Project(
+        project_code="PRJ-DATE-001",
+        project_name="날짜 검증 프로젝트",
+        manager_name="홍길동",
+        department="S/W 개발팀",
+        start_date=datetime(2026, 8, 10),
+        due_date=datetime(2026, 8, 31),
+        status="IN_PROGRESS",
+    )
+
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    project_id = project.id
+
+    db.close()
+
+    task_data = valid_task_data()
+    task_data["project_id"] = project_id
+    task_data["planned_start_date"] = "2026-08-09"
+    task_data["planned_end_date"] = "2026-08-20"
+
+    response = client.post("/tasks/", json=task_data,)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == ("태스크 일정은 프로젝트 기간 내에서만 설정할 수 있습니다.")
+
+def test_update_task_rejects_date_after_project_due():
+    """태스크 수정 시 프로젝트 종료일 이후로 변경할 수 없다."""
+
+    db = TestingSessionLocal()
+
+    project = Project(
+        project_code="PRJ-DATE-002",
+        project_name="수정 날짜 검증 프로젝트",
+        manager_name="홍길동",
+        department="S/W 개발팀",
+        start_date=datetime(2026, 8, 10),
+        due_date=datetime(2026, 8, 31),
+        status="IN_PROGRESS",
+    )
+
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    project_id = project.id
+    db.close()
+
+    task_data = valid_task_data()
+    task_data["project_id"] = project_id
+    task_data["planned_start_date"] = "2026-08-15"
+    task_data["planned_end_date"] = "2026-08-20"
+
+    create_response = client.post("/tasks/", json=task_data,)
+
+    task_id = create_response.json()["data"]["id"]
+
+    response = client.put(f"/tasks/{task_id}", json={"planned_end_date": "2026-09-01",},)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == ("태스크 일정은 프로젝트 기간 내에서만 설정할 수 있습니다.")
+
+def test_get_tasks_by_wbs_code():
+    """WBS 코드로 태스크를 필터링한다."""
+
+    task1 = valid_task_data()
+    task1["wbs_code"] = "1.1"
+    task1["task_name"] = "WBS 1.1 태스크"
+
+    task2 = valid_task_data()
+    task2["wbs_code"] = "2.1"
+    task2["task_name"] = "WBS 2.1 태스크"
+
+    client.post("/tasks/", json=task1)
+    client.post("/tasks/", json=task2)
+
+    response = client.get("/tasks/", params={"wbs_code": "1.1"},)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["wbs_code"] == "1.1"
+
+def test_archive_task():
+    """태스크를 보류해도 status는 변경되지 않는다."""
+
+    task_data = valid_task_data()
+    task_data["status"] = "IN_PROGRESS"
+
+    create_response = client.post("/tasks/", json=task_data,)
+
+    task_id = create_response.json()["data"]["id"]
+
+    response = client.patch(f"/tasks/{task_id}/archive",)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status_code"] == 200
+    assert data["message"] == "태스크가 보류되었습니다."
+
+    task = data["data"]
+
+    assert task["is_archived"] is True
+    assert task["archived_at"] is not None
+
+    # 보류는 태스크 상태와 무관
+    assert task["status"] == "IN_PROGRESS"
+
+def test_restore_archived_task():
+    """보류 태스크를 다시 진행 상태로 복원한다."""
+
+    task_data = valid_task_data()
+    task_data["status"] = "IN_PROGRESS"
+
+    create_response = client.post("/tasks/", json=task_data,)
+
+    task_id = create_response.json()["data"]["id"]
+
+    archive_response = client.patch(f"/tasks/{task_id}/archive",)
+
+    archived_task = archive_response.json()["data"]
+
+    assert archived_task["is_archived"] is True
+    assert archived_task["archived_at"] is not None
+
+    response = client.patch(f"/tasks/{task_id}/restore",)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status_code"] == 200
+    assert data["message"] == "태스크가 다시 진행됩니다."
+
+    task = data["data"]
+
+    assert task["is_archived"] is False
+    assert task["archived_at"] is None
+
+    # 복원해도 기존 태스크 status는 그대로 유지
+    assert task["status"] == "IN_PROGRESS"
+
+def test_get_archived_tasks():
+    """보류 태스크만 별도로 조회한다."""
+
+    task1 = valid_task_data()
+    task1["task_name"] = "일반 태스크"
+
+    task2 = valid_task_data()
+    task2["task_name"] = "보류 태스크"
+
+    response1 = client.post("/tasks/", json=task1,)
+
+    response2 = client.post("/tasks/", json=task2,)
+
+    archived_task_id = response2.json()["data"]["id"]
+
+    client.patch(f"/tasks/{archived_task_id}/archive",)
+
+    # 전체 태스크 조회
+    response = client.get("/tasks/")
+
+    assert response.status_code == 200
+
+    active_tasks = response.json()
+
+    assert len(active_tasks) == 1
+    assert active_tasks[0]["task_name"] == "일반 태스크"
+    assert active_tasks[0]["is_archived"] is False
+
+    # 보류 태스크 조회
+    response = client.get("/tasks/", params={"is_archived": True},)
+
+    assert response.status_code == 200
+
+    archived_tasks = response.json()
+
+    assert len(archived_tasks) == 1
+    assert archived_tasks[0]["task_name"] == "보류 태스크"
+    assert archived_tasks[0]["is_archived"] is True

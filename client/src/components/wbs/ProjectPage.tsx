@@ -362,9 +362,11 @@ const ProjectPage: React.FC = () => {
                     projectDueDate={project.due_date}
                    />
                   ) : (
-                  <TaskManagementPage 
+                  <TaskManagementPage
                     projectId={project.id}
                     projectName={project.project_name}
+                    projectStartDate={project.start_date}
+                    projectDueDate={project.due_date}
                   />
                   )}
               </TabContent>

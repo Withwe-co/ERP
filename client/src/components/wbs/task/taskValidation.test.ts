@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { TaskCreateData } from "../../../types/task";
 
-import {validateTaskCreateData,} from "./taskValidation";
+import {hasTaskChanges, validateTaskCreateData,} from "./taskValidation";
 
 
 // 검증 테스트에서 공통으로 사용할 정상적인 태스크 데이터
@@ -103,4 +103,38 @@ describe("validateTaskCreateData", () => {
         expect(result).toBeNull();
     });
 
+});
+
+describe("hasTaskChanges", () => {
+  it("수정 전후 데이터가 같으면 false를 반환한다", () => {
+    const originalTask = {
+      ...validTask,
+      id: 1,
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-08-24T10:00:00",
+      updated_at: "2026-08-24T10:00:00",
+    };
+
+    const result = hasTaskChanges(originalTask, validTask,);
+
+    expect(result).toBe(false);
+  });
+
+  it("하나라도 수정된 값이 있으면 true를 반환한다", () => {
+    const originalTask = {
+      ...validTask,
+      id: 1,
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-08-24T10:00:00",
+      updated_at: "2026-08-24T10:00:00",
+    };
+
+    const changedTask = {...validTask, task_name: "수정된 태스크명",};
+
+    const result = hasTaskChanges(originalTask,changedTask,);
+
+    expect(result).toBe(true);
+  });
 });
