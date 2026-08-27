@@ -32,6 +32,10 @@ interface ProjectList{
   project_description?: string | null;
   updated_by?: string | null;
   updated_at?: string | null;
+  progress_rate: number;
+  total_task: number;
+  delayed_task: number;
+  complete_task: number;
 }
 
 interface Project{
@@ -207,10 +211,13 @@ const WbsPage: React.FC = () => {
   // 프로젝트 목록 조회
   const{data: projectsData, isLoading, error, refetch}=useQuery({
     queryKey:['wbs',projectView,currentPage,filters],
-    queryFn: () => {const params = {page: currentPage,limit: 20,... filters};
+    queryFn: () => {
+      const params = {page: currentPage,limit: 20,... filters};
+
       return projectView === 'on_hold'?projectApi.getOnHoldProjects(params):projectApi.getRequests(params)},
     keepPreviousData: true,
-    staleTime: 5*60*1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
     retry:2,
   });
 
@@ -282,17 +289,27 @@ const WbsPage: React.FC = () => {
     {
       key: 'progress_rate',
       label: '진행률',
-      width: '80px'
+      width: '80px',
+      render: (value) => `${value ?? 0}%`
+      
     },
     {
       key: 'total_task',
       label: '전체 태스크',
-      width: '80px'
+      width: '80px',
+      render: (value) => value ?? 0
     },
     {
       key: 'delayed_task',
       label: '지연 태스크',
-      width: '80px'
+      width: '80px',
+      render: (value) => value ?? 0
+    },
+    {
+      key: 'complete_task',
+      label: '완료 태스크',
+      width: '80px',
+      render: (value) => value ?? 0
     },
     {
       key: 'actions',

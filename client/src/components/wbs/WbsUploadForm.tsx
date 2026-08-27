@@ -130,6 +130,36 @@ const ButtonGroup = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
 `;
 
+// WBS 코드 자동생성
+type WbsCodeSource = Pick<Wbs, 'wbs_code'>;
+
+export const getNextWbsCode = (parentWbsCode: string,wbsList: WbsCodeSource[],) => {
+
+  // 상위 WBS 미선택: Depth 1 의 마지막번호 + 1
+  if (!parentWbsCode) {
+    const topLevelNumbers = wbsList.map((wbs) => {
+        const matched = /^(\d+)$/.exec(wbs.wbs_code);
+
+        return matched ? Number(matched[1]) : 0;
+      });
+
+    return String(Math.max(0, ...topLevelNumbers) + 1);
+  }
+
+  // 상위 WBS 선택: 1 -> 1.1, 1.2가 있으면 1.3
+  const parentDepth = parentWbsCode.split('.').length;
+  const childPrefix = `${parentWbsCode}.`;
+
+  const childNumbers = wbsList.filter((wbs) => {
+      const depth = wbs.wbs_code.split('.').length;
+
+      return (wbs.wbs_code.startsWith(childPrefix) &&depth === parentDepth + 1);
+    })
+    .map((wbs) => Number(wbs.wbs_code.split('.').at(-1)))
+    .filter(Number.isFinite);
+
+  return `${parentWbsCode}.${Math.max(0, ...childNumbers) + 1}`;
+};
 
 const WbsUploadForm: React.FC<WbsUploadFormProps> =({
     projectId,
@@ -196,7 +226,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             return {
                 wbs_code: '',
                 wbs_name: '',
-                parent_wbs: '없음',
+                parent_wbs: '',
                 wbs_description: '',
                 wbs_order: 0,
                 project_id: 0,
@@ -294,6 +324,21 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         enabled: Boolean(projectId),
     });
 
+    // 옵션 선택 시 WBS코드 즉시 갱신
+    const handleParentWbsChange = (value: string | number) => {
+        const parentWbsCode = String(value);
+
+        setFormData((prev) => {
+            // 수정 중에는 기존 코드를 보존
+            if (isEdit) {
+            return {...prev,parent_wbs: parentWbsCode};
+            }
+
+            // 신규 등록: 선택값에 따라 코드 즉시 재계산
+            return {...prev,parent_wbs: parentWbsCode,wbs_code: getNextWbsCode(parentWbsCode, wbsList)};
+        });
+    };
+
     // 상위 WBS 선택 옵션
     const parentWbsOptions = [
         {
@@ -341,8 +386,9 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                         <Input
                             label="WBS 코드"
                             value={formData.wbs_code}
-                            onChange={(e) => handleChange('wbs_code', e.target.value)}
+                            //onChange={(e) => handleChange('wbs_code', e.target.value)}
                             placeholder="WBS 코드"
+                            disabled={!isEdit}
                             required
                         />
 
@@ -350,7 +396,8 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                             label="상위 WBS"
                             value={formData.parent_wbs}
                             options={parentWbsOptions}
-                            onChange={(value) => handleChange('parent_wbs', value)}
+                            onChange={handleParentWbsChange}
+                            //onChange={(value) => handleChange('parent_wbs', value)}
                         />
 
                         <Input

@@ -343,15 +343,19 @@ export interface ProjectUploadFormData {
 }
 
 export interface Project {
-    id: number;
-    project_code: string;
-    project_name: string;
-    manager_name: string;
-    department: string;
-    start_date: string;
-    due_date: string;
-    status: string;
-    project_description: string;
+  id: number;
+  project_code: string;
+  project_name: string;
+  manager_name: string;
+  department: string;
+  start_date: string;
+  due_date: string;
+  status: string;
+  project_description: string;
+  progress_rate: number;
+  total_task: number;
+  delayed_task: number;
+  complete_task: number;
 }
 
 // 태스크 등록 API 응답 타입
