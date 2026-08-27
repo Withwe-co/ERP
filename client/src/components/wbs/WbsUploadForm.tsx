@@ -398,6 +398,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                     </FormGrid>
                 </FormSection>
                 <ButtonGroup>
+                    {/*
                     {isEdit && initialData && (
                         <Button 
                             type="button" 
@@ -406,7 +407,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                         >
                             삭제
                         </Button>
-                    )}
+                    )}*/}
                     <Button 
                         type="button" 
                         variant="outline" 
