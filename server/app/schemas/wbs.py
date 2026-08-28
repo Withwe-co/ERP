@@ -12,8 +12,8 @@ class WbsBase(BaseModel):
 
 # 수정 스키마
 class UpdateWbs(WbsBase):
-    wbs_code: Optional[str] = Field(None, max_length=10)
-    wbs_name: Optional[str] = Field(None, max_length=50)
+    wbs_code: str = Field(..., max_length=10)
+    wbs_name: str = Field(..., max_length=50)
     parent_wbs: Optional[str] = Field(None, max_length=10)
     wbs_order: Optional[int] = None
     wbs_description: Optional[str] =None
@@ -22,7 +22,7 @@ class UpdateWbs(WbsBase):
 # WBS 조회용 스키마
 class WbsInDB(WbsBase):
     id: int
-    project_id: Optional[int] = None
+    project_id: int
     updated_at: Optional[date] = None
     updated_by: Optional[str] = None
 
