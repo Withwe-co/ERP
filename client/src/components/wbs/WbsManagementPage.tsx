@@ -213,10 +213,10 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                     const date = addDays(timelineStart, index);
 
                     return {
-                    key: date,
-                    label: String(new Date(`${date}T00:00:00Z`).getUTCDate()),
-                    startDate: date,
-                    endDate: date,
+                        key: date,
+                        label: String(new Date(`${date}T00:00:00Z`).getUTCDate()),
+                        startDate: date,
+                        endDate: date,
                     };
                 },
             );
@@ -227,28 +227,28 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
             const columns: TimelineColumn[] = [];
 
             const firstDate = new Date(`${timelineStart}T00:00:00Z`);
-            const dayOfWeek = (firstDate.getUTCDay() + 6) % 7; // 월요일: 0
+            const dayOfWeek = (firstDate.getUTCDay() + 6) % 7; // 월요일: 1
             firstDate.setUTCDate(firstDate.getUTCDate() - dayOfWeek);
 
             let cursor = formatDate(firstDate);
 
             while (cursor <= timelineEnd) {
-            const weekEnd = addDays(cursor, 6);
+                const weekEnd = addDays(cursor, 6);
 
-            // 프로젝트 기간 밖의 부분은 잘라냄
-            const columnStart = cursor < timelineStart ? timelineStart : cursor;
-            const columnEnd = weekEnd > timelineEnd ? timelineEnd : weekEnd;
+                // 프로젝트 기간 밖의 부분은 잘라냄
+                const columnStart = cursor < timelineStart ? timelineStart : cursor;
+                const columnEnd = weekEnd > timelineEnd ? timelineEnd : weekEnd;
 
-            columns.push({
-                key: cursor,
-                label: `${columnStart.slice(5).replace('-', '/')} ~ ${columnEnd
-                .slice(5)
-                .replace('-', '/')}`,
-                startDate: columnStart,
-                endDate: columnEnd,
-            });
+                columns.push({
+                    key: cursor,
+                    label: `${columnStart.slice(5).replace('-', '/')} ~ ${columnEnd
+                    .slice(5)
+                    .replace('-', '/')}`,
+                    startDate: columnStart,
+                    endDate: columnEnd,
+                });
 
-            cursor = addDays(cursor, 7);
+                cursor = addDays(cursor, 7);
             }
 
             return columns;
