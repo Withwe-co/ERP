@@ -44,15 +44,15 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
             
         # 데이터 생성
         safe_data = {
-            'wbs_code': str(request_in.get('wbs_code', '')).strip(),
+            'wbs_code': str(request_in['wbs_code']).strip(),
             'wbs_name': str(request_in['wbs_name']).strip(),
             'parent_wbs': str(request_in['parent_wbs']).strip(),
             'wbs_order': int(request_in.get('wbs_order') or 0),
-            'project_id':int(request_in.get('project_id') or 0),
-            'wbs_description': request_in.get('wbs_description'),
+            'project_id':int(request_in['project_id']),
+            'wbs_description': str(request_in.get('wbs_description' or '')).strip(),
         }
 
-        # None 값 제거 (선택사항)
+        # None 값 제거
         filtered_data = {k: v for k, v in safe_data.items() if v is not None}
 
         # DB 객체 생성
@@ -204,7 +204,6 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
             db.rollback()
             raise HTTPException(status_code=500, detail=f"WBS 삭제 중 오류가 발생했습니다: {str(e)}")
 
-    
     return {
         "success": 204,
         "message": "재고 항목이 삭제되었습니다.",
