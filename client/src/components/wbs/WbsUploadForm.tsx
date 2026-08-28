@@ -354,7 +354,8 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             })
                 .map((wbs) => ({
                 value: wbs.wbs_code,
-                label: `${wbs.wbs_code} / ${wbs.wbs_name}`,
+                //label: `${wbs.wbs_code} / ${wbs.wbs_name}`,
+                label: `${wbs.wbs_name}`
             })),
     ];
 

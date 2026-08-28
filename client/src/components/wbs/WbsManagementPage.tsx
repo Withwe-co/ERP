@@ -421,7 +421,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 verticalAlign: 'middle',
                                                 }}
                                             >
-                                                {parent.wbs_code} | {parent.wbs_name}
+                                                {parent.wbs_name}
+                                                {/*{parent.wbs_code} | {parent.wbs_name}*/}
                                             </td>
                                         )}
 
@@ -437,8 +438,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 verticalAlign: 'middle',
                                                 }}
                                             >
-                                                {child.wbs_code} | {child.wbs_name}
-                                                
+                                                {child.wbs_name}
+                                                {/*{child.wbs_code} | {child.wbs_name}*/}
                                             </td>
                                             )
                                         ) : (
