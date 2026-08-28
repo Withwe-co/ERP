@@ -167,10 +167,10 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
           <option value="">전체 부서</option>
           <option value="H/W 개발팀">H/W 개발팀</option>
           <option value="S/W 개발팀">S/W 개발팀</option>
-          <option value="총무부">총무부</option>
           <option value="사무관리팀">사무관리팀</option>
           <option value="영업팀">영업팀</option>
           <option value="인사팀">인사팀</option>
+          <option value="총무부">총무부</option>
         </FilterSelect>
 
         <FilterSelect
@@ -179,9 +179,9 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
         >
           <option value="">전체 상태</option>
           <option value="COMPLETED">완료</option>
+          <option value="PLANNED">진행예정</option>
           <option value="IN_PROGRESS">진행중</option>
           <option value="CANCELLED">취소됨</option>
-          <option value="PLANNED">진행예정</option>
         </FilterSelect>
         <FilterButton 
           variant="outline" 

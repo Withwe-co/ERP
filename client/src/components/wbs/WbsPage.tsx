@@ -84,7 +84,7 @@ const FilterSection = styled.div`
 
 const FilterContainer = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 16px;
   margin-bottom: 20px;
   flex-wrap: wrap;
   align-items: center;
@@ -92,7 +92,7 @@ const FilterContainer = styled.div`
 
 const ActionButtons = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 16px;
   margin-left: auto;
 `;
 

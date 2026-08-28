@@ -127,20 +127,20 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
     isEdit = false
 })=>{
     const statusOption =[
-        {value: 'COMPLETED', label: '완료'},
-        {value: 'IN_PROGRESS', label: '진행중'},       
         {value: 'ON_HOLD', label: '보류'},
-        {value: 'CANCELLED', label: '취소됨'},
-        {value: 'PLANNED', label: '진행 예정'}
+        {value: 'COMPLETED', label: '완료'},
+        {value: 'PLANNED', label: '진행 예정'},
+        {value: 'IN_PROGRESS', label: '진행중'},       
+        {value: 'CANCELLED', label: '취소됨'}
     ];
 
     const departmentOptions = [
     { value: 'H/W 개발팀', label: 'H/W 개발팀' },
     { value: 'S/W 개발팀', label: 'S/W 개발팀' },
-    { value: '총무부', label: '총무부' },
     { value: '사무관리팀', label: '사무관리팀' },
     { value: '영업팀', label: '영업팀' },
     { value: '인사팀', label: '인사팀' },
+    { value: '총무부', label: '총무부' },
     ];
 
     const [isLoadingProjectCode, setIsLoadingProjectCode] = useState(!initialData);
