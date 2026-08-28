@@ -363,24 +363,23 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                             <th style={{textAlign: 'center'}}>Depth 2</th>
                             <th style={{textAlign: 'center'}}>Task</th>
                             {timelineColumns.map((column) => (
-                                <th key={column.key}>{column.label}</th>
+                                <th 
+                                    style={{textAlign: 'center'}} 
+                                    key={column.key}
+                                > 
+                                {column.label}
+                                </th>
                             ))}
                             </tr>
                         </thead>
                         <tbody>
                             {tableRows.map(({ parent, child,linkedTask, showParent, showChild,}) => {
-                                /*const rowTask = child ?? parent;
-                                const matchedTask = taskByWbsCode[rowTask.wbs_code] ?? [];
-                                
-                                const gantTask = matchedTask[0];*/
-
-
                                 const chartStartDate = linkedTask?.planned_start_date;
                                 const chartEndDate = linkedTask?.planned_end_date;
                                 const hasTaskSchedule = Boolean(chartStartDate && chartEndDate);
 
-                                let leftOffset = 0;
-                                let barWidth = 0;
+                                let ganttStartIndex = -1;
+                                let ganttColumnCount = 0;
                                 let showGanttBar = false;
 
                                 if (hasTaskSchedule) {
@@ -399,20 +398,19 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                     showGanttBar = startColumnIndex !== -1 && endColumnIndex !== -1;
 
                                     if (showGanttBar) {
-                                        const firstColumn = Math.min(startColumnIndex, endColumnIndex);
-                                        const lastColumn = Math.max(startColumnIndex, endColumnIndex);
+                                        ganttStartIndex = Math.min(startColumnIndex, endColumnIndex);
 
-                                        leftOffset =
-                                            Depth1 + Depth2 + Depth3 + firstColumn * cellWidth;
-
-                                        barWidth = (lastColumn - firstColumn + 1) * cellWidth - 4;
+                                        const ganttEndIndex = Math.max(startColumnIndex, endColumnIndex);
+                                        ganttColumnCount = ganttEndIndex - ganttStartIndex + 1;
                                     }
                                 }
                                 const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Seoul',});
+                                const parentRowSpan = tableRows.filter((row) => row.parent.id === parent.id,).length;
+                                const childRowSpan = child? tableRows.filter((row) => row.child?.id === child.id).length: 0;
 
                                 return (
                                     <StyledRow key={`${child?.id ?? parent.id}-${linkedTask?.id ?? 'empty'}`}>
-                                        <td
+                                        {/*<td
                                             onClick={showParent? () => openEditModal(parent): undefined}
                                             style={{
                                             fontWeight: '500',
@@ -421,8 +419,24 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             }}
                                         >
                                             {showParent ? parent.wbs_code +' | '+ parent.wbs_name : ''}
-                                        </td>
+                                        </td>*/}
 
+                                        {showParent && (
+                                            <td
+                                                rowSpan={parentRowSpan}
+                                                onClick={() => openEditModal(parent)}
+                                                style={{
+                                                fontWeight: '500',
+                                                background: '#fafafa',
+                                                textAlign: 'center',
+                                                verticalAlign: 'middle',
+                                                }}
+                                            >
+                                                {parent.wbs_code} | {parent.wbs_name}
+                                            </td>
+                                        )}
+
+                                        {/*
                                         <td
                                             onClick={showChild && child ? () => openEditModal(child) : undefined}
                                             style={{
@@ -432,7 +446,22 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             }}
                                         >
                                             {showChild && child ? child.wbs_code + ' | ' + child.wbs_name : ''}
-                                        </td>
+                                        </td>*/}
+                                        {showChild && child && (
+                                            <td
+                                                rowSpan={childRowSpan}
+                                                onClick={() => openEditModal(child)}
+                                                style={{
+                                                textAlign: 'center',
+                                                fontWeight: '500',
+                                                paddingLeft: '12px',
+                                                verticalAlign: 'middle',
+                                                }}
+                                            >
+                                                {child.wbs_code} | {child.wbs_name}
+                                                
+                                            </td>
+                                        )}
 
                                         <td
                                             style={{
@@ -443,11 +472,41 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         >
                                            {linkedTask?.task_name ?? ''}
                                         </td>
-
-                                        {timelineColumns.map((column) => {
+                                        {timelineColumns.map((column, index) => {
                                             const isTodayColumn =
                                                 today >= column.startDate && today <= column.endDate;
 
+                                            // 간트 바가 시작하는 날짜 칸: 필요한 날짜 칸 수만큼 가로 병합
+                                            if (showGanttBar && index === ganttStartIndex) {
+                                                return (
+                                                <td
+                                                    key={column.key}
+                                                    colSpan={ganttColumnCount}
+                                                    style={{
+                                                    position: 'relative',
+                                                    background: '#fff',
+                                                    }}
+                                                >
+                                                    <GanttBar
+                                                    style={{
+                                                        left: '2px',
+                                                        width: `${ganttColumnCount * cellWidth - 4}px`,
+                                                    }}
+                                                    />
+                                                </td>
+                                                );
+                                            }
+
+                                            // 위에서 병합된 셀에 포함되므로 따로 출력하지 않음
+                                            if (
+                                                showGanttBar &&
+                                                index > ganttStartIndex &&
+                                                index < ganttStartIndex + ganttColumnCount
+                                            ) {
+                                                return null;
+                                            }
+
+                                            // 간트 기간 밖의 일반 날짜 셀
                                             return (
                                                 <td
                                                 key={column.key}
@@ -458,14 +517,6 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 />
                                             );
                                         })}
-                                        {showGanttBar && (
-                                            <GanttBar
-                                                style={{
-                                                left: `${leftOffset + 2}px`,
-                                                width: `${barWidth}px`,
-                                                }}
-                                            />
-                                        )}
                                     </StyledRow>
                                 );
                             })}
