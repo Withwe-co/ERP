@@ -410,17 +410,6 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
 
                                 return (
                                     <StyledRow key={`${child?.id ?? parent.id}-${linkedTask?.id ?? 'empty'}`}>
-                                        {/*<td
-                                            onClick={showParent? () => openEditModal(parent): undefined}
-                                            style={{
-                                            fontWeight: '500',
-                                            background: '#fafafa',
-                                            textAlign: 'center',
-                                            }}
-                                        >
-                                            {showParent ? parent.wbs_code +' | '+ parent.wbs_name : ''}
-                                        </td>*/}
-
                                         {showParent && (
                                             <td
                                                 rowSpan={parentRowSpan}
@@ -436,18 +425,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             </td>
                                         )}
 
-                                        {/*
-                                        <td
-                                            onClick={showChild && child ? () => openEditModal(child) : undefined}
-                                            style={{
-                                            textAlign: 'center',
-                                            fontWeight: '500',
-                                            paddingLeft: '12px',
-                                            }}
-                                        >
-                                            {showChild && child ? child.wbs_code + ' | ' + child.wbs_name : ''}
-                                        </td>*/}
-                                        {showChild && child && (
+                                        {child ? (
+                                            showChild &&(
                                             <td
                                                 rowSpan={childRowSpan}
                                                 onClick={() => openEditModal(child)}
@@ -461,6 +440,14 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 {child.wbs_code} | {child.wbs_name}
                                                 
                                             </td>
+                                            )
+                                        ) : (
+                                            <td
+                                                style={{
+                                                textAlign: 'center',
+                                                background: '#fff',
+                                                }}
+                                            />
                                         )}
 
                                         <td
