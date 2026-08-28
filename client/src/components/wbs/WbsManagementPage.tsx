@@ -46,7 +46,7 @@ const GanttBar = styled.div<{ color?: string }>`
   position: absolute;
   top: 8px;
   bottom: 8px;
-  background-color: ${({ color }) => color || '#3b82f6'};
+  background-color: ${({ color }) => color ?? '#3b82f6'};
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -408,6 +408,10 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                 const parentRowSpan = tableRows.filter((row) => row.parent.id === parent.id,).length;
                                 const childRowSpan = child? tableRows.filter((row) => row.child?.id === child.id).length: 0;
 
+                                // 지난 날짜 카운트
+                                const pastColumnCount = showGanttBar? timelineColumns.slice(ganttStartIndex, ganttStartIndex + ganttColumnCount).filter((column) => column.endDate < today).length: 0;
+                                const remainingColumnCount = ganttColumnCount - pastColumnCount;
+
                                 return (
                                     <StyledRow key={`${child?.id ?? parent.id}-${linkedTask?.id ?? 'empty'}`}>
                                         {showParent && (
@@ -475,12 +479,27 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     background: '#fff',
                                                     }}
                                                 >
-                                                    <GanttBar
+                                                {/* 이미 지난 일정 구간 */}
+                                                {pastColumnCount > 0 && (
+                                                <GanttBar
+                                                    color="#9CA3AF"
                                                     style={{
-                                                        left: '2px',
-                                                        width: `${ganttColumnCount * cellWidth - 4}px`,
+                                                    left: '2px',
+                                                    width: `${pastColumnCount * cellWidth - 2}px`,
                                                     }}
-                                                    />
+                                                />
+                                                )}
+
+                                                {/* 오늘부터 남은 일정 구간 */}
+                                                {remainingColumnCount > 0 && (
+                                                <GanttBar
+                                                    color="#3B82F6"
+                                                    style={{
+                                                    left: `${pastColumnCount * cellWidth + 2}px`,
+                                                    width: `${remainingColumnCount * cellWidth - 4}px`,
+                                                    }}
+                                                />
+                                                )}
                                                 </td>
                                                 );
                                             }
