@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.schemas.wbs import WbsBase,UpdateWbs,WbsInDB
 
 from app.models.wbs import Wbs as DBWbs
-
+from app.models.tasks import Task as DBTask
 router = APIRouter()
 
 @router.post("/",response_model=dict)
@@ -186,6 +186,8 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
         desc :
             - 해당 ID에 맞는 wbs 조회
             - 조회 실패 시 -> 404에러
+            - wbs 하위 task 확인, 존재 -> 409에러 삭제 불가
+            - wbs 하위 wbs 확인, 존재 -> 409에러 삭제 불가
             - db에서 wbs삭제
             - 삭제 실패 시 -> 500에러
     """
@@ -195,6 +197,20 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
     # 조회 실패 시 -> 404에러
     if wbs is None:
         raise HTTPException(status_code=404, detail="WBS를 찾을 수 없습니다.")
+
+    # 해당 wbs에 하위 task가 존재하는지 확인
+    task = db.query(DBTask).filter(DBTask.project_id==wbs.project_id,DBTask.wbs_code==wbs.wbs_code).first()
+
+    # 존재 -> 409에러 삭제 불가
+    if task:
+        raise HTTPException(status_code=409, detail="태스크가 존재하는 WBS는 삭제할 수 없습니다.")
+
+    # 해당 wbs에 하위 wbs가 존재하는지 확인
+    child_wbs=db.query(DBWbs).filter(DBWbs.project_id==wbs.project_id,DBWbs.parent_wbs==wbs.wbs_code).first()
+
+    # 존재 -> 409에러 삭제 불가
+    if child_wbs:
+         raise HTTPException(status_code=409, detail="하위 WBS가 존재하는 WBS는 삭제할 수 없습니다.")
 
     # db에서 wbs삭제
     try:
@@ -206,6 +222,6 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
 
     return {
         "success": 204,
-        "message": "재고 항목이 삭제되었습니다.",
+        "message": "WBS가 삭제되었습니다.",
     }
 
