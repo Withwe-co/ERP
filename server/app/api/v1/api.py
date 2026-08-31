@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     wbs,
     tasks,
     projectwbs,
+    holidays,
 )
 
 api_router = APIRouter()
@@ -66,4 +67,11 @@ api_router.include_router(
     projectwbs.router,
     prefix="/projectwbs",
     tags=["projectwbs"],
+)
+
+# holidays 공휴일 조회 엔드포인트
+api_router.include_router(
+    holidays.router,
+    prefix="/holidays",
+    tags=["holidays"],
 )
