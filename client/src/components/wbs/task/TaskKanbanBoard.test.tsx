@@ -231,9 +231,10 @@ describe("TaskKanbanBoard", () => {
     expect(changedStatus).toBe("IN_PROGRESS");
   });
 
-  // 단순 클릭과 Drag를 구분하기 위해 일정 거리 이상 이동해야 Drag를 시작
-  it("포인터가 8px 이상 이동했을 때 Drag를 시작하도록 설정한다", () => {
-    expect(getDragSensorOptions()).toEqual({activationConstraint: {distance: 8,},});
+  // 단순 클릭과 Drag는 계속 구분하면서,
+  // 기존보다 적은 이동 거리에서 Drag가 빠르게 시작되는지 확인
+  it("포인터가 4px 이상 이동했을 때 Drag를 시작하도록 설정한다", () => {
+    expect(getDragSensorOptions()).toEqual({activationConstraint: {distance: 4,},});
   });
 
 });

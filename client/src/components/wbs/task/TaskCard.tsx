@@ -172,10 +172,11 @@ const CardContainer = styled.button`
   text-align: left;
   cursor: pointer;
 
+  // Drag 위치에 사용하는 transform에는 transition을 적용하지 않음.
+  // dnd-kit이 계산한 좌표를 즉시 반영하여 카드 이동 지연을 줄임.
   transition:
     border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+    box-shadow 0.2s ease;
 
   &:hover {
     border-color: #cbd5e1;

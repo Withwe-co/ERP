@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { ThemeProvider } from "styled-components";
+import { ServerStyleSheet, ThemeProvider } from "styled-components";
 import { describe, expect, it } from "vitest";
 
 import { theme } from "../../../styles/theme";
@@ -110,5 +110,50 @@ describe("TaskCard", () => { it("태스크의 주요 정보를 카드에 표시�
     // dnd-kit의 draggable 속성이 카드에 연결되는지 확인
     expect(html).toContain('aria-roledescription="draggable"');
     expect(html).toContain('data-task-id="1"');
+  });
+
+  // dnd-kit이 계산한 Drag 좌표를 카드가 즉시 따라가도록,
+  // 카드의 transform 속성에 별도 transition 지연이 없는지 확인
+  it("드래그 이동에 transform transition 지연을 사용하지 않는다", () => {
+    const task: TaskResponse = {
+      id: 1,
+      project_id: 1,
+      wbs_code: "1.1",
+      task_name: "빠른 드래그 태스크",
+      assignee_name: "김진산",
+      department: "개발팀",
+      priority: "NORMAL",
+      status: "TODO",
+      planned_start_date: "2026-08-31",
+      planned_end_date: "2026-09-01",
+      description: "",
+      note: "",
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-08-31T10:00:00",
+      updated_at: "2026-08-31T10:00:00",
+    };
+
+    // styled-components가 생성한 실제 CSS를 확인하기 위해
+    // 서버 렌더링용 StyleSheet를 사용
+    const sheet = new ServerStyleSheet();
+
+    renderToStaticMarkup(
+      sheet.collectStyles(
+        <ThemeProvider theme={theme}>
+          <TaskCard
+            task={task}
+            onDetail={() => {}}
+          />
+        </ThemeProvider>,
+      ),
+    );
+
+    const styles = sheet.getStyleTags();
+
+    sheet.seal();
+
+    // Drag 좌표에 사용되는 transform은 애니메이션 지연 없이 즉시 적용되어야 함
+    expect(styles).not.toContain("transform 0.2s ease");
   });
 });

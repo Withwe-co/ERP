@@ -37,7 +37,7 @@ export const getDropStatus = (columnId: string,): TaskResponse["status"] | null 
 };
 
 // 단순 클릭과 Drag를 구분하기 위한 Drag 시작 조건
-export const getDragSensorOptions = () => ({activationConstraint: {distance: 8,},});
+export const getDragSensorOptions = () => ({activationConstraint: {distance: 4,},});
 
 // 드래그한 태스크 ID와 드롭한 컬럼을 상태 변경 정보로 변환
 export const getTaskStatusChange = (taskId: number, columnId: string, currentStatus?: TaskResponse["status"],) => {
@@ -96,7 +96,7 @@ function DroppableColumn({ status, children }: DroppableColumnProps) {
 // 태스크 칸반 보드
 function TaskKanbanBoard({tasks,onDetail, onStatusChange}: TaskKanbanBoardProps) {
 
-  // 포인터가 8px 이상 이동했을 때만 Drag를 시작하여 단순 Click과 구분
+  // 포인터가 4px 이상 이동했을 때만 Drag를 시작하여 클릭은 유지하면서 카드가 더 빠르게 반응하도록 설정
   const sensors = useSensors(useSensor(PointerSensor, getDragSensorOptions()),);
 
   // Drag 종료 시 태스크 ID와 Drop 컬럼을 읽어 상태 변경 처리
