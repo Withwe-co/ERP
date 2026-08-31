@@ -82,6 +82,13 @@ class Task(Base):
         default="TODO",
     )
 
+    # 칸반 컬럼 내 표시 순서
+    kanban_order = Column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
     # 시작 예정일
     planned_start_date = Column(
         Date,

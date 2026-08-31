@@ -26,10 +26,7 @@ import TaskCard, { TaskCardOverlay } from "./TaskCard";
 interface TaskKanbanBoardProps {
   tasks: TaskResponse[];
   onDetail: (task: TaskResponse) => void;
-  onStatusChange?: (
-    taskId: number,
-    status: TaskResponse["status"],
-  ) => void;
+  onOrderChange?: (tasks: TaskResponse[]) => void;
 }
 
 
@@ -219,7 +216,7 @@ function ColumnEndDropZone({
 function TaskKanbanBoard({
   tasks,
   onDetail,
-  onStatusChange,
+  onOrderChange,
 }: TaskKanbanBoardProps) {
   const [activeTask, setActiveTask] =
     useState<TaskResponse | null>(null);
@@ -311,6 +308,7 @@ function TaskKanbanBoard({
       );
 
       if (!draggedTask || !targetTask) {
+        onOrderChange?.(currentTasks);
         return currentTasks;
       }
 
@@ -342,33 +340,16 @@ function TaskKanbanBoard({
 
       let index = 0;
 
-      return currentTasks.map((task) => {
-        if (task.status !== draggedTask.status) {
-          return task;
-        }
+      const nextTasks = currentTasks.map((task) => {
+        if (task.status !== draggedTask.status) {return task;}
 
         return reorderedColumn[index++];
       });
+
+      onOrderChange?.(nextTasks);
+
+      return nextTasks;
     });
-
-    const originalTask = tasks.find(
-      (task) => task.id === activeId,
-    );
-
-    const movedTask = kanbanTasks.find(
-      (task) => task.id === activeId,
-    );
-
-    if (
-      originalTask &&
-      movedTask &&
-      originalTask.status !== movedTask.status
-    ) {
-      onStatusChange?.(
-        activeId,
-        movedTask.status,
-      );
-    }
   };
 
   const handleDragCancel = () => {

@@ -45,4 +45,6 @@ export interface TaskResponse extends Task {
   archived_at?: string | null;
   created_at: string;
   updated_at: string;
+  // 칸반 컬럼 내 카드 표시 순서
+  kanban_order: number;
 }

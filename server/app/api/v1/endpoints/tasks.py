@@ -15,6 +15,7 @@ from app.schemas.tasks import (
     TaskResponse,
     TaskCreateResponse,
     TaskUpdateResponse,
+    TaskKanbanOrderUpdate,
 )
 
 # FastAPI에서 API endpoint들을 하나의 Router로 묶는 객체
@@ -47,8 +48,29 @@ def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
                 ),
             )
 
-    # 검증이 완료된 요청 데이터를 SQLAlchemy Task 객체로 반환
-    task = Task(**task_in.model_dump())
+    # 같은 프로젝트와 상태에서 현재 마지막 칸반 순서 조회
+    last_task = (
+        db.query(Task)
+        .filter(
+            Task.project_id == task_in.project_id,
+            Task.status == task_in.status,
+            Task.is_archived.is_(False),
+        )
+        .order_by(Task.kanban_order.desc())
+        .first()
+    )
+
+    # 새 태스크는 해당 컬럼의 마지막에 배치
+    kanban_order = (
+        last_task.kanban_order + 1
+        if last_task is not None
+        else 0
+    )
+
+    task = Task(
+        **task_in.model_dump(),
+        kanban_order=kanban_order,
+    )
 
     db.add(task)
     db.commit()
@@ -108,8 +130,29 @@ def get_tasks(
     if department:
         query = query.filter(Task.department.ilike(f"%{department}%"))
 
-    # 지금까지 설정한 모든 조건을 적용하여 실제 DB 조회 실행
-    return query.all()
+    # 저장된 칸반 순서대로 태스크 조회
+    return query.order_by(Task.kanban_order.asc(), Task.id.asc(),).all()
+
+# 칸반 카드 순서 저장
+@router.patch("/kanban/order")
+def update_kanban_order(order_in: TaskKanbanOrderUpdate, db: Session = Depends(get_db),):
+    """칸반 카드의 상태와 순서를 저장"""
+
+    order_data = order_in.model_dump()
+
+    for task_status, task_ids in order_data.items():
+        for kanban_order, task_id in enumerate(task_ids):
+            task = db.query(Task).filter(Task.id == task_id).first()
+
+            if task is None:
+                continue
+
+            task.status = task_status
+            task.kanban_order = kanban_order
+
+    db.commit()
+
+    return {"message": "칸반 순서가 저장되었습니다.",}
 
 # 태스크 단건 조회
 @router.get("/{task_id}", response_model=TaskResponse,)

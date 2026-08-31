@@ -99,6 +99,7 @@ class TaskUpdate(BaseModel):
 class TaskResponse(TaskBase):
     """태스크 조회 결과에 사용하는 응답 스키마"""
     id: int
+    kanban_order: int
     is_archived: bool
     archived_at: Optional[datetime] = None
     created_at: datetime
@@ -119,3 +120,10 @@ class TaskUpdateResponse(BaseModel):
     status_code: int
     message: str
     data: TaskResponse
+
+class TaskKanbanOrderUpdate(BaseModel):
+    """칸반 상태별 태스크 순서 저장 스키마"""
+
+    TODO: list[int] = Field(default_factory=list)
+    IN_PROGRESS: list[int] = Field(default_factory=list)
+    DONE: list[int] = Field(default_factory=list)

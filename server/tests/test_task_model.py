@@ -25,6 +25,7 @@ def test_task_model_has_expected_columns():
         "archived_at",
         "created_at",
         "updated_at",
+        "kanban_order",
     }
 
     # Task 모델의 컬럼 구성이 정확히 설계와 같아야 함
