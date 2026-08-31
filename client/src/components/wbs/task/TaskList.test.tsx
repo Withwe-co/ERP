@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
 // styled-components의 theme 값을 테스트 환경에서도 사용할 수 있도록 ThemeProvider 사용
-import { ThemeProvider } from "styled-components";
+import { ServerStyleSheet, ThemeProvider } from "styled-components";
 
 // Vitest에서 테스트 작성에 필요한 함수
 import { describe, expect, it } from "vitest";
@@ -156,5 +156,74 @@ describe("TaskList", () => {
 
     expect(html).toContain("진행");
     expect(html).not.toContain(">보류<");
+  });
+
+  // 태스크 목록에서 가장 최근에 등록된 태스크가 가장 위에 표시되고,
+  // updated_at이 변경되어도 created_at 기준의 위치는 유지되는지 확인
+  it("태스크를 created_at 기준 최신 등록순으로 표시한다", () => {
+    // 오래된 태스크의 수정 시간은 더 최근으로 설정하여
+    // updated_at이 정렬 기준으로 사용되지 않는지도 함께 확인
+    const unorderedTasks: TaskResponse[] = [
+      {
+        ...tasks[0],
+        id: 1,
+        task_name: "먼저 등록된 태스크",
+        created_at: "2026-08-20T10:00:00",
+        updated_at: "2026-08-31T10:00:00",
+      },
+      {
+        ...tasks[0],
+        id: 2,
+        task_name: "최근 등록된 태스크",
+        created_at: "2026-08-30T10:00:00",
+        updated_at: "2026-08-30T10:00:00",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskList
+          tasks={unorderedTasks}
+          onEdit={() => {}}
+          onDetail={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    // created_at이 더 최근인 태스크가 HTML에서도 먼저 렌더링되어야 함
+    const recentTaskIndex = html.indexOf("최근 등록된 태스크");
+    const oldTaskIndex = html.indexOf("먼저 등록된 태스크");
+
+    expect(recentTaskIndex).toBeGreaterThan(-1);
+    expect(oldTaskIndex).toBeGreaterThan(-1);
+    expect(recentTaskIndex).toBeLessThan(oldTaskIndex);
+  });
+
+  // 태스크 목록의 각 행에서 텍스트와 수정/보류 버튼이
+  // 위쪽에 붙지 않고 세로 중앙에 나란히 표시되는지 확인
+  it("태스크 목록의 셀 내용을 세로 중앙에 정렬한다", () => {
+    // styled-components가 생성하는 CSS까지 확인하기 위해
+    // 테스트용 ServerStyleSheet를 생성
+    const sheet = new ServerStyleSheet();
+
+    renderToStaticMarkup(
+      sheet.collectStyles(
+        <ThemeProvider theme={theme}>
+          <TaskList
+            tasks={tasks}
+            onEdit={() => {}}
+            onDetail={() => {}}
+          />
+        </ThemeProvider>,
+      ),
+    );
+
+    // TaskList에서 생성한 styled-components CSS 추출
+    const styles = sheet.getStyleTags();
+
+    sheet.seal();
+
+    // 목록의 td가 vertical-align: middle을 사용해야 함
+    expect(styles).toContain("vertical-align:middle");
   });
 });
