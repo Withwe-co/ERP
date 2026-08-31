@@ -147,6 +147,45 @@ describe("TaskManagementPage", () => { it("기본 칸반 화면에 조회된 태
     expect(html).toContain("등록된 태스크가 없습니다.");
   });
 
+  // 검색/필터 영역이 입력 행 → 선택 필터 행 → 보기/관리 버튼 행 순으로
+  // 태스크 콘텐츠 위에 배치되는지 확인
+  it("태스크 관리 상단 기능을 세 개의 행으로 구분해 표시한다", () => {
+    // TaskManagementPage 렌더링에 필요한 React Query 환경 생성
+    const queryClient = new QueryClient();
+
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <TaskManagementPage
+            projectId={1}
+            projectName="테스트 프로젝트"
+            projectStartDate="2026-08-01"
+            projectDueDate="2026-09-30"
+          />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    // 각 행을 구분하기 위한 영역이 모두 존재해야 함
+    const filterRowIndex = html.indexOf(
+      'data-testid="task-filter-row"',
+    );
+    const filterActionRowIndex = html.indexOf(
+      'data-testid="task-filter-action-row"',
+    );
+    const toolbarRowIndex = html.indexOf(
+      'data-testid="task-toolbar-row"',
+    );
+
+    expect(filterRowIndex).toBeGreaterThan(-1);
+    expect(filterActionRowIndex).toBeGreaterThan(-1);
+    expect(toolbarRowIndex).toBeGreaterThan(-1);
+
+    // 화면 위에서부터 검색/필터 → 선택 필터 → Toolbar 순으로 배치
+    expect(filterRowIndex).toBeLessThan(filterActionRowIndex);
+    expect(filterActionRowIndex).toBeLessThan(toolbarRowIndex);
+  });
+
   // API 실패 시 Optimistic Update 이전 상태로 태스크를 복구
   it("상태 변경 실패 시 태스크를 이전 상태로 복구한다", () => {
     const tasks: TaskResponse[] = [

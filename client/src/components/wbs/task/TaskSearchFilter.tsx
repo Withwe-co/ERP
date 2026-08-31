@@ -103,8 +103,8 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
 
   return (
     <SearchCard>
-      <FilterContainer>
-
+      {/* 1행: 태스크 검색과 각 필터 입력 영역 */}
+      <FilterRow data-testid="task-filter-row">
         {/* 태스크명 검색 */}
         <SearchGroup>
           <SearchIcon />
@@ -125,7 +125,12 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
         {/* WBS 코드 필터 */}
         <FilterSelect
           value={filters.wbs_code || ""}
-          onChange={(event) => handleFilterChange("wbs_code", event.target.value,)}
+          onChange={(event) =>
+            handleFilterChange(
+              "wbs_code",
+              event.target.value,
+            )
+          }
         >
           <option value="">전체 WBS</option>
 
@@ -139,12 +144,15 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
           ))}
         </FilterSelect>
 
-
-
-        {/* 상태 필터 */}
+        {/* 태스크 상태 필터 */}
         <FilterSelect
           value={filters.status || ""}
-          onChange={(event) => handleFilterChange("status", event.target.value,)}
+          onChange={(event) =>
+            handleFilterChange(
+              "status",
+              event.target.value,
+            )
+          }
         >
           <option value="">전체 상태</option>
           <option value="TODO">대기</option>
@@ -152,11 +160,15 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
           <option value="DONE">완료</option>
         </FilterSelect>
 
-
-        {/* 우선순위 필터 */}
+        {/* 태스크 우선순위 필터 */}
         <FilterSelect
           value={filters.priority || ""}
-          onChange={(event) => handleFilterChange("priority", event.target.value,)}
+          onChange={(event) =>
+            handleFilterChange(
+              "priority",
+              event.target.value,
+            )
+          }
         >
           <option value="">전체 우선순위</option>
           <option value="LOW">낮음</option>
@@ -165,67 +177,77 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
           <option value="URGENT">긴급</option>
         </FilterSelect>
 
-
-        {/* 담당자 검색 */}
+        {/* 담당자명 검색 */}
         <FilterInput
           type="text"
           placeholder="담당자"
           value={filters.assignee_name || ""}
-          onChange={(event) => handleFilterChange("assignee_name", event.target.value,)}
+          onChange={(event) =>
+            handleFilterChange(
+              "assignee_name",
+              event.target.value,
+            )
+          }
         />
 
-
-        {/* 부서 검색 */}
+        {/* 담당부서 검색 */}
         <FilterInput
           type="text"
           placeholder="부서"
           value={filters.department || ""}
-          onChange={(event) => handleFilterChange("department", event.target.value,)}
+          onChange={(event) =>
+            handleFilterChange(
+              "department",
+              event.target.value,
+            )
+          }
         />
+      </FilterRow>
 
+      {/* 2행: 필터 버튼과 현재 선택된 검색/필터 표시 영역 */}
+      <FilterActionRow data-testid="task-filter-action-row">
+        {/* 현재 적용된 모든 검색/필터 조건을 초기화 */}
+        <FilterButton
+          variant="outline"
+          onClick={clearAllFilters}
+          disabled={!hasActiveFilters}
+        >
+          <Filter size={16} />
 
-        {/* 전체 검색/필터 초기화 */}
-        <FilterActionArea>
-          <FilterButton
-            variant="outline"
-            onClick={clearAllFilters}
-            disabled={!hasActiveFilters}
-          >
-            <Filter size={16} />
+          {hasActiveFilters
+            ? "필터 초기화"
+            : "필터"}
+        </FilterButton>
 
-            {hasActiveFilters
-              ? "필터 초기화"
-              : "필터"}
-          </FilterButton>
+        {/* 현재 선택되어 있는 검색어와 필터를 태그 형태로 표시 */}
+        {hasActiveFilters && (
+          <ActiveFilters>
+            {Object.entries(filters).map(
+              ([key, value]) => (
+                <FilterTag key={key}>
+                  <span>
+                    {getFilterDisplayName(
+                      key,
+                      String(value),
+                    )}
+                  </span>
 
-          {hasActiveFilters && (
-            <ActiveFilters>
-              {Object.entries(filters).map(
-                ([key, value]) => (
-                  <FilterTag key={key}>
-                    <span>
-                      {getFilterDisplayName(
-                        key,
-                        String(value),
-                      )}
-                    </span>
-
-                    <X
-                      size={12}
-                      className="remove-filter"
-                      onClick={() =>
-                        removeFilter(
-                          key as keyof TaskFilter,
-                        )
-                      }
-                    />
-                  </FilterTag>
-                ),
-              )}
-            </ActiveFilters>
-          )}
-        </FilterActionArea>
-      </FilterContainer>
+                  {/* 개별 검색/필터 조건만 제거 */}
+                  <X
+                    size={12}
+                    className="remove-filter"
+                    onClick={() =>
+                      removeFilter(
+                        key as keyof TaskFilter,
+                      )
+                    }
+                  />
+                </FilterTag>
+              ),
+            )}
+          </ActiveFilters>
+        )}
+      </FilterActionRow>
     </SearchCard>
   );
 }
@@ -239,15 +261,22 @@ const SearchCard = styled.div`
   margin-bottom: 20px;
 `;
 
-
-// 검색창과 각 필터를 한 줄에 배치하는 영역
-const FilterContainer = styled.div`
+// 1행: 태스크 검색창과 각 필터를 한 줄에 배치
+const FilterRow = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
 `;
 
+// 2행: 필터 초기화 버튼과 현재 선택된 검색/필터를 표시
+const FilterActionRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+`;
 
 // 검색창과 검색 아이콘을 묶는 영역
 const SearchGroup = styled.div`
@@ -257,13 +286,17 @@ const SearchGroup = styled.div`
   max-width: 260px;
 `;
 
-
 // 태스크명 검색 입력창
 const SearchInput = styled.input`
   width: 100%;
-  padding: 8px 12px 8px 40px;
+  height: 40px;
+  box-sizing: border-box;
+
+  padding: 0 12px 0 40px;
+
   border: 1px solid ${props => props.theme.colors.border};
   border-radius: ${props => props.theme.borderRadius.md};
+
   font-size: 14px;
   background: ${props => props.theme.colors.surface};
 
@@ -273,7 +306,6 @@ const SearchInput = styled.input`
     box-shadow: 0 0 0 3px ${props => props.theme.colors.primary}20;
   }
 `;
-
 
 // 검색창 왼쪽의 검색 아이콘
 const SearchIcon = styled(Search)`
@@ -286,16 +318,20 @@ const SearchIcon = styled(Search)`
   color: ${props => props.theme.colors.textSecondary};
 `;
 
-
-// 상태 및 우선순위 필터 Select
+// WBS, 상태, 우선순위 필터 Select
 const FilterSelect = styled.select`
-  padding: 8px 12px;
+  height: 40px;
+  min-width: 120px;
+  box-sizing: border-box;
+
+  padding: 0 12px;
+
   border: 1px solid ${props => props.theme.colors.border};
   border-radius: ${props => props.theme.borderRadius.md};
+
   font-size: 14px;
   background: ${props => props.theme.colors.surface};
   cursor: pointer;
-  min-width: 120px;
 
   &:focus {
     outline: none;
@@ -303,28 +339,30 @@ const FilterSelect = styled.select`
   }
 `;
 
-
-// 담당자 및 부서 검색 입력창
+// 담당자 및 담당부서 검색 입력창
 const FilterInput = styled.input`
-  padding: 8px 12px;
+  height: 40px;
+  min-width: 120px;
+  box-sizing: border-box;
+
+  padding: 0 12px;
+
   border: 1px solid ${props => props.theme.colors.border};
   border-radius: ${props => props.theme.borderRadius.md};
+
   font-size: 14px;
   background: ${props => props.theme.colors.surface};
-  min-width: 120px;
 
   &:focus {
     outline: none;
     border-color: ${props => props.theme.colors.primary};
   }
 `;
-
 
 // 전체 필터 초기화 버튼
 const FilterButton = styled(Button)`
   white-space: nowrap;
 `;
-
 
 // 현재 적용된 필터 태그를 표시하는 영역
 const ActiveFilters = styled.div`
@@ -333,7 +371,6 @@ const ActiveFilters = styled.div`
   flex-wrap: wrap;
   align-items: center;
 `;
-
 
 // 현재 적용된 검색/필터 하나를 표시하는 태그
 const FilterTag = styled.div`
@@ -354,11 +391,4 @@ const FilterTag = styled.div`
       opacity: 1;
     }
   }
-`;
-
-const FilterActionArea = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 `;
