@@ -11,15 +11,15 @@ import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
 
 // Api
-import {WbsApi, taskApi, type Wbs} from '../../services/api'
+import {WbsApi, taskApi, holidayApi, type Wbs} from '../../services/api'
 
-////////////////////임시
+
 const TableWrapper = styled.div`
   overflow-x: auto;
   border: 1px solid #e0e0e0;
   background: #fff;
 `;
-//임시
+
 const StyledTable = styled.table`
   width: ${({}) => 'auto'};
   border-collapse: collapse;
@@ -41,6 +41,7 @@ const StyledTable = styled.table`
     font-weight: bold;
   }
 `;
+
 // 날짜 칸이 이어지는 타임라인 바 (끊기지 않고 연결됨)
 const GanttBar = styled.div<{ color?: string }>`
   position: absolute;
@@ -64,9 +65,6 @@ const GanttBar = styled.div<{ color?: string }>`
 const StyledRow = styled.tr` 
   position: relative;
 `;
-
-
-////////////////////////////임시
 
 interface WbsManagementPageProps {
     projectId: number;
@@ -165,6 +163,25 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     const timelineStart = projectStartDate?.slice(0,10) ?? '';
     const timelineEnd = projectDueDate?.slice(0,10)?? '';
 
+    const timelineYears = Array.from(new Set([timelineStart, timelineEnd].filter(Boolean).map((date) => Number(date.slice(0, 4)))));
+
+    const {
+    data: holidays = [],
+    isError: isHolidayLoadError,
+    } = useQuery({
+    queryKey: ['korean-holidays', timelineYears],
+    queryFn: async () => {
+        const results = await Promise.all(timelineYears.map((year) => holidayApi.getByYear(year)));
+
+        return results.flat();
+    },
+        enabled: timelineYears.length > 0,
+        staleTime: 1000 * 60 * 60 * 24, // 하루 동안 캐시
+        retry: 1,
+    });
+
+    const holidayDateSet = new Set(holidays.map((holiday) => holiday.date));
+
     const toUtcDate = (dateString: string) => {
         const [year, month, day] = dateString.slice(0, 10).split('-').map(Number);
 
@@ -175,6 +192,31 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         const oneDay = 1000 * 60 * 60 * 24;
 
         return Math.floor((toUtcDate(dateString) - toUtcDate(baseDate)) / oneDay);
+    };
+
+    const getDayColumnStyle = (date: string,holidayDates: Set<string>,) => {
+        const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+
+        // 공휴일 또는 일요일: 빨강
+        if (holidayDates.has(date) || day === 0) {
+            return {
+            color: '#dc2626',
+            background: '#fef2f2',
+            };
+        }
+
+        // 토요일: 파랑
+        if (day === 6) {
+            return {
+            color: '#2563eb',
+            background: '#eff6ff',
+            };
+        }
+
+        return {
+            color: 'inherit',
+            background: '#fff',
+        };
     };
 
     interface TimelineColumn {
@@ -359,17 +401,25 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
 
                         <thead>
                             <tr>
-                            <th style={{textAlign: 'center'}}>Depth 1</th>
-                            <th style={{textAlign: 'center'}}>Depth 2</th>
-                            <th style={{textAlign: 'center'}}>Task</th>
-                            {timelineColumns.map((column) => (
-                                <th 
-                                    style={{textAlign: 'center'}} 
-                                    key={column.key}
-                                > 
-                                {column.label}
-                                </th>
-                            ))}
+                            <th style={{textAlign: 'center'}}>구분</th>
+                            <th style={{textAlign: 'center'}}>분류</th>
+                            <th style={{textAlign: 'center'}}>작업</th>
+                            {timelineColumns.map((column) => {
+                                const dateStyle = ganttViewMode === 'day'? getDayColumnStyle(column.startDate, holidayDateSet): { color: 'inherit', background: '#f5f5f5' };
+
+                                return (
+                                    <th
+                                        key={column.key}
+                                        style={{
+                                            textAlign: 'center',
+                                            color: dateStyle.color,
+                                            background: dateStyle.background,
+                                        }}
+                                    >
+                                        {column.label}
+                                    </th>
+                                );
+                            })}
                             </tr>
                         </thead>
                         <tbody>
@@ -426,7 +476,6 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 }}
                                             >
                                                 {parent.wbs_name}
-                                                {/*{parent.wbs_code} | {parent.wbs_name}*/}
                                             </td>
                                         )}
 
@@ -443,7 +492,6 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 }}
                                             >
                                                 {child.wbs_name}
-                                                {/*{child.wbs_code} | {child.wbs_name}*/}
                                             </td>
                                             )
                                         ) : (
@@ -460,14 +508,16 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             textAlign: 'center',
                                             fontWeight: '500',
                                             paddingLeft: '12px',
+                                            textDecoration: linkedTask?.status === 'DONE' ? 'line-through' : 'none',
+                                            color: linkedTask?.status === 'DONE' ? '#9ca3af' : 'inherit',
                                             }}
                                         >
                                            {linkedTask?.task_name ?? ''}
                                         </td>
                                         {timelineColumns.map((column, index) => {
-                                            const isTodayColumn =
-                                                today >= column.startDate && today <= column.endDate;
-
+                                            const isTodayColumn = today >= column.startDate && today <= column.endDate;
+                                            const dateStyle =ganttViewMode === 'day'? getDayColumnStyle(column.startDate, holidayDateSet): { background: '#fff' };
+                                            
                                             // 간트 바가 시작하는 날짜 칸: 필요한 날짜 칸 수만큼 가로 병합
                                             if (showGanttBar && index === ganttStartIndex) {
                                                 return (
@@ -495,7 +545,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 <GanttBar
                                                     color="#3B82F6"
                                                     style={{
-                                                    left: `${pastColumnCount * cellWidth + 2}px`,
+                                                    left: `${pastColumnCount * cellWidth }px`,
                                                     width: `${remainingColumnCount * cellWidth - 4}px`,
                                                     }}
                                                 />
@@ -519,7 +569,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 key={column.key}
                                                 style={{
                                                     width: `${cellWidth}px`,
-                                                    background: isTodayColumn ? '#FFF3CD' : '#fff',
+                                                    background: isTodayColumn ? '#FFF3CD' : dateStyle.background,
                                                 }}
                                                 />
                                             );

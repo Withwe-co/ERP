@@ -15,8 +15,8 @@
     "dev:client": "cd client && npm run dev",
     "dev:server": "cd server && npm run dev",
     "build:server": "cd server && npm run build",
-  "build:client": "cd client && npm run build",
-  "build": "npm run build:client",
+    "build:client": "cd client && npm run build",
+    "build": "npm run build:client",
     "start": "cd server && npm start",
     "clean": "rm -rf client/dist server/dist",
     "docker:build": "docker-compose build",
@@ -37,5 +37,8 @@
     "receipt"
   ],
   "author": "Your Name",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@dnd-kit/sortable": "^10.0.0"
+  }
 }
