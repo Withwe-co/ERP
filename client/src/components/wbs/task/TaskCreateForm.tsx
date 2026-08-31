@@ -11,6 +11,17 @@ import { hasTaskChanges, validateTaskCreateData } from "./taskValidation";
 import { taskApi } from "../../../services/api";
 
 
+// 태스크 등록/수정 시 사용할 담당부서 목록
+// 화면에서는 아래 순서를 오름차순 기준으로 고정하여 표시
+const TASK_DEPARTMENTS = [
+  "H/W 개발팀",
+  "S/W 개발팀",
+  "사무관리팀",
+  "영업팀",
+  "인사팀",
+  "총무부",
+];
+
 interface TaskCreateFormProps {
   // 현재 보고 있는 프로젝트의 ID
   projectId: number;
@@ -168,38 +179,17 @@ function TaskCreateForm({
 
             {/* 담당 부서 */}
             <Select
-                label="담당 부서"
-                value={formData.department}
-                required
-                placeholder="담당 부서를 선택하세요"
-                options={[
-                    {
-                    value: "H/W 개발팀",
-                    label: "H/W 개발팀",
-                    },
-                    {
-                    value: "S/W 개발팀",
-                    label: "S/W 개발팀",
-                    },
-                    {
-                    value: "총무부",
-                    label: "총무부",
-                    },
-                    {
-                    value: "사무관리팀",
-                    label: "사무관리팀",
-                    },
-                    {
-                    value: "영업팀",
-                    label: "영업팀",
-                    },
-                    {
-                    value: "인사팀",
-                    label: "인사팀",
-                    },
-                ]}
-                onChange={(value) =>setFormData({...formData, department: String(value),})
-                }
+            label="담당 부서"
+            value={formData.department}
+            required
+            placeholder="담당 부서를 선택하세요"
+            options={TASK_DEPARTMENTS.map((department) => ({
+                value: department,
+                label: department,
+            }))}
+            onChange={(value) =>
+                setFormData({...formData, department: String(value),})
+            }
             />
 
 

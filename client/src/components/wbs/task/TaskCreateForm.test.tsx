@@ -153,4 +153,35 @@ describe("TaskCreateForm 수정 모드", () => {
             'placeholder="담당 부서를 입력하세요."',
         );
     });
+
+    // 태스크 등록/수정 폼의 담당부서 선택지를 이름 기준 오름차순으로 표시하는지 확인
+    it("담당 부서를 오름차순으로 표시한다", () => {
+    const html = renderToStaticMarkup(
+        <ThemeProvider theme={theme}>
+        <TaskCreateForm
+            projectId={1}
+            projectName="ERP 프로젝트"
+            wbsCodes={["1.1", "1.2", "2"]}
+            projectStartDate="2026-08-01"
+            projectDueDate="2026-09-30"
+            onSuccess={() => {}}
+            onCancel={() => {}}
+        />
+        </ThemeProvider>,
+    );
+
+    // HTML에 렌더링된 위치를 이용해 실제 Select option 순서를 확인
+    const hardwareIndex = html.indexOf("H/W 개발팀");
+    const softwareIndex = html.indexOf("S/W 개발팀");
+    const officeIndex = html.indexOf("사무관리팀");
+    const salesIndex = html.indexOf("영업팀");
+    const hrIndex = html.indexOf("인사팀");
+    const generalIndex = html.indexOf("총무부");
+
+    expect(hardwareIndex).toBeLessThan(softwareIndex);
+    expect(softwareIndex).toBeLessThan(officeIndex);
+    expect(officeIndex).toBeLessThan(salesIndex);
+    expect(salesIndex).toBeLessThan(hrIndex);
+    expect(hrIndex).toBeLessThan(generalIndex);
+    });
 });
