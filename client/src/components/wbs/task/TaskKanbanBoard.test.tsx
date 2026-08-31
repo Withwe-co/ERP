@@ -163,21 +163,21 @@ describe("TaskKanbanBoard", () => {
     expect(html).toContain("등록된 태스크가 없습니다.");
     });
 
-    it("드롭한 칸반 컬럼의 상태를 반환한다", () => {
-      expect(getDropStatus("TODO")).toBe("TODO");
-      expect(getDropStatus("IN_PROGRESS")).toBe("IN_PROGRESS");
-      expect(getDropStatus("DONE")).toBe("DONE");
-    });
+  it("드롭한 칸반 컬럼의 상태를 반환한다", () => {
+    expect(getDropStatus("TODO")).toBe("TODO");
+    expect(getDropStatus("IN_PROGRESS")).toBe("IN_PROGRESS");
+    expect(getDropStatus("DONE")).toBe("DONE");
+  });
 
-    it("같은 상태 컬럼에 드롭하면 상태 변경 정보를 반환하지 않는다", () => {
-      const result = getTaskStatusChange(1, "TODO", "TODO");
-      expect(result).toBeNull();
-    });
+  it("태스크를 다른 상태 컬럼에 드롭하면 변경할 태스크 ID와 상태를 반환한다", () => {
+    const result = getTaskStatusChange(1, "IN_PROGRESS", "TODO");
+    expect(result).toEqual({taskId: 1, status: "IN_PROGRESS",});
+  });  
 
-    it("태스크를 다른 상태 컬럼에 드롭하면 변경할 태스크 ID와 상태를 반환한다", () => {
-      const result = getTaskStatusChange(1, "IN_PROGRESS", "TODO");
-      expect(result).toEqual({taskId: 1, status: "IN_PROGRESS",});
-    });  
+  it("같은 상태 컬럼에 드롭하면 상태 변경 정보를 반환하지 않는다", () => {
+    const result = getTaskStatusChange(1, "TODO", "TODO");
+    expect(result).toBeNull();
+  });
 
   it("칸반 상태가 아닌 영역에 드롭하면 상태 변경 정보를 반환하지 않는다", () => {
     const result = getTaskStatusChange(1, "INVALID");
