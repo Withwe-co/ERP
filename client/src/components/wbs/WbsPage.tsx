@@ -103,7 +103,7 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  
+
   ${props => {
     switch (props.$status) {
       case 'ON_HOLD':
@@ -238,8 +238,8 @@ const WbsPage: React.FC = () => {
           'CANCELLED': '취소됨',
           'PLANNED': '진행예정'
         };
-        return <StatusBadge $status={value}>{statusMap[value]||value}</StatusBadge>;
-      },
+        return <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}><StatusBadge $status={value}>{statusMap[value]||value}</StatusBadge></div>;
+      }
     },
     {
       key: 'project_code',
@@ -247,9 +247,9 @@ const WbsPage: React.FC = () => {
       sortable: true,
       width: '100px',
       render: (value) => (
-        <span style={{ fontFamily: 'monospace',fontSize:'0.9rem',fontWeight: '500'}}>
-          {value}
-        </span>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value}</div>
+        </div>
       )
     },
     {
@@ -266,9 +266,9 @@ const WbsPage: React.FC = () => {
       key: 'project_name',
       label: '프로젝트명',
       sortable: true,
-      width: '400px',
+      width: '340px',
       render: (value) => (
-        <div>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
           <div style={{ fontWeight: 'bold',marginBottom: '4px'}}>{value || '프로젝트명 없음'}</div>
         </div>
       )
@@ -277,40 +277,65 @@ const WbsPage: React.FC = () => {
       key: 'start_date',
       label: '시작일',
       sortable: true,
-      width: '110px',
-      render: (value) => value ? new Date(value).toLocaleDateString('ko-KR') : '-'
+      width: '150px',
+      render: (value) =>  (
+       <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div >{new Date(value).toLocaleDateString('ko-KR') || '-'}</div>
+        </div>
+      )
     },
     {
       key: 'due_date',
       label: '종료일',
       sortable: true,
-      width: '110px',
-      render: (value) => value ? new Date(value).toLocaleDateString('ko-KR') : '-'
+      width: '150px',
+      render: (value) =>  (
+       <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div >{new Date(value).toLocaleDateString('ko-KR') || '-'}</div>
+        </div>
+      )
     },
     {
       key: 'progress_rate',
       label: '진행률',
       width: '80px',
-      render: (value) => `${value ?? 0}%`
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0} %</div>
+        </div>
+      )
       
     },
     {
       key: 'total_task',
       label: '전체 태스크',
       width: '80px',
-      render: (value) => value ?? 0
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0}</div>
+        </div>
+      )
     },
     {
       key: 'delayed_task',
       label: '지연 태스크',
       width: '80px',
-      render: (value) => value ?? 0
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0}</div>
+        </div>
+      )
     },
     {
       key: 'complete_task',
       label: '완료 태스크',
       width: '80px',
-      render: (value) => value ?? 0
+      style: { verticalAlign: 'middle' },
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0}</div>
+        </div>
+      )
     },
     {
       key: 'actions',
