@@ -25,6 +25,7 @@ const SearchInput = styled.input`
   border-radius: ${props => props.theme.borderRadius.md};
   font-size: 14px;
   background: ${props => props.theme.colors.surface};
+  min-height: 40px;
   
   &:focus {
     outline: none;
@@ -51,6 +52,7 @@ const FilterSelect = styled.select`
   background: ${props => props.theme.colors.surface};
   cursor: pointer;
   min-width: 120px;
+  min-height: 40px;
   
   &:focus {
     outline: none;
@@ -149,7 +151,6 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
   return (
     <>
       <FilterContainer>
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
           <SearchGroup> 
               <SearchIcon />
               <SearchInput
@@ -159,7 +160,6 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
           </SearchGroup>
-        </div>
         <FilterSelect
           value={filters.department || ''}
           onChange={(e) => handleFilterChange('department', e.target.value)}

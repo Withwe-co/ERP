@@ -2,7 +2,7 @@ import React, {useState,useMemo} from 'react';
 import styled from 'styled-components';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {toast} from 'react-toastify';
-import {Edit,Plus,RefreshCw,Archive} from 'lucide-react'
+import {Edit,Plus,Play,Archive} from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 
 // Components
@@ -156,7 +156,8 @@ const WbsPage: React.FC = () => {
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingProject, setEditingProejct] = useState<ProjectList | null>(null);
-  const [projectView, setProjectView] = useState<'all' | 'on_hold'>('all');
+  type projectViewMode = 'all' | 'on_hold';
+  const [projectView, setProjectView] = useState<projectViewMode>('all');
 
   const storeProjectMutation = useMutation({
       mutationFn: api.wbs.storeProject,
@@ -338,7 +339,7 @@ const WbsPage: React.FC = () => {
                 onClick={(event) => {event.stopPropagation();handleStore(item.id)}}
                 title="상태변경"
               >
-                <Archive size={14} />
+                {projectView=='all'? <Archive size={14} />:<Play size={14}/>}
                 {projectView=='all' ? '보류' : '진행'}
               </Button>
           </ActionButtonGroup>
@@ -357,19 +358,17 @@ const WbsPage: React.FC = () => {
           <WbsFilters onFilter={handleSearch} />
           <ActionButtons>
             <Button
-              variant="outline"
+              variant={projectView === 'all' ? 'primary' : 'outline'}
+              onClick={() => { setCurrentPage(1); setProjectView('all'); }}
+            >
+              전체 프로젝트
+            </Button>
+            <Button
+              variant={projectView === 'on_hold' ? 'primary' : 'outline'}
               onClick={() => { setCurrentPage(1); setProjectView('on_hold'); }}       
               title="보류 프로젝트 목록"
             >
-              <Archive size={16}/>
               보류 프로젝트
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => { setCurrentPage(1); setProjectView('all'); }}
-            >
-              <Archive size={16}/>
-              전체 프로젝트
             </Button>
             <Button
               onClick={() => setIsFormModalOpen(true)}       
