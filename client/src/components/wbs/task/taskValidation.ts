@@ -3,6 +3,10 @@ import {TaskCreateData,TaskResponse,} from "../../../types/task";
 // 태스크 등록 데이터를 검증하고,
 // 문제가 있으면 사용자에게 표시할 오류 메시지를 반환
 export function validateTaskCreateData(task: TaskCreateData,): string | null {
+
+    // WBS 코드는 반드시 선택해야 하며, 빈 문자열이나 공백만 있는 값은 허용하지 않음
+    if (!task.wbs_code.trim()) {return "WBS 코드를 선택해주세요.";}
+
     // 태스크명은 필수이며 공백만 입력하는 것도 허용하지 않음
     if (!task.task_name.trim()) {return "태스크명을 입력해주세요.";}
 

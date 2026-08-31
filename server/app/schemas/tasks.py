@@ -23,6 +23,7 @@ class TaskBase(BaseModel):
 
     wbs_code: str = Field(
         ...,
+        min_length=1,
         max_length=10,
         description="WBS 코드",
     )
@@ -83,7 +84,7 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     """태스크 수정 요청에 사용하는 스키마"""
     project_id: Optional[int] = None
-    wbs_code: Optional[str] = Field(None, max_length=10,)
+    wbs_code: Optional[str] = Field(None, min_length=1, max_length=10,)
     task_name: Optional[str] = Field(None, max_length=50,)
     description: Optional[str] = None
     assignee_name: Optional[str] = Field(None, max_length=20,)

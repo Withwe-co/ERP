@@ -24,6 +24,19 @@ const validTask: TaskCreateData = {
 
 
 describe("validateTaskCreateData", () => {
+
+    // WBS 코드는 태스크 등록/수정 시 반드시 선택해야 하며,
+    // 선택하지 않은 경우 등록 요청을 진행하지 않도록 검증
+    it("WBS 코드가 비어 있으면 오류 메시지를 반환한다", () => {
+      // 정상 태스크 데이터에서 WBS 코드만 선택하지 않은 상태로 변경
+      const invalidTask = {...validTask, wbs_code: "",};
+
+      const result = validateTaskCreateData(invalidTask);
+
+      // 사용자에게 WBS 선택이 필요하다는 메시지를 표시해야 함
+      expect(result).toBe("WBS 코드를 선택해주세요.");
+    });
+    
     // 태스크명은 필수 입력값
     it("태스크명이 비어 있으면 오류 메시지를 반환한다", () => {
         const invalidTask = {...validTask, task_name: "",};
