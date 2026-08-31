@@ -84,6 +84,69 @@ describe("TaskManagementPage", () => { it("기본 칸반 화면에 조회된 태
     expect(result[0].status).toBe("IN_PROGRESS");
   });
 
+  // 태스크 관리 상단 영역에서 전체 태스크 → 보류 태스크 → 태스크 등록 순으로 버튼이 표시되는지 확인
+  it("상단 관리 영역의 버튼을 지정한 순서로 표시한다", () => {
+    const queryClient = new QueryClient();
+
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <TaskManagementPage
+            projectId={1}
+            projectName="테스트 프로젝트"
+            projectStartDate="2026-08-01"
+            projectDueDate="2026-09-30"
+          />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    const allTaskIndex = html.indexOf("전체 태스크");
+    const archivedTaskIndex = html.indexOf("보류 태스크");
+    const createTaskIndex = html.indexOf("태스크 등록");
+
+    expect(allTaskIndex).toBeGreaterThan(-1);
+    expect(archivedTaskIndex).toBeGreaterThan(-1);
+    expect(createTaskIndex).toBeGreaterThan(-1);
+
+    expect(allTaskIndex).toBeLessThan(archivedTaskIndex);
+    expect(archivedTaskIndex).toBeLessThan(createTaskIndex);
+  });
+
+  // 검색/필터, 보기 전환, 태스크 관리 버튼, 칸반/목록 콘텐츠가
+  // 하나의 태스크 관리 영역 안에 함께 표시되는지 확인
+  it("태스크 관리 기능과 콘텐츠를 하나의 관리 영역에 표시한다", () => {
+    // TaskManagementPage 렌더링에 필요한 React Query 환경 생성
+    const queryClient = new QueryClient();
+
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <TaskManagementPage
+            projectId={1}
+            projectName="테스트 프로젝트"
+            projectStartDate="2026-08-01"
+            projectDueDate="2026-09-30"
+          />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    // 태스크 관리 페이지에서 사용하는 하나의 통합 영역이 존재해야 함
+    expect(html).toContain('data-testid="task-workspace"');
+
+    // 통합 영역에서 검색, 보기 전환, 태스크 관리 기능을 모두 제공
+    expect(html).toContain("태스크명으로 검색");
+    expect(html).toContain("칸반 보기");
+    expect(html).toContain("목록 보기");
+    expect(html).toContain("전체 태스크");
+    expect(html).toContain("보류 태스크");
+    expect(html).toContain("태스크 등록");
+
+    // 기본 보기인 칸반 콘텐츠도 같은 페이지에서 표시
+    expect(html).toContain("등록된 태스크가 없습니다.");
+  });
+
   // API 실패 시 Optimistic Update 이전 상태로 태스크를 복구
   it("상태 변경 실패 시 태스크를 이전 상태로 복구한다", () => {
     const tasks: TaskResponse[] = [

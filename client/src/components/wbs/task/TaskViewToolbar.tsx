@@ -46,8 +46,22 @@ function TaskViewToolbar({viewMode, taskScope, onViewModeChange,onTaskScopeChang
         </Button>
       </ViewArea>
 
-      {/* 보류 태스크/진행 태스크/태스크 등록 Modal을 열기 위한 버튼 */}
+      {/* 전체/보류 태스크 전환과 태스크 등록 버튼을 오른쪽에 배치 */}
       <TaskActionArea>
+        {/* 현재 진행 중인 전체 태스크를 조회 */}
+        <Button
+          variant={
+            taskScope === "active"
+              ? undefined
+              : "outline"
+          }
+          size="sm"
+          onClick={() => onTaskScopeChange("active")}
+        >
+          전체 태스크
+        </Button>
+
+        {/* 보류 처리된 태스크만 조회 */}
         <Button
           variant={
             taskScope === "archived"
@@ -60,20 +74,7 @@ function TaskViewToolbar({viewMode, taskScope, onViewModeChange,onTaskScopeChang
           보류 태스크
         </Button>
 
-        <Button
-          variant={
-            taskScope === "active"
-              ? undefined
-              : "outline"
-          }
-          size="sm"
-          onClick={() =>
-            onTaskScopeChange("active")
-          }
-        >
-          전체 태스크
-        </Button>
-
+        {/* 새로운 태스크 등록 Modal을 열기 */}
         <Button onClick={onCreateTask}>
           태스크 등록
         </Button>
