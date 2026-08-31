@@ -2,7 +2,7 @@ import React, {useState,useMemo} from 'react';
 import styled from 'styled-components';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {toast} from 'react-toastify';
-import {Edit,Plus,RefreshCw,Archive} from 'lucide-react'
+import {Edit,Plus,Play,Archive} from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 
 // Components
@@ -84,7 +84,7 @@ const FilterSection = styled.div`
 
 const FilterContainer = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 16px;
   margin-bottom: 20px;
   flex-wrap: wrap;
   align-items: center;
@@ -92,7 +92,7 @@ const FilterContainer = styled.div`
 
 const ActionButtons = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 16px;
   margin-left: auto;
 `;
 
@@ -103,7 +103,7 @@ const StatusBadge = styled.span<{ $status: string }>`
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  
+
   ${props => {
     switch (props.$status) {
       case 'ON_HOLD':
@@ -156,7 +156,8 @@ const WbsPage: React.FC = () => {
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingProject, setEditingProejct] = useState<ProjectList | null>(null);
-  const [projectView, setProjectView] = useState<'all' | 'on_hold'>('all');
+  type projectViewMode = 'all' | 'on_hold';
+  const [projectView, setProjectView] = useState<projectViewMode>('all');
 
   const storeProjectMutation = useMutation({
       mutationFn: api.wbs.storeProject,
@@ -237,8 +238,8 @@ const WbsPage: React.FC = () => {
           'CANCELLED': '취소됨',
           'PLANNED': '진행예정'
         };
-        return <StatusBadge $status={value}>{statusMap[value]||value}</StatusBadge>;
-      },
+        return <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}><StatusBadge $status={value}>{statusMap[value]||value}</StatusBadge></div>;
+      }
     },
     {
       key: 'project_code',
@@ -246,9 +247,9 @@ const WbsPage: React.FC = () => {
       sortable: true,
       width: '100px',
       render: (value) => (
-        <span style={{ fontFamily: 'monospace',fontSize:'0.9rem',fontWeight: '500'}}>
-          {value}
-        </span>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value}</div>
+        </div>
       )
     },
     {
@@ -265,9 +266,9 @@ const WbsPage: React.FC = () => {
       key: 'project_name',
       label: '프로젝트명',
       sortable: true,
-      width: '400px',
+      width: '340px',
       render: (value) => (
-        <div>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
           <div style={{ fontWeight: 'bold',marginBottom: '4px'}}>{value || '프로젝트명 없음'}</div>
         </div>
       )
@@ -276,40 +277,65 @@ const WbsPage: React.FC = () => {
       key: 'start_date',
       label: '시작일',
       sortable: true,
-      width: '110px',
-      render: (value) => value ? new Date(value).toLocaleDateString('ko-KR') : '-'
+      width: '150px',
+      render: (value) =>  (
+       <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div >{new Date(value).toLocaleDateString('ko-KR') || '-'}</div>
+        </div>
+      )
     },
     {
       key: 'due_date',
       label: '종료일',
       sortable: true,
-      width: '110px',
-      render: (value) => value ? new Date(value).toLocaleDateString('ko-KR') : '-'
+      width: '150px',
+      render: (value) =>  (
+       <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div >{new Date(value).toLocaleDateString('ko-KR') || '-'}</div>
+        </div>
+      )
     },
     {
       key: 'progress_rate',
       label: '진행률',
       width: '80px',
-      render: (value) => `${value ?? 0}%`
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0} %</div>
+        </div>
+      )
       
     },
     {
       key: 'total_task',
       label: '전체 태스크',
       width: '80px',
-      render: (value) => value ?? 0
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0}</div>
+        </div>
+      )
     },
     {
       key: 'delayed_task',
       label: '지연 태스크',
       width: '80px',
-      render: (value) => value ?? 0
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0}</div>
+        </div>
+      )
     },
     {
       key: 'complete_task',
       label: '완료 태스크',
       width: '80px',
-      render: (value) => value ?? 0
+      style: { verticalAlign: 'middle' },
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <div>{value ?? 0}</div>
+        </div>
+      )
     },
     {
       key: 'actions',
@@ -338,7 +364,7 @@ const WbsPage: React.FC = () => {
                 onClick={(event) => {event.stopPropagation();handleStore(item.id)}}
                 title="상태변경"
               >
-                <Archive size={14} />
+                {projectView=='all'? <Archive size={14} />:<Play size={14}/>}
                 {projectView=='all' ? '보류' : '진행'}
               </Button>
           </ActionButtonGroup>
@@ -357,19 +383,17 @@ const WbsPage: React.FC = () => {
           <WbsFilters onFilter={handleSearch} />
           <ActionButtons>
             <Button
-              variant="outline"
+              variant={projectView === 'all' ? 'primary' : 'outline'}
+              onClick={() => { setCurrentPage(1); setProjectView('all'); }}
+            >
+              전체 프로젝트
+            </Button>
+            <Button
+              variant={projectView === 'on_hold' ? 'primary' : 'outline'}
               onClick={() => { setCurrentPage(1); setProjectView('on_hold'); }}       
               title="보류 프로젝트 목록"
             >
-              <Archive size={16}/>
               보류 프로젝트
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => { setCurrentPage(1); setProjectView('all'); }}
-            >
-              <Archive size={16}/>
-              전체 프로젝트
             </Button>
             <Button
               onClick={() => setIsFormModalOpen(true)}       

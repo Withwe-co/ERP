@@ -1,6 +1,7 @@
 import os
 from typing import List, Optional
 from pydantic_settings import BaseSettings
+from pathlib import Path
 
 class Settings(BaseSettings):
     # 앱 설정
@@ -51,9 +52,16 @@ class Settings(BaseSettings):
     SMTP_RECIPIENTS: str = ""
     SMTP_USE_TLS: bool = True
     SMTP_USE_SSL: bool = False
+
+    # 한국천문연구원 특일 정보 API 일반 키
+    KOREA_HOLIDAY_SERVICE_KEY: Optional[str] = None
     
+    #class Config:
+    #    env_file = ".env"
+    #    case_sensitive = True
+
     class Config:
-        env_file = ".env"
+        env_file = Path(__file__).resolve().parents[2] / ".env"
         case_sensitive = True
 
 # 환경변수에서 설정 로드

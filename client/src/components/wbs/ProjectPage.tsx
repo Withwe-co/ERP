@@ -7,6 +7,7 @@ import { Edit, Plus, RefreshCw } from 'lucide-react';
 
 // Components
 import Card from '../common/Card';
+import Button from '../common/Button';
 import TaskManagementPage from './TaskManagementPage';
 import WbsManagementPage from './WbsManagementPage';
 
@@ -46,6 +47,12 @@ const TabContent = styled.div`
   padding-top: 20px;
 `;
 
+// 버튼 컨데이너
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-left: 0;
+`;
 
 // 카드 사이에 여백
 const CardWrapper = styled.div`
@@ -272,6 +279,14 @@ const ProjectPage: React.FC = () => {
     return(
         <Container>
           <CardWrapper>
+            <ActionButtons>
+              <Button
+                variant='outline'
+                onClick={()=>history.back()}
+              >
+                뒤로 가기
+              </Button>
+            </ActionButtons>
             <Card>
               <ProjectHeader>
                 <div>

@@ -10,18 +10,18 @@ class ProjectsBase(BaseModel):
     department: str = Field(..., max_length=20)
     start_date: datetime
     due_date: datetime
-    status: str = "IN_PROGRESS"
+    status: str = Field("IN_PROGRESS",max_length=20)
     project_description: Optional[str] = None
 
 #수정 스키마
 class UpdateProject(ProjectsBase):
-    project_code: Optional[str] = Field(None, max_length=10)
-    project_name: Optional[str] = Field(None, max_length=50)
-    manager_name: Optional[str] = Field(None, max_length=20)
-    department: Optional[str] = Field(None, max_length=20)
-    start_date: Optional[datetime] = None
-    due_date: Optional[datetime] = None
-    status: Optional[str] = None
+    project_code: str = Field(..., max_length=10)
+    project_name: str = Field(..., max_length=50)
+    manager_name: str = Field(..., max_length=20)
+    department: str = Field(..., max_length=20)
+    start_date: datetime
+    due_date: datetime
+    status: str =Field(...,max_length=20)
     project_description: Optional[str] = None
     updated_by: Optional[str] = Field(None, max_length=20)
 
