@@ -25,7 +25,7 @@ const Container = styled.div`
 const TabArea = styled.div`
   display: flex;
   gap: 8px;
-  margin-top: 24px;
+  margin-top: 0px;
   border-bottom: 1px solid #e5e7eb;
 `;
 
