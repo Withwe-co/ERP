@@ -247,7 +247,7 @@ const WbsPage: React.FC = () => {
       sortable: true,
       width: '100px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value}</div>
         </div>
       )
@@ -300,7 +300,7 @@ const WbsPage: React.FC = () => {
       label: '진행률',
       width: '80px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value ?? 0} %</div>
         </div>
       )
@@ -311,7 +311,7 @@ const WbsPage: React.FC = () => {
       label: '전체 태스크',
       width: '80px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value ?? 0}</div>
         </div>
       )
@@ -321,7 +321,7 @@ const WbsPage: React.FC = () => {
       label: '지연 태스크',
       width: '80px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value ?? 0}</div>
         </div>
       )
@@ -332,7 +332,7 @@ const WbsPage: React.FC = () => {
       width: '80px',
       style: { verticalAlign: 'middle' },
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value ?? 0}</div>
         </div>
       )
