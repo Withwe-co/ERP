@@ -141,13 +141,13 @@ function TaskCreateForm({
             {/* 현재 프로젝트 정보와 WBS ID 입력 영역 */}
             <FormGrid>
                 <Input
-                label="프로젝트"
+                label={'\u00A0\u00A0프로젝트\u00A0'}
                 value={projectName}
                 disabled
                 />
 
                 <Select
-                    label="WBS 코드"
+                    label={'\u00A0\u00A0WBS 코드\u00A0'}
                     value={formData.wbs_code}
                     required
                     placeholder="WBS 코드를 선택하세요"
@@ -160,7 +160,7 @@ function TaskCreateForm({
             {/* 태스크 기본 정보 */}
             <FormGrid>
                 <Input
-                label="태스크명"
+                label={'\u00A0\u00A0태스크명\u00A0'}
                 value={formData.task_name}
                 required
                 placeholder="태스크명을 입력하세요."
@@ -168,7 +168,7 @@ function TaskCreateForm({
                 />
 
                 <Input
-                label="담당자"
+                label={'\u00A0\u00A0담당자\u00A0'}
                 value={formData.assignee_name}
                 required
                 placeholder="담당자명을 입력하세요."
@@ -179,7 +179,7 @@ function TaskCreateForm({
 
             {/* 담당 부서 */}
             <Select
-            label="담당 부서"
+            label={'\u00A0\u00A0담당 부서\u00A0'}
             value={formData.department}
             required
             placeholder="담당 부서를 선택하세요"
@@ -196,7 +196,7 @@ function TaskCreateForm({
             {/* 우선순위와 상태 */}
             <FormGrid>
                 <Select
-                label="우선순위"
+                label={'\u00A0\u00A0우선순위\u00A0'}
                 value={formData.priority}
                 required
                 options={[
@@ -209,7 +209,7 @@ function TaskCreateForm({
                 />
 
                 <Select
-                    label="상태"
+                    label={'\u00A0\u00A0상태\u00A0'}
                     value={formData.status}
                     required
                     options={[
@@ -226,7 +226,7 @@ function TaskCreateForm({
             {/* 태스크 일정 */}
             <FormGrid>
                 <Input
-                    label="시작 예정일"
+                    label={'\u00A0\u00A0시작 예정일\u00A0'}
                     type="date"
                     value={formData.planned_start_date}
                     min={projectStart || undefined}
@@ -236,7 +236,7 @@ function TaskCreateForm({
                 />
 
                 <Input
-                    label="완료 예정일"
+                    label={'\u00A0\u00A0완료 예정일\u00A0'}
                     type="date"
                     value={formData.planned_end_date}
                     min={formData.planned_start_date || projectStart || undefined}
@@ -329,8 +329,8 @@ const TextAreaGroup = styled.div`
 `;
 
 
-// TextArea 위에 표시하는 제목
 const Label = styled.label`
+  padding-left: 8px;
   font-size: 14px;
   font-weight: 500;
   color: #374151;
