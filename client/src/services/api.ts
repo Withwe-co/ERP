@@ -343,15 +343,19 @@ export interface ProjectUploadFormData {
 }
 
 export interface Project {
-    id: number;
-    project_code: string;
-    project_name: string;
-    manager_name: string;
-    department: string;
-    start_date: string;
-    due_date: string;
-    status: string;
-    project_description: string;
+  id: number;
+  project_code: string;
+  project_name: string;
+  manager_name: string;
+  department: string;
+  start_date: string;
+  due_date: string;
+  status: string;
+  project_description: string;
+  progress_rate: number;
+  total_task: number;
+  delayed_task: number;
+  complete_task: number;
 }
 
 // 태스크 등록 API 응답 타입
@@ -389,6 +393,10 @@ export interface Wbs {
     project_id: number;
 }
 
+export interface KoreanHoliday {
+  date: string;
+  name: string;
+}
 
 // 태스크 관리 API
 export const taskApi = {
@@ -1972,6 +1980,15 @@ export const WbsApi = {
   },
 
 };
+
+// 공휴일 Api
+export const holidayApi = {
+  getByYear: async (year: number): Promise<KoreanHoliday[]> => {
+    const response = await apiRequest.get('/holidays/', { year });
+    return response.holidays;
+  },
+};
+
 export default {
   dashboard: dashboardApi,
   purchase: purchaseApi,
@@ -1984,4 +2001,5 @@ export default {
   wbs: projectApi,
   task: taskApi, // 태스크 관리 API
   projectwbs: WbsApi,
+  holiday: holidayApi, // 공휴일 조회 API
 };

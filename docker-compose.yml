@@ -40,6 +40,8 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+    env_file:
+      - ./server/.env
     container_name: inventory-api
     restart: unless-stopped
     user: "0:0"

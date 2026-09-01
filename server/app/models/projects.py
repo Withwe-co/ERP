@@ -10,28 +10,29 @@ class Project(Base):
     __tablename__ = "projects"
     """
         projects 테이블
-
-        id: 프로젝트 고유 ID
-        project_code: 프로젝트 코드 
-        project_name: 프로젝트 이름
-        manager_name: 프로젝트 담당자 이름
-        department: 프로젝트 담당 부서
-        start_date: 프로젝트 시작일
-        due_date: 프로젝트 종료일
-        status: 프로젝트 상태 (COMPLETED,IN_PROGRESS,ON_HOLD,CANCELLED,PLANNED)
-        project_description: 프로젝트 상세 설명
-        updated_by: 프로젝트 정보 마지막 수정자
-        updated_at: 프로젝트 정보 마지막 수정일
+              Column        |            Type             | Collation | Nullable |               Desc
+        --------------------+-----------------------------+-----------+----------+--------------------------------------
+        id                  | integer                     |           | not null | 프로젝트 ID
+        project_code        | character varying(10)       |           | not null | 프로젝트 코드
+        project_name        | character varying(50)       |           | not null | 프로젝트명
+        manager_name        | character varying(20)       |           | not null | 담당자명
+        department          | character varying(20)       |           | not null | 부서
+        start_date          | timestamp without time zone |           | not null | 프로젝트 시작일
+        due_date            | timestamp without time zone |           | not null | 프로젝트 종료일
+        status              | character varying(20)       |           | not null | 프로젝트 상태
+        project_description | character varying(500)      |           |          | 프로젝트 설명
+        updated_by          | character varying(20)       |           |          | 수정일
+        updated_at          | timestamp without time zone |           | not null | 수정자
     """
 
     id=Column(Integer, primary_key=True, index=True)
-    project_code=Column(String, unique=True, nullable=False)
-    project_name=Column(String, nullable=False)
-    manager_name=Column(String, nullable=False)
-    department=Column(String, nullable=False)
+    project_code=Column(String(10), unique=True, nullable=False)
+    project_name=Column(String(50), nullable=False)
+    manager_name=Column(String(20), nullable=False)
+    department=Column(String(20), nullable=False)
     start_date=Column(DateTime, nullable=False)
     due_date=Column(DateTime, nullable=False)
-    status=Column(String, nullable=False, default='IN_PROGRESS')
-    project_description=Column(Text, nullable=True)
-    updated_by=Column(String, nullable=True)
+    status=Column(String(20), nullable=False, default='IN_PROGRESS')
+    project_description=Column(Text(500), nullable=True)
+    updated_by=Column(String(20), nullable=True)
     updated_at=Column(DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Seoul")), nullable=False)

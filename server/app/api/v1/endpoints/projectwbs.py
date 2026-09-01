@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.schemas.wbs import WbsBase,UpdateWbs,WbsInDB
 
 from app.models.wbs import Wbs as DBWbs
-
+from app.models.tasks import Task as DBTask
 router = APIRouter()
 
 @router.post("/",response_model=dict)
@@ -27,6 +27,7 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
         desc : 
             - 필수 항목 검증 (WBS코드,WBS명)
             - parse_date : 시작일,종료일 데이터 str-> datetime으로 변경 함수
+            - WBS 순서 변경
             - DB에 데이터 저장
             - 필수 필드 누락 : 422 에러 반환
             - 예외 처리 : 500 에러 반환
@@ -44,16 +45,36 @@ def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,re
             
         # 데이터 생성
         safe_data = {
-            'wbs_code': str(request_in.get('wbs_code', '')).strip(),
+            'wbs_code': str(request_in['wbs_code']).strip(),
             'wbs_name': str(request_in['wbs_name']).strip(),
             'parent_wbs': str(request_in['parent_wbs']).strip(),
             'wbs_order': int(request_in.get('wbs_order') or 0),
-            'project_id':int(request_in.get('project_id') or 0),
-            'wbs_description': request_in.get('wbs_description'),
+            'project_id':int(request_in['project_id']),
+            'wbs_description': str(request_in.get('wbs_description' or '')).strip(),
         }
 
-        # None 값 제거 (선택사항)
+        # None 값 제거
         filtered_data = {k: v for k, v in safe_data.items() if v is not None}
+
+        # 프로젝트 ID / 상위 WBS Code 저장
+        project_id = safe_data["project_id"]
+        parent_wbs = safe_data["parent_wbs"] or ""
+
+        # 동일 프로젝트 내 상위 WBS가 같은 데이터
+        scope_filters = [DBWbs.project_id == project_id,func.coalesce(DBWbs.parent_wbs, "") == parent_wbs]
+
+        # 순서 잠그기
+        existing_wbs = (db.query(DBWbs).filter(*scope_filters).order_by(DBWbs.wbs_order.asc(), DBWbs.id.asc()).with_for_update().all())
+
+        # 신규 WBS 항목의 위치
+        target_order = safe_data["wbs_order"]
+
+        # 순서값 가능 범위
+        target_order = max(1, min(target_order, len(existing_wbs) + 1))
+
+        # 새 항목의 위치 & 뒤 항목들 순서 +1
+        db.query(DBWbs).filter(*scope_filters, DBWbs.wbs_order >= target_order).update({DBWbs.wbs_order: DBWbs.wbs_order + 1},synchronize_session=False)
+        safe_data["wbs_order"] = target_order
 
         # DB 객체 생성
         wbs = DBWbs(**filtered_data)
@@ -103,6 +124,8 @@ def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
             - 실제로 전달된 부분과 변경된 부분 확인
             - 변경된 값 X -> 400에러 반환
             - 변경된 값 O & WBS명 중복 -> 400에러 반환
+            - 상위 WBS 변경 + WBS 순서 변경
+            - 상위 WBS 변경 X + WBS 순서 변경
             - DB에 데이터 저장
             - 예외 처리 -> 500 에러 반환 & Rollback
     """
@@ -133,6 +156,54 @@ def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
         if "wbs_name" in changed_data:
             if db.query(DBWbs.id).filter(func.lower(DBWbs.wbs_name)==changed_data["wbs_name"].lower(),DBWbs.id != wbs_id).first():
                 raise HTTPException(status_code=400,detail="이미 등록된 WBS명입니다.")
+
+        # 순서 또는 상위 WBS 변경 로직
+        if "wbs_order" in changed_data or "parent_wbs" in changed_data:
+            old_parent_wbs = wbs.parent_wbs or ""
+            new_parent_wbs = changed_data.get("parent_wbs", old_parent_wbs) or ""
+
+            old_order = int(wbs.wbs_order or 1)
+            target_order = int(changed_data.get("wbs_order", old_order))
+
+            # 같은 프로젝트 WBS를 잠가 동시 수정으로 인한 순서 꼬임 방지
+            db.query(DBWbs).filter(DBWbs.project_id == wbs.project_id).with_for_update().all()
+            
+
+            # 상위 WBS의 하위 WBS 목록 (과거)
+            old_scope_filters = [DBWbs.project_id == wbs.project_id, func.coalesce(DBWbs.parent_wbs, "") == old_parent_wbs]
+
+            # 상위 WBS의 하위 WBS 목록 (신규)
+            new_scope_filters = [DBWbs.project_id == wbs.project_id, func.coalesce(DBWbs.parent_wbs, "") == new_parent_wbs]
+
+            # 같은 상위 WBS 안에서 순서만 변경
+            if old_parent_wbs == new_parent_wbs:
+                sibling_count = db.query(DBWbs).filter(*old_scope_filters).count()
+
+                target_order = max(1, min(target_order, sibling_count))
+
+                if target_order < old_order:
+                    # 위로 이동: 중간 WBS들을 한 칸 뒤로
+                    db.query(DBWbs).filter(*old_scope_filters,DBWbs.id != wbs.id,DBWbs.wbs_order >= target_order,DBWbs.wbs_order < old_order,).update({DBWbs.wbs_order: DBWbs.wbs_order + 1},synchronize_session=False)
+                    
+                elif target_order > old_order:
+                    # 아래로 이동: 중간 WBS들을 한 칸 앞으로
+                        db.query(DBWbs).filter(*old_scope_filters,DBWbs.id != wbs.id,DBWbs.wbs_order > old_order,DBWbs.wbs_order <= target_order,).update({DBWbs.wbs_order: DBWbs.wbs_order - 1},synchronize_session=False)
+
+            # 상위 WBS를 다른 WBS로 변경
+            else:
+                new_sibling_count = db.query(DBWbs).filter(*new_scope_filters).count()
+
+                # 새 그룹에는 아직 수정 대상이 포함되지 않았으므로 +1 가능 -> 요휴 범위 제한
+                target_order = max(1, min(target_order, new_sibling_count + 1))
+
+                # 기존 그룹에서 빠진 자리 뒤 항목들을 앞으로 이동
+                db.query(DBWbs).filter(*old_scope_filters,DBWbs.id != wbs.id,DBWbs.wbs_order > old_order,).update({DBWbs.wbs_order: DBWbs.wbs_order - 1},synchronize_session=False)
+                
+                # 새 그룹의 삽입 위치 및 뒤 항목들을 뒤로 이동
+                db.query(DBWbs).filter(*new_scope_filters,DBWbs.wbs_order >= target_order,).update({DBWbs.wbs_order: DBWbs.wbs_order + 1},synchronize_session=False)
+
+            changed_data["parent_wbs"] = new_parent_wbs
+            changed_data["wbs_order"] = target_order
 
         # 수정값으로 변경
         for field, value in changed_data.items():
@@ -186,6 +257,8 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
         desc :
             - 해당 ID에 맞는 wbs 조회
             - 조회 실패 시 -> 404에러
+            - wbs 하위 task 확인, 존재 -> 409에러 삭제 불가
+            - wbs 하위 wbs 확인, 존재 -> 409에러 삭제 불가
             - db에서 wbs삭제
             - 삭제 실패 시 -> 500에러
     """
@@ -196,6 +269,20 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
     if wbs is None:
         raise HTTPException(status_code=404, detail="WBS를 찾을 수 없습니다.")
 
+    # 해당 wbs에 하위 task가 존재하는지 확인
+    task = db.query(DBTask).filter(DBTask.project_id==wbs.project_id,DBTask.wbs_code==wbs.wbs_code).first()
+
+    # 존재 -> 409에러 삭제 불가
+    if task:
+        raise HTTPException(status_code=409, detail="태스크가 존재하는 WBS는 삭제할 수 없습니다.")
+
+    # 해당 wbs에 하위 wbs가 존재하는지 확인
+    child_wbs=db.query(DBWbs).filter(DBWbs.project_id==wbs.project_id,DBWbs.parent_wbs==wbs.wbs_code).first()
+
+    # 존재 -> 409에러 삭제 불가
+    if child_wbs:
+         raise HTTPException(status_code=409, detail="하위 WBS가 존재하는 WBS는 삭제할 수 없습니다.")
+
     # db에서 wbs삭제
     try:
         db.delete(wbs)
@@ -204,9 +291,8 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
             db.rollback()
             raise HTTPException(status_code=500, detail=f"WBS 삭제 중 오류가 발생했습니다: {str(e)}")
 
-    
     return {
         "success": 204,
-        "message": "재고 항목이 삭제되었습니다.",
+        "message": "WBS가 삭제되었습니다.",
     }
 

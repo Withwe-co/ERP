@@ -127,20 +127,20 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
     isEdit = false
 })=>{
     const statusOption =[
-        {value: 'COMPLETED', label: '완료'},
-        {value: 'IN_PROGRESS', label: '진행중'},       
         {value: 'ON_HOLD', label: '보류'},
-        {value: 'CANCELLED', label: '취소됨'},
-        {value: 'PLANNED', label: '진행 예정'}
+        {value: 'COMPLETED', label: '완료'},
+        {value: 'PLANNED', label: '진행 예정'},
+        {value: 'IN_PROGRESS', label: '진행중'},       
+        {value: 'CANCELLED', label: '취소됨'}
     ];
 
     const departmentOptions = [
     { value: 'H/W 개발팀', label: 'H/W 개발팀' },
     { value: 'S/W 개발팀', label: 'S/W 개발팀' },
-    { value: '총무부', label: '총무부' },
     { value: '사무관리팀', label: '사무관리팀' },
     { value: '영업팀', label: '영업팀' },
     { value: '인사팀', label: '인사팀' },
+    { value: '총무부', label: '총무부' },
     ];
 
     const [isLoadingProjectCode, setIsLoadingProjectCode] = useState(!initialData);
@@ -328,7 +328,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                     <FormGrid>
                         <FormRow>
                             <Input
-                                label="프로젝트명"
+                                label={'\u00A0\u00A0프로젝트명\u00A0'}
                                 value={formData.project_name}
                                 onChange={(e) => handleChange('project_name', e.target.value)}
                                 placeholder="프로젝트명을 입력하세요"
@@ -343,14 +343,14 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         </FormRow>
 
                         <Input
-                            label="프로젝트 코드"
+                            label={'\u00A0\u00A0프로젝트 코드\u00A0'}
                             value={isLoadingProjectCode?'프로젝트 코드 생성 중 ...' : (formData.project_code||'')}
                             disabled
                             placeholder="규칙에 따라 자동 생성됩니다."
                         />
 
                         <Select
-                            label="프로젝트 상태"
+                            label={'\u00A0\u00A0프로젝트 상태\u00A0'}
                             value={formData.status}
                             options={statusOption}
                             onChange={(value) => handleChange('status', value)}
@@ -359,7 +359,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         />
 
                         <Input
-                            label="프로젝트 담당자"
+                            label={'\u00A0\u00A0프로젝트 담당자\u00A0'}
                             value={formData.manager_name}
                             onChange={(e) => handleChange('manager_name', e.target.value)}
                             placeholder="담당자"
@@ -367,7 +367,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         />
 
                         <Select
-                            label="담당 부서"
+                            label={'\u00A0\u00A0담당 부서\u00A0'}
                             value={formData.department}
                             options={departmentOptions}
                             onChange={(value) => handleChange('department', value)}
@@ -376,7 +376,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         />
 
                         <Input
-                            label="프로젝트 시작일"
+                            label={'\u00A0\u00A0프로젝트 시작일\u00A0'}
                             type="date"
                             value={formData.start_date}
                             onChange={(e) => handleChange('start_date', e.target.value)}
@@ -385,7 +385,7 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         />
 
                         <Input
-                            label="프로젝트 종료일"
+                            label={'\u00A0\u00A0프로젝트 종료일\u00A0'}
                             type="date"
                             value={formData.due_date}
                             onChange={(e) => handleChange('due_date', e.target.value)}
@@ -396,13 +396,13 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         {isEdit &&(
                             <FormRow style={{display:'grid',gridTemplateColumns: '1fr 1fr',gap: '16px'}}>
                                 <Input
-                                    label="최종 수정일"
+                                    label={'\u00A0\u00A0최종 수정일\u00A0'}
                                     value={initialData?.updated_at ? new Date(initialData.updated_at).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul'}) : '' }
                                     disabled
                                 />
 
                                 <Input
-                                    label="수정자"
+                                    label={'\u00A0\u00A0수정자\u00A0'}
                                     value={formData.updated_by || ''}
                                     onChange={(e) => handleChange('updated_by', e.target.value)}
                                     placeholder="수정자명을 입력하세요"
@@ -412,8 +412,8 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                         )}
 
                         <FormRow style={{ marginTop: '16px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                            프로젝트 설명
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500',fontSize: '14px'  }}>
+                            {'\u00A0\u00A0프로젝트 설명\u00A0'}
                             </label>
                             <TextArea
                             value={formData.project_description}

@@ -16,9 +16,9 @@ class Wbs(Base):
     """
         wbs 테이블
 
-            Column      |            Type             | Collation | Nullable |   desc  
+            Column      |            Type             | Collation | Nullable |   Desc  
         ----------------+-----------------------------+-----------+----------+---------------------------------
-        id              | integer                     |           | not null | 프로젝트 고유 ID
+        id              | integer                     |           | not null | WBS 고유 ID
         wbs_code        | character varying(10)       |           | not null | WBS 코드
         wbs_name        | character varying(50)       |           | not null | WBS 이름
         parent_wbs      | character varying(10)       |           |          | 상위 WBS
@@ -34,12 +34,12 @@ class Wbs(Base):
     """
 
     id = Column(Integer, primary_key=True, index=True)
-    wbs_code = Column(String,nullable=False)
-    wbs_name = Column(String ,nullable=False)
-    parent_wbs = Column(String ,nullable=True)
-    wbs_description = Column(Text ,nullable=True)
+    wbs_code = Column(String(10),nullable=False)
+    wbs_name = Column(String(50) ,nullable=False)
+    parent_wbs = Column(String(10) ,nullable=True)
+    wbs_description = Column(Text(500) ,nullable=True)
     wbs_order = Column(Integer ,nullable=True)
-    updated_by = Column(String ,nullable=True)
+    updated_by = Column(String(20) ,nullable=True)
     updated_at=Column(Date, default=lambda: datetime.now(ZoneInfo("Asia/Seoul")), nullable=False)
     project_id = Column(Integer ,nullable=True)
     progress_rate = Column(Integer ,nullable=True)

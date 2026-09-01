@@ -11,15 +11,15 @@ import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
 
 // Api
-import {WbsApi, taskApi, type Wbs} from '../../services/api'
+import {WbsApi, taskApi, holidayApi, type Wbs} from '../../services/api'
 
-////////////////////임시
+
 const TableWrapper = styled.div`
   overflow-x: auto;
   border: 1px solid #e0e0e0;
   background: #fff;
 `;
-//임시
+
 const StyledTable = styled.table`
   width: ${({}) => 'auto'};
   border-collapse: collapse;
@@ -41,12 +41,13 @@ const StyledTable = styled.table`
     font-weight: bold;
   }
 `;
+
 // 날짜 칸이 이어지는 타임라인 바 (끊기지 않고 연결됨)
 const GanttBar = styled.div<{ color?: string }>`
   position: absolute;
   top: 8px;
   bottom: 8px;
-  background-color: ${({ color }) => color || '#3b82f6'};
+  background-color: ${({ color }) => color ?? '#3b82f6'};
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -64,9 +65,6 @@ const GanttBar = styled.div<{ color?: string }>`
 const StyledRow = styled.tr` 
   position: relative;
 `;
-
-
-////////////////////////////임시
 
 interface WbsManagementPageProps {
     projectId: number;
@@ -165,6 +163,25 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     const timelineStart = projectStartDate?.slice(0,10) ?? '';
     const timelineEnd = projectDueDate?.slice(0,10)?? '';
 
+    const timelineYears = Array.from(new Set([timelineStart, timelineEnd].filter(Boolean).map((date) => Number(date.slice(0, 4)))));
+
+    const {
+    data: holidays = [],
+    isError: isHolidayLoadError,
+    } = useQuery({
+    queryKey: ['korean-holidays', timelineYears],
+    queryFn: async () => {
+        const results = await Promise.all(timelineYears.map((year) => holidayApi.getByYear(year)));
+
+        return results.flat();
+    },
+        enabled: timelineYears.length > 0,
+        staleTime: 1000 * 60 * 60 * 24, // 하루 동안 캐시
+        retry: 1,
+    });
+
+    const holidayDateSet = new Set(holidays.map((holiday) => holiday.date));
+
     const toUtcDate = (dateString: string) => {
         const [year, month, day] = dateString.slice(0, 10).split('-').map(Number);
 
@@ -175,6 +192,31 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         const oneDay = 1000 * 60 * 60 * 24;
 
         return Math.floor((toUtcDate(dateString) - toUtcDate(baseDate)) / oneDay);
+    };
+
+    const getDayColumnStyle = (date: string,holidayDates: Set<string>,) => {
+        const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+
+        // 공휴일 또는 일요일: 빨강
+        if (holidayDates.has(date) || day === 0) {
+            return {
+            color: '#dc2626',
+            background: '#fef2f2',
+            };
+        }
+
+        // 토요일: 파랑
+        if (day === 6) {
+            return {
+            color: '#2563eb',
+            background: '#eff6ff',
+            };
+        }
+
+        return {
+            color: 'inherit',
+            background: '#fff',
+        };
     };
 
     interface TimelineColumn {
@@ -213,10 +255,10 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                     const date = addDays(timelineStart, index);
 
                     return {
-                    key: date,
-                    label: String(new Date(`${date}T00:00:00Z`).getUTCDate()),
-                    startDate: date,
-                    endDate: date,
+                        key: date,
+                        label: String(new Date(`${date}T00:00:00Z`).getUTCDate()),
+                        startDate: date,
+                        endDate: date,
                     };
                 },
             );
@@ -227,28 +269,28 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
             const columns: TimelineColumn[] = [];
 
             const firstDate = new Date(`${timelineStart}T00:00:00Z`);
-            const dayOfWeek = (firstDate.getUTCDay() + 6) % 7; // 월요일: 0
+            const dayOfWeek = (firstDate.getUTCDay() + 6) % 7; // 월요일: 1
             firstDate.setUTCDate(firstDate.getUTCDate() - dayOfWeek);
 
             let cursor = formatDate(firstDate);
 
             while (cursor <= timelineEnd) {
-            const weekEnd = addDays(cursor, 6);
+                const weekEnd = addDays(cursor, 6);
 
-            // 프로젝트 기간 밖의 부분은 잘라냄
-            const columnStart = cursor < timelineStart ? timelineStart : cursor;
-            const columnEnd = weekEnd > timelineEnd ? timelineEnd : weekEnd;
+                // 프로젝트 기간 밖의 부분은 잘라냄
+                const columnStart = cursor < timelineStart ? timelineStart : cursor;
+                const columnEnd = weekEnd > timelineEnd ? timelineEnd : weekEnd;
 
-            columns.push({
-                key: cursor,
-                label: `${columnStart.slice(5).replace('-', '/')} ~ ${columnEnd
-                .slice(5)
-                .replace('-', '/')}`,
-                startDate: columnStart,
-                endDate: columnEnd,
-            });
+                columns.push({
+                    key: cursor,
+                    label: `${columnStart.slice(5).replace('-', '/')} ~ ${columnEnd
+                    .slice(5)
+                    .replace('-', '/')}`,
+                    startDate: columnStart,
+                    endDate: columnEnd,
+                });
 
-            cursor = addDays(cursor, 7);
+                cursor = addDays(cursor, 7);
             }
 
             return columns;
@@ -315,9 +357,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         <>
         <Container>
             <FilterContainer>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <ActionButtons>
                     <Button
-                        size="sm"
                         variant={ganttViewMode === 'day' ? 'primary' : 'outline'}
                         onClick={() => setGanttViewMode('day')}
                     >
@@ -325,7 +366,6 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                     </Button>
 
                     <Button
-                        size="sm"
                         variant={ganttViewMode === 'week' ? 'primary' : 'outline'}
                         onClick={() => setGanttViewMode('week')}
                     >
@@ -333,14 +373,11 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                     </Button>
 
                     <Button
-                        size="sm"
                         variant={ganttViewMode === 'month' ? 'primary' : 'outline'}
                         onClick={() => setGanttViewMode('month')}
                     >
                         월
                     </Button>
-                </div>
-                <ActionButtons>
                     <Button
                         onClick={() => setIsFormModalOpen(true)}       
                         title="WBS 추가"
@@ -364,28 +401,35 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
 
                         <thead>
                             <tr>
-                            <th style={{textAlign: 'center'}}>Depth 1</th>
-                            <th style={{textAlign: 'center'}}>Depth 2</th>
-                            <th style={{textAlign: 'center'}}>Task</th>
-                            {timelineColumns.map((column) => (
-                                <th key={column.key}>{column.label}</th>
-                            ))}
+                            <th style={{textAlign: 'center'}}>구분</th>
+                            <th style={{textAlign: 'center'}}>분류</th>
+                            <th style={{textAlign: 'center'}}>작업</th>
+                            {timelineColumns.map((column) => {
+                                const dateStyle = ganttViewMode === 'day'? getDayColumnStyle(column.startDate, holidayDateSet): { color: 'inherit', background: '#f5f5f5' };
+
+                                return (
+                                    <th
+                                        key={column.key}
+                                        style={{
+                                            textAlign: 'center',
+                                            color: dateStyle.color,
+                                            background: dateStyle.background,
+                                        }}
+                                    >
+                                        {column.label}
+                                    </th>
+                                );
+                            })}
                             </tr>
                         </thead>
                         <tbody>
                             {tableRows.map(({ parent, child,linkedTask, showParent, showChild,}) => {
-                                /*const rowTask = child ?? parent;
-                                const matchedTask = taskByWbsCode[rowTask.wbs_code] ?? [];
-                                
-                                const gantTask = matchedTask[0];*/
-
-
                                 const chartStartDate = linkedTask?.planned_start_date;
                                 const chartEndDate = linkedTask?.planned_end_date;
                                 const hasTaskSchedule = Boolean(chartStartDate && chartEndDate);
 
-                                let leftOffset = 0;
-                                let barWidth = 0;
+                                let ganttStartIndex = -1;
+                                let ganttColumnCount = 0;
                                 let showGanttBar = false;
 
                                 if (hasTaskSchedule) {
@@ -404,73 +448,132 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                     showGanttBar = startColumnIndex !== -1 && endColumnIndex !== -1;
 
                                     if (showGanttBar) {
-                                        const firstColumn = Math.min(startColumnIndex, endColumnIndex);
-                                        const lastColumn = Math.max(startColumnIndex, endColumnIndex);
+                                        ganttStartIndex = Math.min(startColumnIndex, endColumnIndex);
 
-                                        leftOffset =
-                                            Depth1 + Depth2 + Depth3 + firstColumn * cellWidth;
-
-                                        barWidth = (lastColumn - firstColumn + 1) * cellWidth - 4;
+                                        const ganttEndIndex = Math.max(startColumnIndex, endColumnIndex);
+                                        ganttColumnCount = ganttEndIndex - ganttStartIndex + 1;
                                     }
                                 }
                                 const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Seoul',});
+                                const parentRowSpan = tableRows.filter((row) => row.parent.id === parent.id,).length;
+                                const childRowSpan = child? tableRows.filter((row) => row.child?.id === child.id).length: 0;
+
+                                // 지난 날짜 카운트
+                                const pastColumnCount = showGanttBar? timelineColumns.slice(ganttStartIndex, ganttStartIndex + ganttColumnCount).filter((column) => column.endDate < today).length: 0;
+                                const remainingColumnCount = ganttColumnCount - pastColumnCount;
 
                                 return (
                                     <StyledRow key={`${child?.id ?? parent.id}-${linkedTask?.id ?? 'empty'}`}>
-                                        <td
-                                            onClick={showParent? () => openEditModal(parent): undefined}
-                                            style={{
-                                            fontWeight: '500',
-                                            background: '#fafafa',
-                                            textAlign: 'center',
-                                            }}
-                                        >
-                                            {showParent ? parent.wbs_code +' | '+ parent.wbs_name : ''}
-                                        </td>
+                                        {showParent && (
+                                            <td
+                                                rowSpan={parentRowSpan}
+                                                onClick={() => openEditModal(parent)}
+                                                style={{
+                                                fontWeight: '500',
+                                                background: '#fafafa',
+                                                textAlign: 'center',
+                                                verticalAlign: 'middle',
+                                                }}
+                                            >
+                                                {parent.wbs_name}
+                                            </td>
+                                        )}
+
+                                        {child ? (
+                                            showChild &&(
+                                            <td
+                                                rowSpan={childRowSpan}
+                                                onClick={() => openEditModal(child)}
+                                                style={{
+                                                textAlign: 'center',
+                                                fontWeight: '500',
+                                                paddingLeft: '12px',
+                                                verticalAlign: 'middle',
+                                                }}
+                                            >
+                                                {child.wbs_name}
+                                            </td>
+                                            )
+                                        ) : (
+                                            <td
+                                                style={{
+                                                textAlign: 'center',
+                                                background: '#fff',
+                                                }}
+                                            />
+                                        )}
 
                                         <td
-                                            onClick={showChild && child ? () => openEditModal(child) : undefined}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
                                             paddingLeft: '12px',
-                                            }}
-                                        >
-                                            {showChild && child ? child.wbs_code + ' | ' + child.wbs_name : ''}
-                                        </td>
-
-                                        <td
-                                            style={{
-                                            textAlign: 'center',
-                                            fontWeight: '500',
-                                            paddingLeft: '12px',
+                                            textDecoration: linkedTask?.status === 'DONE' ? 'line-through' : 'none',
+                                            color: linkedTask?.status === 'DONE' ? '#9ca3af' : 'inherit',
                                             }}
                                         >
                                            {linkedTask?.task_name ?? ''}
                                         </td>
+                                        {timelineColumns.map((column, index) => {
+                                            const isTodayColumn = today >= column.startDate && today <= column.endDate;
+                                            const dateStyle =ganttViewMode === 'day'? getDayColumnStyle(column.startDate, holidayDateSet): { background: '#fff' };
+                                            
+                                            // 간트 바가 시작하는 날짜 칸: 필요한 날짜 칸 수만큼 가로 병합
+                                            if (showGanttBar && index === ganttStartIndex) {
+                                                return (
+                                                <td
+                                                    key={column.key}
+                                                    colSpan={ganttColumnCount}
+                                                    style={{
+                                                    position: 'relative',
+                                                    background: '#fff',
+                                                    }}
+                                                >
+                                                {/* 이미 지난 일정 구간 */}
+                                                {pastColumnCount > 0 && (
+                                                <GanttBar
+                                                    color="#9CA3AF"
+                                                    style={{
+                                                    left: '2px',
+                                                    width: `${pastColumnCount * cellWidth - 2}px`,
+                                                    }}
+                                                />
+                                                )}
 
-                                        {timelineColumns.map((column) => {
-                                            const isTodayColumn =
-                                                today >= column.startDate && today <= column.endDate;
+                                                {/* 오늘부터 남은 일정 구간 */}
+                                                {remainingColumnCount > 0 && (
+                                                <GanttBar
+                                                    color="#3B82F6"
+                                                    style={{
+                                                    left: `${pastColumnCount * cellWidth }px`,
+                                                    width: `${remainingColumnCount * cellWidth - 4}px`,
+                                                    }}
+                                                />
+                                                )}
+                                                </td>
+                                                );
+                                            }
 
+                                            // 위에서 병합된 셀에 포함되므로 따로 출력하지 않음
+                                            if (
+                                                showGanttBar &&
+                                                index > ganttStartIndex &&
+                                                index < ganttStartIndex + ganttColumnCount
+                                            ) {
+                                                return null;
+                                            }
+
+                                            // 간트 기간 밖의 일반 날짜 셀
                                             return (
                                                 <td
                                                 key={column.key}
                                                 style={{
                                                     width: `${cellWidth}px`,
-                                                    background: isTodayColumn ? '#FFF3CD' : '#fff',
+                                                    background: isTodayColumn ? '#FFF3CD' : dateStyle.background,
                                                 }}
                                                 />
                                             );
                                         })}
-                                        {showGanttBar && (
-                                            <GanttBar
-                                                style={{
-                                                left: `${leftOffset + 2}px`,
-                                                width: `${barWidth}px`,
-                                                }}
-                                            />
-                                        )}
                                     </StyledRow>
                                 );
                             })}

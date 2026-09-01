@@ -1,14 +1,19 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect,useMemo} from 'react';
 import styled from 'styled-components';
 import {useMutation,useQueryClient,useQuery} from '@tanstack/react-query';
 
 // Components
 import {toast} from 'react-toastify';
-import {Package,AlertCircle} from 'lucide-react';
+import {Package,AlertCircle,GripVertical} from 'lucide-react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 import Card from '../common/Card';
+
+// DnD
+import {DndContext,PointerSensor,closestCenter, useSensor, useSensors,type DragEndEvent,} from '@dnd-kit/core';
+import {SortableContext,arrayMove,useSortable,verticalListSortingStrategy,} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Services
 import { WbsApi } from '../../services/api';
@@ -130,6 +135,98 @@ const ButtonGroup = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
 `;
 
+// 정렬 스크롤 목록 스타일
+const OrderList = styled.div`
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 8px;
+  padding: 8px;
+`;
+
+// 정렬 스크롤 목록 스타일
+const OrderItem = styled.div<{ $isDraft?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 6px;
+  padding: 10px 12px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 6px;
+  background: ${({ $isDraft }) => ($isDraft ? '#eff6ff' : '#fff')};
+  color: ${({ $isDraft }) => ($isDraft ? '#1d4ed8' : 'inherit')};
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+`;
+
+// WBS 코드 자동생성
+type WbsCodeSource = Pick<Wbs, 'wbs_code'>;
+
+export const getNextWbsCode = (parentWbsCode: string,wbsList: WbsCodeSource[],) => {
+
+  // 상위 WBS 미선택: Depth 1 의 마지막번호 + 1
+  if (!parentWbsCode) {
+    const topLevelNumbers = wbsList.map((wbs) => {
+        const matched = /^(\d+)$/.exec(wbs.wbs_code);
+
+        return matched ? Number(matched[1]) : 0;
+      });
+
+    return String(Math.max(0, ...topLevelNumbers) + 1);
+  }
+
+  // 상위 WBS 선택: 1 -> 1.1, 1.2가 있으면 1.3
+  const parentDepth = parentWbsCode.split('.').length;
+  const childPrefix = `${parentWbsCode}.`;
+
+  const childNumbers = wbsList.filter((wbs) => {
+      const depth = wbs.wbs_code.split('.').length;
+
+      return (wbs.wbs_code.startsWith(childPrefix) &&depth === parentDepth + 1);
+    })
+    .map((wbs) => Number(wbs.wbs_code.split('.').at(-1)))
+    .filter(Number.isFinite);
+
+  return `${parentWbsCode}.${Math.max(0, ...childNumbers) + 1}`;
+};
+
+interface SortableWbsItemProps {
+  id: string;
+  label: string;
+  isDraft?: boolean;
+}
+
+// 정렬 컴포넌트
+const SortableWbsItem: React.FC<SortableWbsItemProps> = ({id,label,isDraft = false,}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  return (
+    <OrderItem
+      ref={setNodeRef}
+      $isDraft={isDraft}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical size={18} />
+      {label}
+    </OrderItem>
+  );
+};
+
 
 const WbsUploadForm: React.FC<WbsUploadFormProps> =({
     projectId,
@@ -196,7 +293,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             return {
                 wbs_code: '',
                 wbs_name: '',
-                parent_wbs: '없음',
+                parent_wbs: '',
                 wbs_description: '',
                 wbs_order: 0,
                 project_id: 0,
@@ -294,6 +391,120 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
         enabled: Boolean(projectId),
     });
 
+    useEffect(() => {
+        // 수정 모드에서는 기존 WBS 코드를 유지
+        if (isEdit) {
+            return;
+        }
+
+        setFormData((prev) => {
+            const parentWbsCode = prev.parent_wbs || ''; // 기본값: ''
+
+            return {...prev,parent_wbs: parentWbsCode,wbs_code: getNextWbsCode(parentWbsCode, wbsList)};
+        });
+    }, [wbsList, formData.parent_wbs, isEdit]);
+
+    const orderScopeWbs = useMemo(() => {
+        const selectedParentWbs = formData.parent_wbs || '';
+
+        return [...wbsList]
+            .filter((wbs) => {
+                const wbsParent = wbs.parent_wbs || '';
+
+                // 상위 WBS를 선택하지 않은 경우: 1-depth WBS만
+                if (!selectedParentWbs) {
+                    return !wbsParent;
+                }
+
+                // 상위 WBS를 선택한 경우: 해당 상위 WBS의 직속 하위만
+                return wbsParent === selectedParentWbs;
+            })
+            .sort((a, b) => {
+                if (a.wbs_order !== b.wbs_order) {
+                    return a.wbs_order - b.wbs_order;
+                }
+
+                return a.id - b.id;
+            });
+    }, [wbsList, formData.parent_wbs]);
+
+    // 드래그 목록 상태 만들기
+    const DRAFT_WBS_ID = '__new_wbs__';
+
+    const [orderedIds, setOrderedIds] = useState<string[]>([]);
+
+    useEffect(() => {
+        // 수정 대상은 기존 목록에서 제외
+        const existingIds = orderScopeWbs.filter((wbs) => wbs.id !== initialData?.id).map((wbs) => String(wbs.id));
+
+        const originalParentWbs = String(initialData?.parent_wbs ?? '');
+        const selectedParentWbs = String(formData.parent_wbs ?? '');
+
+        const isSameParentWbs = originalParentWbs === selectedParentWbs;
+
+        let initialIndex: number;
+
+        // 수정 + 상위 WBS가 바뀌지 않은 경우: 원래 위치에 표시
+        if (isEdit && initialData && isSameParentWbs)
+            initialIndex = Math.max(0,Math.min(initialData.wbs_order - 1, existingIds.length));
+        else{
+            // 신규 등록 또는 상위 WBS가 바뀐 수정: 선택 범위의 마지막에 표시
+            initialIndex = existingIds.length;
+        }
+        
+        existingIds.splice(initialIndex, 0, DRAFT_WBS_ID);
+
+        setOrderedIds(existingIds);
+
+        setFormData((prev) => ({...prev,wbs_order: initialIndex + 1,}));
+    }, [
+        orderScopeWbs,
+        initialData?.id,
+        initialData?.parent_wbs,
+        initialData?.wbs_order,
+        formData.parent_wbs,
+        isEdit,
+    ]);
+
+    // 드래그 종료 함수
+    const sensors = useSensors(
+        useSensor(PointerSensor, {activationConstraint: { distance: 5 }})
+    );
+
+    const handleOrderDragEnd = ({ active, over }: DragEndEvent) => {
+        if (!over || active.id === over.id) {
+            return;
+        }
+
+        setOrderedIds((previousIds) => {
+            const oldIndex = previousIds.indexOf(String(active.id));
+            const newIndex = previousIds.indexOf(String(over.id));
+            const nextIds = arrayMove(previousIds, oldIndex, newIndex);
+
+            // “신규 등록 WBS” 위치가 곧 저장할 wbs_order
+            const targetOrder = nextIds.indexOf(DRAFT_WBS_ID) + 1;
+
+            setFormData((prev) => ({...prev,wbs_order: targetOrder}));
+
+            return nextIds;
+        });
+    };
+
+    // 옵션 선택 시 WBS코드 즉시 갱신
+    const handleParentWbsChange = (value: string | number) => {
+        const parentWbsCode = String(value);
+
+        setFormData((prev) => {
+            // 수정 중에는 기존 코드를 보존
+            if (isEdit) {
+            return {...prev,parent_wbs: parentWbsCode};
+            }
+
+            // 신규 등록: 선택값에 따라 코드 즉시 재계산
+            return {...prev,parent_wbs: parentWbsCode,wbs_code: getNextWbsCode(parentWbsCode, wbsList)};
+        });
+    };
+
     // 상위 WBS 선택 옵션
     const parentWbsOptions = [
         {
@@ -309,7 +520,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
             })
                 .map((wbs) => ({
                 value: wbs.wbs_code,
-                label: `${wbs.wbs_code} / ${wbs.wbs_name}`,
+                label: `${wbs.wbs_name}`
             })),
     ];
 
@@ -324,7 +535,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                     <FormGrid>
                         <FormRow>
                             <Input
-                                label="WBS명"
+                                label={'\u00A0\u00A0WBS명\u00A0'}
                                 value={formData.wbs_name}
                                 onChange={(e) => handleChange('wbs_name', e.target.value)}
                                 placeholder="WBS명을 입력하세요"
@@ -339,44 +550,84 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                         </FormRow>
 
                         <Input
-                            label="WBS 코드"
+                            label={'\u00A0\u00A0WBS 코드\u00A0'}
                             value={formData.wbs_code}
-                            onChange={(e) => handleChange('wbs_code', e.target.value)}
                             placeholder="WBS 코드"
+                            disabled={!isEdit}
                             required
                         />
 
                         < Select
-                            label="상위 WBS"
-                            value={formData.parent_wbs}
+                            label={'\u00A0\u00A0상위 WBS\u00A0'}
+                            value={formData.parent_wbs || ''}
                             options={parentWbsOptions}
-                            onChange={(value) => handleChange('parent_wbs', value)}
+                            onChange={handleParentWbsChange}
+                            placeholder=""
                         />
 
-                        <Input
-                            label="프로젝트 ID"
-                            value={projectId}
-                            disabled
-                        />
+                        <FormRow>
+                            <label
+                                style={{
+                                display: 'block',
+                                marginBottom: '8px',
+                                fontWeight: '500',
+                                fontSize: '14px',
+                                }}
+                            >
+                                {'\u00A0\u00A0WBS 순서\u00A0'}
+                            </label>
 
-                        <Input
-                            label="WBS 순서"
-                            value={formData.wbs_order}
-                            onChange={(e) => handleChange('wbs_order', e.target.value)}
-                            placeholder="WBS 순서"
-                            required
-                        />
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleOrderDragEnd}
+                            >
+                                <SortableContext
+                                items={orderedIds}
+                                strategy={verticalListSortingStrategy}
+                                >
+                                    <OrderList>
+                                        {orderedIds.map((id) => {
+                                        if (id === DRAFT_WBS_ID) {
+                                            return (
+                                            <SortableWbsItem
+                                                key={id}
+                                                id={id}
+                                                label={isEdit ? '수정 중인 WBS' : '신규 등록 WBS'}
+                                                isDraft
+                                            />
+                                            );
+                                        }
+
+                                        const wbs = orderScopeWbs.find((item) => String(item.id) === id);
+
+                                        if (!wbs) {
+                                            return null;
+                                        }
+
+                                        return (
+                                            <SortableWbsItem
+                                            key={id}
+                                            id={id}
+                                            label={`${wbs.wbs_order}. ${wbs.wbs_name}`}
+                                            />
+                                        );
+                                        })}
+                                    </OrderList>
+                                </SortableContext>
+                            </DndContext>
+                        </FormRow>
 
                         {isEdit &&(
                             <FormRow style={{display:'grid',gridTemplateColumns: '1fr 1fr',gap: '16px'}}>
                                 <Input
-                                    label="최종 수정일"
+                                    label=" 최종 수정일 "
                                     value={initialData?.updated_at ? new Date(initialData.updated_at).toLocaleDateString('ko-KR', {timeZone: 'Asia/Seoul'}) : '' }
                                     disabled
                                 />
 
                                 <Input
-                                    label="수정자"
+                                    label=" 수정자"
                                     value={formData.updated_by || ''}
                                     onChange={(e) => handleChange('updated_by', e.target.value)}
                                     placeholder="수정자명을 입력하세요"
@@ -386,8 +637,8 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                         )}
 
                         <FormRow style={{ marginTop: '16px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                            WBS 설명
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500',fontSize: '14px' }}>
+                            {'\u00A0\u00A0WBS 설명\u00A0'}
                             </label>
                             <TextArea
                                 value={formData.wbs_description}
@@ -398,7 +649,6 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                     </FormGrid>
                 </FormSection>
                 <ButtonGroup>
-                    {/*
                     {isEdit && initialData && (
                         <Button 
                             type="button" 
@@ -407,7 +657,7 @@ const WbsUploadForm: React.FC<WbsUploadFormProps> =({
                         >
                             삭제
                         </Button>
-                    )}*/}
+                    )}
                     <Button 
                         type="button" 
                         variant="outline" 
