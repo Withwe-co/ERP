@@ -441,6 +441,15 @@ export const taskApi = {
     return apiRequest.patch(`/tasks/${taskId}/restore`,);
   },
 
+  // 칸반 카드 상태와 순서 저장
+  updateKanbanOrder: async (
+    order: Record<TaskResponse["status"], number[]>,): Promise<void> => {
+    await apiRequest.patch(
+      "/tasks/kanban/order",
+      order,
+    );
+  },
+
 };
 
 

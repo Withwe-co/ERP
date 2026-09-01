@@ -59,3 +59,19 @@ def test_task_update_allows_partial_data():
     task = TaskUpdate(status="IN_PROGRESS")
 
     assert task.status == "IN_PROGRESS"
+
+# 태스크 등록 시 WBS 코드는 필수이며,
+# 빈 문자열을 전달하면 스키마 검증 오류가 발생하는지 확인
+def test_task_create_rejects_empty_wbs_code():
+    data = valid_task_data()
+    data["wbs_code"] = ""
+
+    with pytest.raises(ValidationError):
+        TaskCreate(**data)
+
+
+# 태스크 수정 시에도 WBS 코드가 전달되었다면
+# 빈 문자열로 변경할 수 없도록 검증
+def test_task_update_rejects_empty_wbs_code():
+    with pytest.raises(ValidationError):
+        TaskUpdate(wbs_code="")

@@ -1,3 +1,5 @@
+'''태스크 데이터베이스 모델을 정의하는 모듈'''
+
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -14,7 +16,7 @@ from sqlalchemy import (
 
 from app.core.database import Base
 
-
+# 베이스를 상속받아야 SQLAlchemy가 Task라는 클래스가 ORM Model임을 알 수 있음
 class Task(Base):
     """태스크 정보를 저장하는 tasks 테이블."""
 
@@ -78,6 +80,13 @@ class Task(Base):
         String(20),
         nullable=False,
         default="TODO",
+    )
+
+    # 칸반 컬럼 내 표시 순서
+    kanban_order = Column(
+        Integer,
+        nullable=False,
+        default=0,
     )
 
     # 시작 예정일

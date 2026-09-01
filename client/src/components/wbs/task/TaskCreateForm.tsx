@@ -11,6 +11,17 @@ import { hasTaskChanges, validateTaskCreateData } from "./taskValidation";
 import { taskApi } from "../../../services/api";
 
 
+// 태스크 등록/수정 시 사용할 담당부서 목록
+// 화면에서는 아래 순서를 오름차순 기준으로 고정하여 표시
+const TASK_DEPARTMENTS = [
+  "H/W 개발팀",
+  "S/W 개발팀",
+  "사무관리팀",
+  "영업팀",
+  "인사팀",
+  "총무부",
+];
+
 interface TaskCreateFormProps {
   // 현재 보고 있는 프로젝트의 ID
   projectId: number;
@@ -74,13 +85,31 @@ function TaskCreateForm({
         const projectStart = projectStartDate?.slice(0, 10);
         const projectDue = projectDueDate?.slice(0, 10);
 
+        // 선택한 일정이 프로젝트 기간을 벗어났는지 확인
+        const isOutsideProjectPeriod =
+        Boolean(projectStart && projectDue) &&
+        (
+            (
+            formData.planned_start_date &&
+            formData.planned_start_date < projectStart
+            ) ||
+            (
+            formData.planned_end_date &&
+            formData.planned_end_date > projectDue
+            )
+        );
+
         // 등록 버튼 클릭 시 실행
         const handleSubmit = async (event: React.FormEvent<HTMLFormElement>,) => {
 
             // Form 제출 시 브라우저 새로고침 방지
             event.preventDefault();
             // 사용자가 입력한 태스크 데이터를 검증
-            const errorMessage = validateTaskCreateData(formData);
+            const errorMessage = validateTaskCreateData(
+                formData,
+                projectStart,
+                projectDue,
+            );
             // 검증에 실패하면 오류 메시지를 보여주고 등록 중단
             if (errorMessage) {toast.error(errorMessage); return;}
             // 수정 모드에서 실제 변경된 값이 없으면 API 요청하지 않음
@@ -130,13 +159,13 @@ function TaskCreateForm({
             {/* 현재 프로젝트 정보와 WBS ID 입력 영역 */}
             <FormGrid>
                 <Input
-                label="프로젝트"
+                label={'\u00A0\u00A0프로젝트\u00A0'}
                 value={projectName}
                 disabled
                 />
 
                 <Select
-                    label="WBS 코드"
+                    label={'\u00A0\u00A0WBS 코드\u00A0'}
                     value={formData.wbs_code}
                     required
                     placeholder="WBS 코드를 선택하세요"
@@ -149,7 +178,7 @@ function TaskCreateForm({
             {/* 태스크 기본 정보 */}
             <FormGrid>
                 <Input
-                label="태스크명"
+                label={'\u00A0\u00A0태스크명\u00A0'}
                 value={formData.task_name}
                 required
                 placeholder="태스크명을 입력하세요."
@@ -157,7 +186,7 @@ function TaskCreateForm({
                 />
 
                 <Input
-                label="담당자"
+                label={'\u00A0\u00A0담당자\u00A0'}
                 value={formData.assignee_name}
                 required
                 placeholder="담당자명을 입력하세요."
@@ -168,45 +197,24 @@ function TaskCreateForm({
 
             {/* 담당 부서 */}
             <Select
-                label="담당 부서"
-                value={formData.department}
-                required
-                placeholder="담당 부서를 선택하세요"
-                options={[
-                    {
-                    value: "H/W 개발팀",
-                    label: "H/W 개발팀",
-                    },
-                    {
-                    value: "S/W 개발팀",
-                    label: "S/W 개발팀",
-                    },
-                    {
-                    value: "총무부",
-                    label: "총무부",
-                    },
-                    {
-                    value: "사무관리팀",
-                    label: "사무관리팀",
-                    },
-                    {
-                    value: "영업팀",
-                    label: "영업팀",
-                    },
-                    {
-                    value: "인사팀",
-                    label: "인사팀",
-                    },
-                ]}
-                onChange={(value) =>setFormData({...formData, department: String(value),})
-                }
+            label={'\u00A0\u00A0담당 부서\u00A0'}
+            value={formData.department}
+            required
+            placeholder="담당 부서를 선택하세요"
+            options={TASK_DEPARTMENTS.map((department) => ({
+                value: department,
+                label: department,
+            }))}
+            onChange={(value) =>
+                setFormData({...formData, department: String(value),})
+            }
             />
 
 
             {/* 우선순위와 상태 */}
             <FormGrid>
                 <Select
-                label="우선순위"
+                label={'\u00A0\u00A0우선순위\u00A0'}
                 value={formData.priority}
                 required
                 options={[
@@ -219,7 +227,7 @@ function TaskCreateForm({
                 />
 
                 <Select
-                    label="상태"
+                    label={'\u00A0\u00A0상태\u00A0'}
                     value={formData.status}
                     required
                     options={[
@@ -236,25 +244,29 @@ function TaskCreateForm({
             {/* 태스크 일정 */}
             <FormGrid>
                 <Input
-                    label="시작 예정일"
+                    label={'\u00A0\u00A0시작 예정일\u00A0'}
                     type="date"
                     value={formData.planned_start_date}
-                    min={projectStart || undefined}
-                    max={formData.planned_end_date ||projectDue || undefined}
+                    max={formData.planned_end_date || undefined}
                     required
                     onChange={(event) =>setFormData({...formData, planned_start_date: event.target.value,})}
                 />
 
                 <Input
-                    label="완료 예정일"
+                    label={'\u00A0\u00A0완료 예정일\u00A0'}
                     type="date"
                     value={formData.planned_end_date}
-                    min={formData.planned_start_date || projectStart || undefined}
-                    max={projectDue || undefined}
+                    min={formData.planned_start_date || undefined}
                     required
                     onChange={(event) =>setFormData({...formData, planned_end_date: event.target.value,})}
                 />
             </FormGrid>
+            {isOutsideProjectPeriod && (
+                <DateWarning>
+                    프로젝트 기간({projectStart} ~ {projectDue})을 벗어난 날짜는
+                    선택할 수 없습니다.
+                </DateWarning>
+            )}
 
 
             {/* 태스크 설명 */}
@@ -339,8 +351,8 @@ const TextAreaGroup = styled.div`
 `;
 
 
-// TextArea 위에 표시하는 제목
 const Label = styled.label`
+  padding-left: 8px;
   font-size: 14px;
   font-weight: 500;
   color: #374151;
@@ -371,4 +383,10 @@ const ButtonArea = styled.div`
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+`;
+
+const DateWarning = styled.p`
+  margin: -12px 0 0 8px;
+  font-size: 13px;
+  color: ${props => props.theme.colors.error};
 `;

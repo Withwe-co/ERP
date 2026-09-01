@@ -24,6 +24,19 @@ const validTask: TaskCreateData = {
 
 
 describe("validateTaskCreateData", () => {
+
+    // WBS 코드는 태스크 등록/수정 시 반드시 선택해야 하며,
+    // 선택하지 않은 경우 등록 요청을 진행하지 않도록 검증
+    it("WBS 코드가 비어 있으면 오류 메시지를 반환한다", () => {
+      // 정상 태스크 데이터에서 WBS 코드만 선택하지 않은 상태로 변경
+      const invalidTask = {...validTask, wbs_code: "",};
+
+      const result = validateTaskCreateData(invalidTask);
+
+      // 사용자에게 WBS 선택이 필요하다는 메시지를 표시해야 함
+      expect(result).toBe("WBS 코드를 선택해주세요.");
+    });
+    
     // 태스크명은 필수 입력값
     it("태스크명이 비어 있으면 오류 메시지를 반환한다", () => {
         const invalidTask = {...validTask, task_name: "",};
@@ -103,6 +116,25 @@ describe("validateTaskCreateData", () => {
         expect(result).toBeNull();
     });
 
+    // 프로젝트 시작일 이전 날짜는 선택할 수 없고,
+    // 사용자에게 실제 프로젝트 기간도 함께 안내하는지 확인
+    it("프로젝트 시작일 이전 날짜를 선택하면 오류 메시지를 반환한다", () => {
+      const invalidTask = {
+        ...validTask,
+        planned_start_date: "2026-07-31",
+      };
+
+      const result = validateTaskCreateData(
+        invalidTask,
+        "2026-08-01",
+        "2026-09-30",
+      );
+
+      expect(result).toBe(
+        "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 벗어난 날짜는 선택할 수 없습니다.",
+      );
+    });
+
 });
 
 describe("hasTaskChanges", () => {
@@ -110,6 +142,7 @@ describe("hasTaskChanges", () => {
     const originalTask = {
       ...validTask,
       id: 1,
+      kanban_order: 0,
       is_archived: false,
       archived_at: null,
       created_at: "2026-08-24T10:00:00",
@@ -125,6 +158,7 @@ describe("hasTaskChanges", () => {
     const originalTask = {
       ...validTask,
       id: 1,
+      kanban_order: 0,
       is_archived: false,
       archived_at: null,
       created_at: "2026-08-24T10:00:00",
@@ -137,4 +171,24 @@ describe("hasTaskChanges", () => {
 
     expect(result).toBe(true);
   });
+
+  // 프로젝트 종료일 이후 날짜도 선택할 수 없고,
+  // 사용자에게 실제 프로젝트 기간을 함께 안내하는지 확인
+  it("프로젝트 종료일 이후 날짜를 선택하면 오류 메시지를 반환한다", () => {
+    const invalidTask = {
+      ...validTask,
+      planned_end_date: "2026-10-01",
+    };
+
+    const result = validateTaskCreateData(
+      invalidTask,
+      "2026-08-01",
+      "2026-09-30",
+    );
+
+    expect(result).toBe(
+      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 벗어난 날짜는 선택할 수 없습니다.",
+    );
+  });
+
 });

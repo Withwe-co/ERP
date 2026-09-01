@@ -1,7 +1,7 @@
 import styled from "styled-components";
 
 import { TaskResponse } from "../../../types/task";
-import { useDraggable } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 
@@ -69,18 +69,67 @@ const getDeadlineStatus = (task: TaskResponse) => {
   return null;
 };
 
+// 실제 카드와 DragOverlay 카드에서 공통으로 사용하는 카드 내용
+// DnD 관련 훅은 사용하지 않고 화면에 표시할 정보만 담당
+function TaskCardContent({task}: {task: TaskResponse}) {
+  const deadlineStatus = getDeadlineStatus(task);
+
+  return (
+    <>
+      {/* 카드에서 가장 중요한 태스크명 */}
+      <TaskName>
+        {task.task_name}
+      </TaskName>
+
+      {/* 태스크가 연결된 WBS 코드 */}
+      <WbsCode>
+        WBS {task.wbs_code}
+      </WbsCode>
+
+      {/* 담당자와 우선순위를 같은 줄에 배치 */}
+      <InfoRow>
+        <Assignee>
+          <InfoLabel>담당자</InfoLabel>
+          {task.assignee_name}
+        </Assignee>
+
+        <PriorityBadge $priority={task.priority}>
+          {PRIORITY_LABELS[task.priority]}
+        </PriorityBadge>
+      </InfoRow>
+
+      {/* 카드 상단 정보와 일정 정보를 구분 */}
+      <Divider />
+
+      {/* 완료 예정일 및 마감 상태 */}
+      <Footer>
+        <EndDate>
+          <InfoLabel>완료예정일</InfoLabel>
+          {task.planned_end_date}
+        </EndDate>
+
+        {deadlineStatus && (
+          <DeadlineBadge $type={deadlineStatus.type}>
+            {deadlineStatus.label}
+          </DeadlineBadge>
+        )}
+      </Footer>
+    </>
+  );
+}
+
 
 // 칸반에 표시되는 태스크 카드
 function TaskCard({task, onDetail, }: TaskCardProps) {
 
   // 태스크 ID를 기준으로 현재 카드를 Drag 가능한 요소로 등록
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: task.id,
   });
 
   // 드래그 중 카드가 마우스 이동을 따라가도록 좌표를 CSS transform으로 변환
   const dragStyle = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.6 : 1,
   };
 
@@ -99,62 +148,20 @@ function TaskCard({task, onDetail, }: TaskCardProps) {
       {...listeners}
       {...attributes}
     >
-
-      {/* 카드에서 가장 중요한 태스크명 */}
-      <TaskName>
-        {task.task_name}
-      </TaskName>
-
-
-      {/* 태스크가 연결된 WBS 코드 */}
-      <WbsCode>
-        WBS {task.wbs_code}
-      </WbsCode>
-
-
-      {/* 담당자와 우선순위를 같은 줄에 배치 */}
-      <InfoRow>
-
-        <Assignee>
-          <InfoLabel>담당자</InfoLabel>
-          {task.assignee_name}
-        </Assignee>
-
-        {/*
-          실제 데이터는 HIGH, NORMAL 등의 값을 그대로 유지하고
-          사용자 화면에서만 높음, 보통 등으로 변환
-        */}
-        <PriorityBadge $priority={task.priority}>
-          {PRIORITY_LABELS[task.priority]}
-        </PriorityBadge>
-
-      </InfoRow>
-
-
-      {/* 카드 상단 정보와 일정 정보를 구분하는 선 */}
-      <Divider />
-
-
-      {/* 완료 예정일 및 마감 상태 */}
-      <Footer>
-
-        <EndDate>
-          <InfoLabel>완료예정일</InfoLabel>
-          {task.planned_end_date}
-        </EndDate>
-
-        {deadlineStatus && (
-          <DeadlineBadge $type={deadlineStatus.type}>
-            {deadlineStatus.label}
-          </DeadlineBadge>
-        )}
-
-      </Footer>
-
+      <TaskCardContent task={task} />
     </CardContainer>
   );
 }
 
+// Drag 중 마우스를 따라다니는 전용 카드
+// useSortable을 사용하지 않으므로 같은 태스크 ID가 DnD에 중복 등록되지 않음
+export function TaskCardOverlay({task,}: {task: TaskResponse;}) {
+  return (
+    <OverlayCard>
+      <TaskCardContent task={task} />
+    </OverlayCard>
+  );
+}
 
 export default TaskCard;
 
@@ -172,10 +179,11 @@ const CardContainer = styled.button`
   text-align: left;
   cursor: pointer;
 
+  // Drag 위치에 사용하는 transform에는 transition을 적용하지 않음.
+  // dnd-kit이 계산한 좌표를 즉시 반영하여 카드 이동 지연을 줄임.
   transition:
     border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+    box-shadow 0.2s ease;
 
   &:hover {
     border-color: #cbd5e1;
@@ -187,6 +195,25 @@ const CardContainer = styled.button`
   }
 `;
 
+// Drag 중 포인터를 따라다니는 카드
+// 실제 카드와 같은 크기와 형태를 유지하면서 떠 있는 느낌을 강조
+const OverlayCard = styled.div`
+  width: 100%;
+  padding: 16px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+
+  text-align: left;
+  box-sizing: border-box;
+
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.16);
+
+  cursor: grabbing;
+  pointer-events: none;
+`;
 
 // 태스크명
 const TaskName = styled.div`

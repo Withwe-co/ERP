@@ -1,7 +1,6 @@
 import { useState } from "react";
 import Modal from "../common/Modal";
 import styled from "styled-components";
-import Card from "../common/Card";
 import TaskSearchFilter from "./task/TaskSearchFilter";
 import TaskViewToolbar, {TaskScope, TaskViewMode,} from "./task/TaskViewToolbar";
 import TaskCreateForm from "./task/TaskCreateForm";
@@ -23,23 +22,6 @@ interface TaskManagementPageProps {
   projectStartDate: string;
   projectDueDate: string;
 }
-
-// 지정한 태스크의 status만 변경한 새로운 태스크 목록을 반환
-export const updateTaskStatusInList = (tasks: TaskResponse[], taskId: number, status: TaskResponse["status"],) => {
-  return tasks.map((task) => {
-    if (task.id !== taskId) return task;
-
-    return {...task, status,};
-  });
-};
-
-// API 실패 시 지정한 태스크의 status를 이전 상태로 복구
-export const restoreTaskStatusInList = (tasks: TaskResponse[], taskId: number, previousStatus: TaskResponse["status"],) => {
-  return tasks.map((task) => {
-    if (task.id !== taskId) return task;
-    return {...task, status: previousStatus,};
-  });
-};
 
 // 태스크 관리 페이지
 function TaskManagementPage({projectId,projectName, projectStartDate, projectDueDate,}: TaskManagementPageProps) {
@@ -116,26 +98,33 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
     catch {toast.error("태스크 진행 처리 중 오류가 발생했습니다.",);}
   };
 
-  // 칸반 상태 변경 시 화면을 먼저 갱신하고 API 실패 시 이전 상태로 복구
-  const handleStatusChange = async (taskId: number, status: TaskResponse["status"]) => {
-    const queryKey = ["tasks", projectId, filters, taskScope];
+  // 칸반에 표시된 상태와 카드 순서를 서버에 저장
+  const handleKanbanOrderChange = async (
+    kanbanTasks: TaskResponse[],
+  ) => {
+    const order = {
+      TODO: kanbanTasks
+        .filter((task) => task.status === "TODO")
+        .map((task) => task.id),
 
-    // Optimistic Update 전에 현재 태스크 목록을 저장
-    const previousTasks = queryClient.getQueryData<TaskResponse[]>(queryKey) ?? [];
+      IN_PROGRESS: kanbanTasks
+        .filter((task) => task.status === "IN_PROGRESS")
+        .map((task) => task.id),
 
-    // API 응답을 기다리지 않고 화면의 태스크 상태를 먼저 변경
-    queryClient.setQueryData<TaskResponse[]>(queryKey, (oldTasks = []) => {
-      return updateTaskStatusInList(oldTasks, taskId, status);
-    });
+      DONE: kanbanTasks
+        .filter((task) => task.status === "DONE")
+        .map((task) => task.id),
+    };
 
     try {
-      await taskApi.updateTask(taskId, { status });
-      // API 성공 후 서버의 최종 데이터와 다시 동기화
-      await queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+      await taskApi.updateKanbanOrder(order);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["tasks", projectId],
+      });
     } catch {
-      // API 실패 시 Optimistic Update 이전 태스크 목록으로 복구
-      queryClient.setQueryData(queryKey, previousTasks);
-      toast.error("태스크 상태 변경에 실패하여 이전 상태로 복구했습니다.");
+      toast.error("칸반 순서 저장에 실패했습니다.");
+      throw new Error("칸반 순서 저장 실패");
     }
   };
 
@@ -149,51 +138,48 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
           {projectName} 프로젝트의 태스크를 조회하고 관리할 수 있습니다.
         </PageSubtitle>
 
-        {/* 검색 및 필터 조건이 변경되면 부모의 filters 상태에 반영 */}
-        <TaskSearchFilter
-          onFilter={handleSearch}
-          wbsCodes={selectableWbsCodes}
-        />
+        {/* 검색/필터부터 칸반·목록 콘텐츠까지 하나의 관리 영역으로 구성 */}
+        <TaskWorkspace data-testid="task-workspace">
+          {/* 검색 및 필터 조건을 설정하는 영역 */}
+          <TaskSearchFilter
+            onFilter={handleSearch}
+            wbsCodes={selectableWbsCodes}
+          />
 
-        {/* 보기 방식 전환 및 태스크 등록 영역 -> 현재 보기 상태와 상태 변경 함수를 Toolbar에 전달 */}
-        <TaskViewToolbar 
-          viewMode={viewMode}
-          taskScope={taskScope}
-          onViewModeChange={setViewMode}
-          onTaskScopeChange={setTaskScope}
-          onCreateTask={() => setIsCreateModalOpen(true)}
-        />
+          {/* 보기 방식과 전체/보류 태스크, 태스크 등록을 제어하는 영역 */}
+          <TaskViewToolbar
+            viewMode={viewMode}
+            taskScope={taskScope}
+            onViewModeChange={setViewMode}
+            onTaskScopeChange={setTaskScope}
+            onCreateTask={() => setIsCreateModalOpen(true)}
+          />
 
-        {/* 현재 선택된 보기 방식에 따라 태스크 목록 또는 칸반 임시 화면을 표시 */}
-        <ContentCard>
-          {error ? (
-            <ErrorMessage>
-              태스크 목록을 불러오지 못했습니다.
-            </ErrorMessage>
-          ) : contentView === "list" ? (
-            <TaskList
-              tasks={tasks}
-              loading={isLoading}
-              archivedView={
-                taskScope === "archived"
-              }
-              onEdit={(task) =>
-                setSelectedTask(task)
-              }
-              onArchive={handleArchive}
-              onRestore={handleRestore}
-              onDetail={(task) =>
-                setDetailTask(task)
-              }
-            />
-          ) : (
-            <TaskKanbanBoard
-              tasks={tasks}
-              onDetail={(task) => setDetailTask(task)}
-              onStatusChange = {handleStatusChange}
-            />
-          )}
-        </ContentCard>
+          {/* 선택된 보기 방식에 따라 칸반 또는 목록을 표시 */}
+          <TaskContentArea>
+            {error ? (
+              <ErrorMessage>
+                태스크 목록을 불러오지 못했습니다.
+              </ErrorMessage>
+            ) : contentView === "list" ? (
+              <TaskList
+                tasks={tasks}
+                loading={isLoading}
+                archivedView={taskScope === "archived"}
+                onEdit={(task) => setSelectedTask(task)}
+                onArchive={handleArchive}
+                onRestore={handleRestore}
+                onDetail={(task) => setDetailTask(task)}
+              />
+            ) : (
+              <TaskKanbanBoard
+                tasks={tasks}
+                onDetail={(task) => setDetailTask(task)}
+                onOrderChange={handleKanbanOrderChange}
+              />
+            )}
+          </TaskContentArea>
+        </TaskWorkspace>
       </Container>
 
       {/* 태스크 등록 화면을 표시하는 Modal */}
@@ -272,7 +258,6 @@ const Container = styled.div`
   padding: 20px;
 `;
 
-
 // 페이지 제목
 const PageTitle = styled.h1`
   font-size: 2rem;
@@ -281,7 +266,6 @@ const PageTitle = styled.h1`
   color: ${props => props.theme.colors.text};
 `;
 
-
 // 페이지 제목 아래 설명 문구
 const PageSubtitle = styled.p`
   margin-bottom: 30px;
@@ -289,9 +273,20 @@ const PageSubtitle = styled.p`
   color: ${props => props.theme.colors.textSecondary};
 `;
 
+// 검색/필터, 버튼, 칸반·목록을 모두 담는 태스크 관리 페이지의 단일 박스
+const TaskWorkspace = styled.div`
+  padding: 20px;
 
-// 태스크 칸반 또는 목록이 표시될 콘텐츠 영역
-const ContentCard = styled(Card)`
+  background: ${props => props.theme.colors.surface};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.md};
+  box-shadow: ${props => props.theme.shadows.sm};
+`;
+
+
+// 통합 박스 내부에서 칸반 또는 목록 콘텐츠가 표시되는 영역
+// 별도의 테두리나 배경을 사용하지 않아 새로운 박스처럼 보이지 않도록 함
+const TaskContentArea = styled.div`
   min-height: 400px;
 `;
 

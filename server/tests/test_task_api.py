@@ -606,3 +606,156 @@ def test_get_archived_tasks():
     assert len(archived_tasks) == 1
     assert archived_tasks[0]["task_name"] == "보류 태스크"
     assert archived_tasks[0]["is_archived"] is True
+
+# PATCH /tasks/kanban/order
+def test_update_kanban_order():
+    """칸반 카드 순서와 상태를 저장한다."""
+
+    task1 = valid_task_data()
+    task1["task_name"] = "태스크 A"
+
+    task2 = valid_task_data()
+    task2["task_name"] = "태스크 B"
+
+    task3 = valid_task_data()
+    task3["task_name"] = "태스크 C"
+
+    task1_id = client.post(
+        "/tasks/",
+        json=task1,
+    ).json()["data"]["id"]
+
+    task2_id = client.post(
+        "/tasks/",
+        json=task2,
+    ).json()["data"]["id"]
+
+    task3_id = client.post(
+        "/tasks/",
+        json=task3,
+    ).json()["data"]["id"]
+
+    response = client.patch(
+        "/tasks/kanban/order",
+        json={
+            "TODO": [
+                task3_id,
+                task1_id,
+            ],
+            "IN_PROGRESS": [
+                task2_id,
+            ],
+            "DONE": [],
+        },
+    )
+
+    assert response.status_code == 200
+
+    db = TestingSessionLocal()
+
+    task1_db = db.query(Task).filter(
+        Task.id == task1_id,
+    ).first()
+
+    task2_db = db.query(Task).filter(
+        Task.id == task2_id,
+    ).first()
+
+    task3_db = db.query(Task).filter(
+        Task.id == task3_id,
+    ).first()
+
+    assert task3_db.status == "TODO"
+    assert task3_db.kanban_order == 0
+
+    assert task1_db.status == "TODO"
+    assert task1_db.kanban_order == 1
+
+    assert task2_db.status == "IN_PROGRESS"
+    assert task2_db.kanban_order == 0
+
+    db.close()
+
+# POST /tasks/
+def test_create_task_sets_last_kanban_order():
+    """새 태스크는 같은 상태 컬럼의 마지막 순서로 등록된다."""
+
+    task1 = valid_task_data()
+    task1["task_name"] = "태스크 A"
+
+    task2 = valid_task_data()
+    task2["task_name"] = "태스크 B"
+
+    response1 = client.post(
+        "/tasks/",
+        json=task1,
+    )
+
+    response2 = client.post(
+        "/tasks/",
+        json=task2,
+    )
+
+    assert response1.status_code == 201
+    assert response2.status_code == 201
+
+    assert response1.json()["data"]["kanban_order"] == 0
+    assert response2.json()["data"]["kanban_order"] == 1
+
+# GET /tasks/
+def test_get_tasks_returns_kanban_order():
+    """태스크를 저장된 칸반 순서대로 조회한다."""
+
+    task1 = valid_task_data()
+    task1["task_name"] = "태스크 A"
+
+    task2 = valid_task_data()
+    task2["task_name"] = "태스크 B"
+
+    task3 = valid_task_data()
+    task3["task_name"] = "태스크 C"
+
+    task1_id = client.post(
+        "/tasks/",
+        json=task1,
+    ).json()["data"]["id"]
+
+    task2_id = client.post(
+        "/tasks/",
+        json=task2,
+    ).json()["data"]["id"]
+
+    task3_id = client.post(
+        "/tasks/",
+        json=task3,
+    ).json()["data"]["id"]
+
+    # C → A → B 순서로 저장
+    client.patch(
+        "/tasks/kanban/order",
+        json={
+            "TODO": [
+                task3_id,
+                task1_id,
+                task2_id,
+            ],
+            "IN_PROGRESS": [],
+            "DONE": [],
+        },
+    )
+
+    response = client.get(
+        "/tasks/",
+        params={"project_id": 1},
+    )
+
+    assert response.status_code == 200
+
+    assert [
+        task["task_name"]
+        for task in response.json()
+    ] == [
+        "태스크 C",
+        "태스크 A",
+        "태스크 B",
+    ]

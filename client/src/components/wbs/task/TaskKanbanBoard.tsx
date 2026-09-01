@@ -1,190 +1,429 @@
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragOverEvent,
+  DragStartEvent,
+  pointerWithin,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+
 import { TaskResponse } from "../../../types/task";
-import TaskCard from "./TaskCard";
-
-import { DndContext, DragEndEvent, PointerSensor, useDroppable, useSensor, useSensors,} from "@dnd-kit/core";
-import { ReactNode } from "react";
+import TaskCard, { TaskCardOverlay } from "./TaskCard";
 
 
-// TaskKanbanBoard 컴포넌트가 부모 컴포넌트로부터 전달받는 값 정의
 interface TaskKanbanBoardProps {
-  tasks: TaskResponse[]; 
+  tasks: TaskResponse[];
   onDetail: (task: TaskResponse) => void;
-  onStatusChange?: (taskId: number, status: TaskResponse["status"]) => void;
+  onOrderChange?: (tasks: TaskResponse[]) => void;
 }
 
 
-// 칸반에 표시할 상태별 컬럼 정보
-// 실제 DB/API에서 사용하는 status 값과
-// 화면에서 사용자에게 보여줄 한글 이름을 연결해둠
-const KANBAN_COLUMNS: {status: TaskResponse["status"]; label: string;}[] = [
-    // TODO 상태의 태스크는 "대기" 컬럼에 표시
-    { status: "TODO", label: "대기" },
-
-    // IN_PROGRESS 상태의 태스크는 "진행 중" 컬럼에 표시
-    { status: "IN_PROGRESS", label: "진행 중" },
-
-    // DONE 상태의 태스크는 "완료" 컬럼에 표시
-    { status: "DONE", label: "완료" },
+const KANBAN_COLUMNS: {
+  status: TaskResponse["status"];
+  label: string;
+}[] = [
+  { status: "TODO", label: "대기" },
+  { status: "IN_PROGRESS", label: "진행 중" },
+  { status: "DONE", label: "완료" },
 ];
 
-export const getDropStatus = (columnId: string,): TaskResponse["status"] | null => {
-        if (columnId === "TODO" || columnId === "IN_PROGRESS" || columnId === "DONE") {
-          return columnId;
-        }
-        return null;
-};
+const COLUMN_END_PREFIX = "column-end:";
 
-// 단순 클릭과 Drag를 구분하기 위한 Drag 시작 조건
-export const getDragSensorOptions = () => ({activationConstraint: {distance: 8,},});
 
-// 드래그한 태스크 ID와 드롭한 컬럼을 상태 변경 정보로 변환
-export const getTaskStatusChange = (taskId: number, columnId: string, currentStatus?: TaskResponse["status"],) => {
-  const status = getDropStatus(columnId);
-
-  // 칸반 상태가 아닌 영역에 드롭한 경우 상태 변경하지 않음
-  if (!status) return null;
-
-  // 현재 상태와 같은 컬럼에 드롭한 경우 상태 변경하지 않음
-  if (currentStatus === status) return null;
-
-  return {taskId, status,};
-};
-
-// Drag 종료 시 태스크의 현재 상태와 Drop 컬럼을 비교해 상태 변경 콜백 실행
-export const handleTaskDragEnd = (
-  taskId: number,
+// 칸반 컬럼 ID를 태스크 상태로 변환
+export const getDropStatus = (
   columnId: string,
-  tasks: TaskResponse[],
-  onStatusChange: (taskId: number, status: TaskResponse["status"]) => void,
-) => {
-  // 드래그한 태스크 조회
-  const task = tasks.find((item) => item.id === taskId);
+): TaskResponse["status"] | null => {
+  if (
+    columnId === "TODO" ||
+    columnId === "IN_PROGRESS" ||
+    columnId === "DONE"
+  ) {
+    return columnId;
+  }
 
-  // 존재하지 않는 태스크면 상태 변경하지 않음
-  if (!task) return;
-
-  const change = getTaskStatusChange(taskId, columnId, task.status);
-
-  // 같은 컬럼 또는 잘못된 영역이면 상태 변경하지 않음
-  if (!change) return;
-
-  onStatusChange(change.taskId, change.status);
+  return null;
 };
 
-interface DroppableColumnProps {
-  status: TaskResponse["status"];
-  children: ReactNode;
-}
 
-// 각 상태 컬럼을 태스크 카드를 놓을 수 있는 Drop 영역으로 만듦
-function DroppableColumn({ status, children }: DroppableColumnProps) {
-  // status를 Drop 영역의 고유 ID로 사용
-  const { setNodeRef } = useDroppable({id: status,});
+// Drop 대상의 상태와 기준 카드 ID 반환
+export const getKanbanDropTarget = (
+  tasks: TaskResponse[],
+  overId: string | number,
+): {
+  status: TaskResponse["status"];
+  targetTaskId: number | null;
+} | null => {
+  const rawId = String(overId);
+
+  const columnId = rawId.startsWith(COLUMN_END_PREFIX)
+    ? rawId.slice(COLUMN_END_PREFIX.length)
+    : rawId;
+
+  const columnStatus = getDropStatus(columnId);
+
+  if (columnStatus) {
+    return {
+      status: columnStatus,
+      targetTaskId: null,
+    };
+  }
+
+  const targetTask = tasks.find(
+    (task) => task.id === Number(overId),
+  );
+
+  if (!targetTask) return null;
+
+  return {
+    status: targetTask.status,
+    targetTaskId: targetTask.id,
+  };
+};
+
+
+// DragOverlay에 표시할 태스크 조회
+export const getActiveDragTask = (
+  tasks: TaskResponse[],
+  taskId: number,
+): TaskResponse | null => {
+  return tasks.find((task) => task.id === taskId) ?? null;
+};
+
+
+// 클릭과 Drag를 구분하기 위한 최소 이동 거리
+export const getDragSensorOptions = () => ({
+  activationConstraint: {
+    distance: 4,
+  },
+});
+
+
+// 태스크를 다른 컬럼의 지정된 위치로 이동
+export const moveTaskInKanban = (
+  tasks: TaskResponse[],
+  taskId: number,
+  targetStatus: TaskResponse["status"],
+  targetTaskId: number | null,
+): TaskResponse[] => {
+  const movingTask = tasks.find(
+    (task) => task.id === taskId,
+  );
+
+  if (!movingTask) return tasks;
+
+  const remainingTasks = tasks.filter(
+    (task) => task.id !== taskId,
+  );
+
+  const movedTask = {
+    ...movingTask,
+    status: targetStatus,
+  };
+
+  if (targetTaskId === null) {
+    return [
+      ...remainingTasks,
+      movedTask,
+    ];
+  }
+
+  const targetIndex = remainingTasks.findIndex(
+    (task) =>
+      task.id === targetTaskId &&
+      task.status === targetStatus,
+  );
+
+  if (targetIndex === -1) {
+    return [
+      ...remainingTasks,
+      movedTask,
+    ];
+  }
+
+  const result = [...remainingTasks];
+
+  result.splice(
+    targetIndex,
+    0,
+    movedTask,
+  );
+
+  return result;
+};
+
+
+// 부모 데이터 갱신 시 현재 칸반 순서를 유지하면서 최신 데이터 반영
+export const mergeKanbanTasks = (
+  currentTasks: TaskResponse[],
+  incomingTasks: TaskResponse[],
+): TaskResponse[] => {
+  const incomingTaskMap = new Map(
+    incomingTasks.map((task) => [task.id, task]),
+  );
+
+  const currentTaskIds = new Set(
+    currentTasks.map((task) => task.id),
+  );
+
+  const mergedTasks = currentTasks
+    .filter((task) => incomingTaskMap.has(task.id))
+    .map((task) => incomingTaskMap.get(task.id)!);
+
+  const newTasks = incomingTasks.filter(
+    (task) => !currentTaskIds.has(task.id),
+  );
+
+  return [
+    ...mergedTasks,
+    ...newTasks,
+  ];
+};
+
+
+// 컬럼 마지막 또는 빈 컬럼에 Drop할 수 있는 영역
+function ColumnEndDropZone({
+  status,
+}: {
+  status: TaskResponse["status"];
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${COLUMN_END_PREFIX}${status}`,
+  });
 
   return (
-    <KanbanColumn
+    <ColumnEndDropArea
       ref={setNodeRef}
-      data-column-id={status}
-    >
-      {children}
-    </KanbanColumn>
+      data-column-end-id={status}
+      $isOver={isOver}
+    />
   );
 }
 
-// 태스크 칸반 보드
-function TaskKanbanBoard({tasks,onDetail, onStatusChange}: TaskKanbanBoardProps) {
 
-  // 포인터가 8px 이상 이동했을 때만 Drag를 시작하여 단순 Click과 구분
-  const sensors = useSensors(useSensor(PointerSensor, getDragSensorOptions()),);
+function TaskKanbanBoard({
+  tasks,
+  onDetail,
+  onOrderChange,
+}: TaskKanbanBoardProps) {
+  const [activeTask, setActiveTask] =
+    useState<TaskResponse | null>(null);
 
-  // Drag 종료 시 태스크 ID와 Drop 컬럼을 읽어 상태 변경 처리
-  const handleDragEnd = (event: DragEndEvent) => {
+  const [kanbanTasks, setKanbanTasks] =
+    useState<TaskResponse[]>(tasks);
+
+  useEffect(() => {
+    setKanbanTasks((currentTasks) =>
+      mergeKanbanTasks(currentTasks, tasks),
+    );
+  }, [tasks]);
+
+  const sensors = useSensors(
+    useSensor(
+      PointerSensor,
+      getDragSensorOptions(),
+    ),
+  );
+
+  const handleDragStart = (
+    event: DragStartEvent,
+  ) => {
+    setActiveTask(
+      getActiveDragTask(
+        kanbanTasks,
+        Number(event.active.id),
+      ),
+    );
+  };
+
+  // 다른 컬럼으로 넘어갈 때 상태와 위치를 화면에 먼저 반영
+  const handleDragOver = (
+    event: DragOverEvent,
+  ) => {
     const { active, over } = event;
 
-    // 칸반 컬럼이 아닌 영역에 놓은 경우 상태 변경하지 않음
-    if (!over || !onStatusChange) return;
+    if (!over) return;
 
-    const taskId = Number(active.id);
-    const columnId = String(over.id);
+    const activeId = Number(active.id);
 
-    handleTaskDragEnd(taskId, columnId, tasks, onStatusChange);
+    setKanbanTasks((currentTasks) => {
+      const movingTask = currentTasks.find(
+        (task) => task.id === activeId,
+      );
+
+      const dropTarget = getKanbanDropTarget(
+        currentTasks,
+        over.id,
+      );
+
+      if (!movingTask || !dropTarget) {
+        return currentTasks;
+      }
+
+      if (movingTask.status === dropTarget.status) {
+        return currentTasks;
+      }
+
+      return moveTaskInKanban(
+        currentTasks,
+        activeId,
+        dropTarget.status,
+        dropTarget.targetTaskId,
+      );
+    });
+  };
+
+  // Drop 시 Sortable에서 보이던 카드 순서를 최종 확정
+  const handleDragEnd = (
+    event: DragEndEvent,
+  ) => {
+    const { active, over } = event;
+
+    setActiveTask(null);
+
+    if (!over) return;
+
+    const activeId = Number(active.id);
+    const overId = Number(over.id);
+
+    setKanbanTasks((currentTasks) => {
+      const draggedTask = currentTasks.find(
+        (task) => task.id === activeId,
+      );
+
+      const targetTask = currentTasks.find(
+        (task) => task.id === overId,
+      );
+
+      if (!draggedTask || !targetTask) {
+        onOrderChange?.(currentTasks);
+        return currentTasks;
+      }
+
+      const columnTasks = currentTasks.filter(
+        (task) => task.status === draggedTask.status,
+      );
+
+      const oldIndex = columnTasks.findIndex(
+        (task) => task.id === activeId,
+      );
+
+      const newIndex = columnTasks.findIndex(
+        (task) => task.id === overId,
+      );
+
+      if (
+        oldIndex === -1 ||
+        newIndex === -1 ||
+        oldIndex === newIndex
+      ) {
+        return currentTasks;
+      }
+
+      const reorderedColumn = arrayMove(
+        columnTasks,
+        oldIndex,
+        newIndex,
+      );
+
+      let index = 0;
+
+      const nextTasks = currentTasks.map((task) => {
+        if (task.status !== draggedTask.status) {return task;}
+
+        return reorderedColumn[index++];
+      });
+
+      onOrderChange?.(nextTasks);
+
+      return nextTasks;
+    });
+  };
+
+  const handleDragCancel = () => {
+    setActiveTask(null);
+    setKanbanTasks(tasks);
   };
 
   return (
-    // 칸반 전체 영역에서 Drag&Drop 이벤트를 감지
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      {/* 3 개의 상태 컬럼을 감싸는 칸반 전체 영역 */}
-      <KanbanBoard> 
-
-        {/* KANBAN_COLUMNS 배열을 순회하면서 TODO / IN_PROGRESS / DONE 총 3개의 칸반 컬럼을 생성*/}
-        {KANBAN_COLUMNS.map((column) => {const columnTasks = tasks.filter((task) => task.status === column.status,);
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <KanbanBoard>
+        {KANBAN_COLUMNS.map((column) => {
+          const columnTasks = kanbanTasks.filter(
+            (task) => task.status === column.status,
+          );
 
           return (
-            <DroppableColumn key={column.status} status={column.status}>
-
-              {/* 컬럼 제목과 태스크 개수가 표시되는 상단 영역 */}
+            <KanbanColumn
+              key={column.status}
+              data-column-id={column.status}
+            >
               <ColumnHeader>
-
-                {/* 사용자에게 보여주는 상태 이름 */}
                 <ColumnTitle>
-                      <StatusDot $status={column.status} />
+                  <StatusDot $status={column.status} />
+                  {column.label}
+                </ColumnTitle>
 
-                      {column.label}
-
-                  </ColumnTitle>
-
-                {/* 현재 컬럼에 들어있는 태스크 개수 표시*/}
                 <TaskCount>
                   {columnTasks.length}
                 </TaskCount>
-
               </ColumnHeader>
 
-
-              {/* 현재 상태에 해당하는 태스크 카드들이 들어가는 영역 */}
-              <CardList>
-
-                {/* 현재 컬럼에 태스크가 하나도 없는 경우와 태스크가 존재하는 경우를 구분해서 렌더링*/}
-                {columnTasks.length === 0 ? (
-                  // 해당 상태에 태스크가 없으면 빈 상태 메시지 표시
-                  <EmptyMessage>
-                    등록된 태스크가 없습니다.
-                  </EmptyMessage>
-
-                ) : (
-
-                  /*태스크가 존재하면 현재 컬럼의 모든 태스크를 순회하면서 각각 TaskCard 컴포넌트로 표시*/
-                  columnTasks.map((task) => (
-
-                    <TaskCard
-
-                      // 각 태스크는 고유한 id를 가지므로
-                      // React 반복 렌더링 key로 사용
-                      key={task.id}
-
-                      // TaskCard에서 표시할 태스크 정보 전달
-                      task={task}
-
-                      /*
-                        사용자가 TaskCard를 클릭하면TaskCard 내부에서 onDetail(task)가 실행됨
-
-                        이 함수는 최종적으로 TaskManagementPage의 setDetailTask(task)를 호출하여 기존 TaskDetail Modal을 열게 됨
-                      */
-                      onDetail={onDetail}
-                    />
-
-                  ))
+              <SortableContext
+                items={columnTasks.map(
+                  (task) => task.id,
                 )}
+                strategy={verticalListSortingStrategy}
+              >
+                <CardList>
+                  {columnTasks.length === 0 ? (
+                    <EmptyMessage>
+                      등록된 태스크가 없습니다.
+                    </EmptyMessage>
+                  ) : (
+                    columnTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onDetail={onDetail}
+                      />
+                    ))
+                  )}
+                </CardList>
+              </SortableContext>
 
-              </CardList>
-
-            </DroppableColumn>
+              <ColumnEndDropZone
+                status={column.status}
+              />
+            </KanbanColumn>
           );
         })}
-
       </KanbanBoard>
+
+      <DragOverlay dropAnimation={null}>
+        {activeTask && (
+          <TaskCardOverlay task={activeTask} />
+        )}
+      </DragOverlay>
     </DndContext>
   );
 }
@@ -193,12 +432,6 @@ function TaskKanbanBoard({tasks,onDetail, onStatusChange}: TaskKanbanBoardProps)
 export default TaskKanbanBoard;
 
 
-// --------------------------------------------------
-// Styled Components
-// --------------------------------------------------
-
-
-// 칸반 전체 영역
 const KanbanBoard = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(280px, 1fr));
@@ -206,17 +439,15 @@ const KanbanBoard = styled.div`
   overflow-x: auto;
 `;
 
-
-// 상태 하나를 나타내는 칸반 컬럼
 const KanbanColumn = styled.div`
+  display: flex;
+  flex-direction: column;
   min-width: 280px;
   padding: 16px;
   border-radius: 8px;
   background: #f8f9fa;
 `;
 
-
-// 컬럼 상단 제목 영역
 const ColumnHeader = styled.div`
   display: flex;
   align-items: center;
@@ -224,21 +455,16 @@ const ColumnHeader = styled.div`
   margin-bottom: 16px;
 `;
 
-
-// 칸반 상태 제목
 const ColumnTitle = styled.h3`
-  margin: 0;
-  // 상태 표시 원과 제목을 한 줄로 배치
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: ${props => props.theme.colors.text};
+  color: ${(props) => props.theme.colors.text};
 `;
 
-
-// 컬럼에 포함된 태스크 개수 표시
 const TaskCount = styled.span`
   display: flex;
   align-items: center;
@@ -251,45 +477,43 @@ const TaskCount = styled.span`
   font-weight: 600;
 `;
 
-
-// 하나의 컬럼 안에 TaskCard들이 들어가는 영역
 const CardList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
 `;
 
+const ColumnEndDropArea = styled.div<{
+  $isOver: boolean;
+}>`
+  flex: 1;
+  min-height: 56px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: ${({ $isOver }) =>
+    $isOver
+      ? "rgba(59, 130, 246, 0.08)"
+      : "transparent"};
+`;
 
-// 현재 컬럼에 태스크가 하나도 없을 때 표시하는 메시지
 const EmptyMessage = styled.div`
   padding: 40px 10px;
   text-align: center;
   font-size: 0.85rem;
-  color: ${props => props.theme.colors.textSecondary};
+  color: ${(props) =>
+    props.theme.colors.textSecondary};
 `;
 
-// 칸반 컬럼의 상태를 시각적으로 구분하는 작은 원
-const StatusDot = styled.span<{$status: TaskResponse["status"];}>`
+const StatusDot = styled.span<{
+  $status: TaskResponse["status"];
+}>`
   width: 8px;
   height: 8px;
-  // 원이 줄어들지 않도록 고정
   flex-shrink: 0;
   border-radius: 50%;
 
-  /*
-    태스크 상태별 포인트 색상
-
-    TODO → 아직 작업 전이므로 중립적인 회색
-    IN_PROGRESS → 현재 작업 중이므로 파란색
-    DONE → 완료 상태이므로 초록색
-  */
-
   background: ${({ $status }) => {
     switch ($status) {
-
-      case "TODO":
-        return "#94a3b8";
-
       case "IN_PROGRESS":
         return "#3b82f6";
 
