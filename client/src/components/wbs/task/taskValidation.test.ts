@@ -142,6 +142,7 @@ describe("hasTaskChanges", () => {
     const originalTask = {
       ...validTask,
       id: 1,
+      kanban_order: 0,
       is_archived: false,
       archived_at: null,
       created_at: "2026-08-24T10:00:00",
@@ -157,6 +158,7 @@ describe("hasTaskChanges", () => {
     const originalTask = {
       ...validTask,
       id: 1,
+      kanban_order: 0,
       is_archived: false,
       archived_at: null,
       created_at: "2026-08-24T10:00:00",
