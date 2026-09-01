@@ -79,14 +79,14 @@ const Container = styled.div`
 // 버튼 컨데이너
 const ActionButtons = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 16px;
   margin-left: auto;
 `;
 
 // 버튼 컨테이너 용도
 const FilterContainer = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 16px;
   margin-bottom: 20px;
   flex-wrap: wrap;
   align-items: center;
