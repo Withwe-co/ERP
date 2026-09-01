@@ -2,7 +2,11 @@ import {TaskCreateData,TaskResponse,} from "../../../types/task";
 
 // 태스크 등록 데이터를 검증하고,
 // 문제가 있으면 사용자에게 표시할 오류 메시지를 반환
-export function validateTaskCreateData(task: TaskCreateData,): string | null {
+export function validateTaskCreateData(
+  task: TaskCreateData,
+  projectStartDate?: string,
+  projectDueDate?: string,
+): string | null {
 
     // WBS 코드는 반드시 선택해야 하며, 빈 문자열이나 공백만 있는 값은 허용하지 않음
     if (!task.wbs_code.trim()) {return "WBS 코드를 선택해주세요.";}
@@ -26,6 +30,21 @@ export function validateTaskCreateData(task: TaskCreateData,): string | null {
 
     // 완료 예정일은 시작 예정일보다 빠를 수 없음
     if (task.planned_start_date > task.planned_end_date) {return "완료 예정일은 시작 예정일보다 빠를 수 없습니다.";}
+
+    // 프로젝트 기간이 전달된 경우 기간 밖 날짜는 허용하지 않음
+    if (
+      projectStartDate &&
+      projectDueDate &&
+      (
+        task.planned_start_date < projectStartDate ||
+        task.planned_end_date > projectDueDate
+      )
+    ) {
+      return (
+        `프로젝트 기간(${projectStartDate} ~ ${projectDueDate})을 ` +
+        "벗어난 날짜는 선택할 수 없습니다."
+      );
+    }
 
     // 검증을 모두 통과하면 오류 없음
     return null;

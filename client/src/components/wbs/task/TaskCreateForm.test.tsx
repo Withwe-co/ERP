@@ -184,4 +184,69 @@ describe("TaskCreateForm 수정 모드", () => {
     expect(salesIndex).toBeLessThan(hrIndex);
     expect(hrIndex).toBeLessThan(generalIndex);
     });
+
+    // 프로젝트 기간 이전·이후 날짜도 달력에서 선택할 수 있도록
+    // 프로젝트 시작일과 종료일을 date input의 선택 범위로 제한하지 않는지 확인
+    it("프로젝트 기간으로 날짜 선택 범위를 제한하지 않는다", () => {
+    const html = renderToStaticMarkup(
+        <ThemeProvider theme={theme}>
+        <TaskCreateForm
+            projectId={1}
+            projectName="ERP 프로젝트"
+            wbsCodes={["1.1", "1.2", "2"]}
+            projectStartDate="2026-08-01"
+            projectDueDate="2026-09-30"
+            onSuccess={() => {}}
+            onCancel={() => {}}
+        />
+        </ThemeProvider>,
+    );
+
+    expect(html).not.toContain('min="2026-08-01"');
+    expect(html).not.toContain('max="2026-09-30"');
+    });
+
+    // 프로젝트 기간을 벗어난 날짜가 선택되어 있으면
+    // 등록/수정 버튼을 누르기 전에도 경고 문구를 표시
+    it("프로젝트 기간을 벗어난 날짜를 선택하면 바로 경고를 표시한다", () => {
+    const task: TaskResponse = {
+        id: 1,
+        project_id: 1,
+        wbs_code: "1.2",
+        task_name: "날짜 경고 태스크",
+        assignee_name: "홍길동",
+        department: "S/W 개발팀",
+        priority: "NORMAL",
+        status: "TODO",
+        kanban_order: 0,
+        planned_start_date: "2026-07-31",
+        planned_end_date: "2026-08-20",
+        description: "",
+        note: "",
+        is_archived: false,
+        archived_at: null,
+        created_at: "2026-08-24T10:00:00",
+        updated_at: "2026-08-24T10:00:00",
+    };
+
+    const html = renderToStaticMarkup(
+        <ThemeProvider theme={theme}>
+        <TaskCreateForm
+            projectId={1}
+            projectName="ERP 프로젝트"
+            wbsCodes={["1.1", "1.2"]}
+            projectStartDate="2026-08-01"
+            projectDueDate="2026-09-30"
+            initialData={task}
+            mode="edit"
+            onSuccess={() => {}}
+            onCancel={() => {}}
+        />
+        </ThemeProvider>,
+    );
+
+    expect(html).toContain(
+        "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 벗어난 날짜는 선택할 수 없습니다.",
+    );
+    });
 });

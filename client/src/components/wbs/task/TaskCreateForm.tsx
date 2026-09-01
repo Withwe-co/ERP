@@ -85,13 +85,31 @@ function TaskCreateForm({
         const projectStart = projectStartDate?.slice(0, 10);
         const projectDue = projectDueDate?.slice(0, 10);
 
+        // 선택한 일정이 프로젝트 기간을 벗어났는지 확인
+        const isOutsideProjectPeriod =
+        Boolean(projectStart && projectDue) &&
+        (
+            (
+            formData.planned_start_date &&
+            formData.planned_start_date < projectStart
+            ) ||
+            (
+            formData.planned_end_date &&
+            formData.planned_end_date > projectDue
+            )
+        );
+
         // 등록 버튼 클릭 시 실행
         const handleSubmit = async (event: React.FormEvent<HTMLFormElement>,) => {
 
             // Form 제출 시 브라우저 새로고침 방지
             event.preventDefault();
             // 사용자가 입력한 태스크 데이터를 검증
-            const errorMessage = validateTaskCreateData(formData);
+            const errorMessage = validateTaskCreateData(
+                formData,
+                projectStart,
+                projectDue,
+            );
             // 검증에 실패하면 오류 메시지를 보여주고 등록 중단
             if (errorMessage) {toast.error(errorMessage); return;}
             // 수정 모드에서 실제 변경된 값이 없으면 API 요청하지 않음
@@ -229,8 +247,7 @@ function TaskCreateForm({
                     label={'\u00A0\u00A0시작 예정일\u00A0'}
                     type="date"
                     value={formData.planned_start_date}
-                    min={projectStart || undefined}
-                    max={formData.planned_end_date ||projectDue || undefined}
+                    max={formData.planned_end_date || undefined}
                     required
                     onChange={(event) =>setFormData({...formData, planned_start_date: event.target.value,})}
                 />
@@ -239,12 +256,17 @@ function TaskCreateForm({
                     label={'\u00A0\u00A0완료 예정일\u00A0'}
                     type="date"
                     value={formData.planned_end_date}
-                    min={formData.planned_start_date || projectStart || undefined}
-                    max={projectDue || undefined}
+                    min={formData.planned_start_date || undefined}
                     required
                     onChange={(event) =>setFormData({...formData, planned_end_date: event.target.value,})}
                 />
             </FormGrid>
+            {isOutsideProjectPeriod && (
+                <DateWarning>
+                    프로젝트 기간({projectStart} ~ {projectDue})을 벗어난 날짜는
+                    선택할 수 없습니다.
+                </DateWarning>
+            )}
 
 
             {/* 태스크 설명 */}
@@ -361,4 +383,10 @@ const ButtonArea = styled.div`
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+`;
+
+const DateWarning = styled.p`
+  margin: -12px 0 0 8px;
+  font-size: 13px;
+  color: ${props => props.theme.colors.error};
 `;
