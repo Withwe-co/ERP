@@ -394,6 +394,65 @@ def test_update_missing_task_returns_404():
     assert response.status_code == 404
     assert response.json()["detail"] == "태스크를 찾을 수 없습니다."
 
+def test_create_task_rejects_invalid_priority():
+    """허용되지 않은 우선순위로 태스크를 등록할 수 없다."""
+
+    task_data = valid_task_data()
+    task_data["priority"] = "MEDIUM"
+
+    response = client.post(
+        "/tasks/",
+        json=task_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_task_rejects_invalid_status():
+    """허용되지 않은 상태값으로 태스크를 등록할 수 없다."""
+
+    task_data = valid_task_data()
+    task_data["status"] = "COMPLETED"
+
+    response = client.post(
+        "/tasks/",
+        json=task_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_task_rejects_empty_wbs_code():
+    """태스크 등록 시 빈 WBS 코드를 사용할 수 없다."""
+
+    task_data = valid_task_data()
+    task_data["wbs_code"] = ""
+
+    response = client.post(
+        "/tasks/",
+        json=task_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_task_rejects_empty_wbs_code():
+    """태스크 수정 시 WBS 코드를 빈 값으로 변경할 수 없다."""
+
+    create_response = client.post(
+        "/tasks/",
+        json=valid_task_data(),
+    )
+
+    task_id = create_response.json()["data"]["id"]
+
+    response = client.put(
+        f"/tasks/{task_id}",
+        json={"wbs_code": ""},
+    )
+
+    assert response.status_code == 422
+
 def test_create_task_rejects_on_hold_status():
     """태스크 상태로 ON_HOLD를 사용할 수 없다."""
 
