@@ -12,6 +12,7 @@ import TaskKanbanBoard, {
   getKanbanDropTarget,
   mergeKanbanTasks,
   moveTaskInKanban,
+  shouldSaveKanbanOrder,
 } from "./TaskKanbanBoard";
 
 
@@ -376,5 +377,12 @@ describe("TaskKanbanBoard", () => {
     expect(result[1].updated_at).toBe(
       "2026-08-31T15:30:00",
     );
+  });
+
+  // 다른 컬럼으로 상태가 변경된 뒤 같은 위치에 Drop해도 서버 저장이 필요한지 확인
+  it("상태 간 이동 후 같은 인덱스에 드롭해도 칸반 상태를 저장한다", () => {
+    expect(
+      shouldSaveKanbanOrder(0, 0),
+    ).toBe(true);
   });
 });

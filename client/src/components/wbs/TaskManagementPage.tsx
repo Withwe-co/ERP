@@ -120,7 +120,8 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
       await taskApi.updateKanbanOrder(order);
 
       await queryClient.invalidateQueries({
-        queryKey: ["tasks", projectId],
+        queryKey: ["tasks", projectId, filters, taskScope,],
+        exact: true,
       });
     } catch {
       toast.error("칸반 순서 저장에 실패했습니다.");
