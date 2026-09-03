@@ -1203,8 +1203,8 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         # file_url = f"http://211.44.183.165:8000/uploads/transaction_documents/{unique_filename}"
         # file_url = f"http://211.197.16.248:8000/uploads/transaction_documents/{unique_filename}"
         
-        #file_url = f"http://211.197.16.248:8000/uploads/transaction_documents/{unique_filename}"
-        file_url = f"http://localhost:8000/uploads/transaction_documents/{unique_filename}"
+        file_url = f"http://211.197.16.248:8000/uploads/transaction_documents/{unique_filename}"
+        # file_url = f"http://localhost:8000/uploads/transaction_documents/{unique_filename}"
         
 
         # 🔥 새로운 컬럼들 업데이트

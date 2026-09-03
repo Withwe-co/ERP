@@ -44,8 +44,8 @@ def run_mock_test():
     # 실제 API 키나 번호가 없어도 테스트를 위해 임의의 규격 값을 넣어 구성합니다.
     test_config = NotificationConfig.create(
         enabled=True,
-        #public_base_url="http://211.197.16.248:8000",
-        public_base_url="http://localhost:8000",
+        public_base_url="http://211.197.16.248:8000",
+        # public_base_url="http://localhost:8000",
         app_key="test_app_key_1234",
         secret_key="test_secret_key_1234",
         sender_key="test_sender_key_1234",
