@@ -37,7 +37,7 @@ class Wbs(Base):
     wbs_code = Column(String(10),nullable=False)
     wbs_name = Column(String(50) ,nullable=False)
     parent_wbs = Column(String(10) ,nullable=True)
-    wbs_description = Column(Text(500) ,nullable=True)
+    wbs_description = Column(String(500) ,nullable=True)
     wbs_order = Column(Integer ,nullable=True)
     updated_by = Column(String(20) ,nullable=True)
     updated_at=Column(Date, default=lambda: datetime.now(ZoneInfo("Asia/Seoul")), nullable=False)

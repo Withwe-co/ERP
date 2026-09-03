@@ -33,6 +33,6 @@ class Project(Base):
     start_date=Column(DateTime, nullable=False)
     due_date=Column(DateTime, nullable=False)
     status=Column(String(20), nullable=False, default='IN_PROGRESS')
-    project_description=Column(Text(500), nullable=True)
+    project_description=Column(String(500), nullable=True)
     updated_by=Column(String(20), nullable=True)
     updated_at=Column(DateTime, default=lambda: datetime.now(ZoneInfo("Asia/Seoul")), nullable=False)
