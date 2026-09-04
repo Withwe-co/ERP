@@ -202,7 +202,7 @@ function TaskCreateForm({
             );
             // 검증에 실패하면 오류 메시지를 보여주고 등록 중단
             if (errorMessage) {toast.error(errorMessage); return;}
-            
+
             // 일반 태스크 정보가 변경되었는지 확인
             const hasDataChanges =
             mode === "edit" && initialData
@@ -298,7 +298,7 @@ function TaskCreateForm({
                 disabled
                 />
 
-                <Select
+                <TaskSelect
                     label={'\u00A0\u00A0WBS 코드\u00A0'}
                     value={formData.wbs_code}
                     required
@@ -330,7 +330,7 @@ function TaskCreateForm({
 
 
             {/* 담당 부서 */}
-            <Select
+            <TaskSelect
             label={'\u00A0\u00A0담당 부서\u00A0'}
             value={formData.department}
             required
@@ -347,7 +347,7 @@ function TaskCreateForm({
 
             {/* 우선순위와 상태 */}
             <FormGrid>
-                <Select
+                <TaskSelect
                 label={'\u00A0\u00A0우선순위\u00A0'}
                 value={formData.priority}
                 required
@@ -360,7 +360,7 @@ function TaskCreateForm({
                 onChange={(value) =>setFormData({...formData, priority: value as TaskPriority,})}
                 />
 
-                <Select
+                <TaskSelect
                     label={'\u00A0\u00A0상태\u00A0'}
                     value={formData.status}
                     required
@@ -674,4 +674,19 @@ const RemoveImageButton = styled.button`
   font-size: 18px;
   line-height: 24px;
   cursor: pointer;
+`;
+
+const TaskSelect = styled(Select)`
+  select {
+    appearance: none;
+    padding-right: 36px;
+
+    background-image: url(
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"
+    );
+
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+  }
 `;
