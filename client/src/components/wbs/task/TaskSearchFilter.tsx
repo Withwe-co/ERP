@@ -6,6 +6,15 @@ import Button from "../../common/Button";
 
 import {TaskFilter, TaskPriority, TaskStatus,} from "../../../types/task";
 
+import {
+  TASK_ACTION_BUTTON_WIDTH,
+  TASK_CONTROL_FONT_SIZE,
+  TASK_CONTROL_GAP,
+  TASK_CONTROL_HEIGHT,
+  TASK_CONTROL_ICON_SIZE,
+  TASK_CONTROL_FIELD_WIDTH,
+} from "./taskControlStyles";
+
 
 // 부모 컴포넌트에 현재 검색/필터 조건을 전달하기 위한 Props
 interface TaskSearchFilterProps {
@@ -212,7 +221,7 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
           onClick={clearAllFilters}
           disabled={!hasActiveFilters}
         >
-          <Filter size={16} />
+          <Filter size={TASK_CONTROL_ICON_SIZE} />
 
           {hasActiveFilters
             ? "필터 초기화"
@@ -258,13 +267,13 @@ export default TaskSearchFilter;
 
 // 검색 및 필터 전체 카드 영역
 const SearchCard = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: ${TASK_CONTROL_GAP};
 `;
 
 // 1행: 태스크 검색창과 각 필터를 한 줄에 배치
 const FilterRow = styled.div`
   display: flex;
-  gap: 12px;
+  gap: ${TASK_CONTROL_GAP};
   align-items: center;
   flex-wrap: wrap;
 `;
@@ -273,37 +282,42 @@ const FilterRow = styled.div`
 const FilterActionRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${TASK_CONTROL_GAP};
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: ${TASK_CONTROL_GAP};
 `;
 
 // 검색창과 검색 아이콘을 묶는 영역
 const SearchGroup = styled.div`
   position: relative;
-  flex: 0 0 260px;
-  width: 260px;
-  max-width: 260px;
+  flex: 0 0 ${TASK_CONTROL_FIELD_WIDTH};
+  width: ${TASK_CONTROL_FIELD_WIDTH};
+  max-width: ${TASK_CONTROL_FIELD_WIDTH};
 `;
 
 // 태스크명 검색 입력창
 const SearchInput = styled.input`
   width: 100%;
-  height: 40px;
+  height: ${TASK_CONTROL_HEIGHT};
   box-sizing: border-box;
 
   padding: 0 12px 0 40px;
 
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.md};
+  border: 1px solid
+    ${props => props.theme.colors.border};
+  border-radius:
+    ${props => props.theme.borderRadius.md};
 
-  font-size: 14px;
+  font-size: ${TASK_CONTROL_FONT_SIZE};
   background: ${props => props.theme.colors.surface};
 
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.primary};
-    box-shadow: 0 0 0 3px ${props => props.theme.colors.primary}20;
+    border-color:
+      ${props => props.theme.colors.primary};
+    box-shadow:
+      0 0 0 3px
+      ${props => props.theme.colors.primary}20;
   }
 `;
 
@@ -320,47 +334,72 @@ const SearchIcon = styled(Search)`
 
 // WBS, 상태, 우선순위 필터 Select
 const FilterSelect = styled.select`
-  height: 40px;
-  min-width: 120px;
+  width: ${TASK_CONTROL_FIELD_WIDTH};
+  height: ${TASK_CONTROL_HEIGHT};
   box-sizing: border-box;
 
-  padding: 0 12px;
+  padding: 0 36px 0 12px;
 
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.md};
+  border: 1px solid
+    ${props => props.theme.colors.border};
+  border-radius:
+    ${props => props.theme.borderRadius.md};
 
-  font-size: 14px;
-  background: ${props => props.theme.colors.surface};
+  appearance: none;
+
+  background-color:
+    ${props => props.theme.colors.surface};
+
+  background-image: url(
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"
+  );
+
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+
+  font-size: ${TASK_CONTROL_FONT_SIZE};
   cursor: pointer;
 
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.primary};
+    border-color:
+      ${props => props.theme.colors.primary};
   }
 `;
 
 // 담당자 및 담당부서 검색 입력창
 const FilterInput = styled.input`
-  height: 40px;
-  min-width: 120px;
+  width: ${TASK_CONTROL_FIELD_WIDTH};
+  height: ${TASK_CONTROL_HEIGHT};
   box-sizing: border-box;
 
   padding: 0 12px;
 
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.md};
+  border: 1px solid
+    ${props => props.theme.colors.border};
+  border-radius:
+    ${props => props.theme.borderRadius.md};
 
-  font-size: 14px;
+  font-size: ${TASK_CONTROL_FONT_SIZE};
   background: ${props => props.theme.colors.surface};
 
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.primary};
+    border-color:
+      ${props => props.theme.colors.primary};
   }
 `;
 
 // 전체 필터 초기화 버튼
 const FilterButton = styled(Button)`
+  width: ${TASK_ACTION_BUTTON_WIDTH};
+  height: ${TASK_CONTROL_HEIGHT};
+  min-height: ${TASK_CONTROL_HEIGHT};
+
+  padding: 0 12px;
+
+  font-size: ${TASK_CONTROL_FONT_SIZE};
   white-space: nowrap;
 `;
 

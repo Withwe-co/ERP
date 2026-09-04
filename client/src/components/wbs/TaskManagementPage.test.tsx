@@ -21,6 +21,12 @@ import {
 import TaskCreateForm from "./task/TaskCreateForm";
 import TaskDetail from "./task/TaskDetail";
 
+import {
+  TASK_ACTION_BUTTON_WIDTH,
+  TASK_CONTROL_GAP,
+  TASK_CONTROL_HEIGHT,
+  TASK_CONTROL_FIELD_WIDTH,
+} from "./task/taskControlStyles";
 
 const validTaskData: TaskCreateData = {
   project_id: 1,
@@ -44,6 +50,7 @@ describe("TaskManagementPage 통합 테스트", () => {
       ...validTaskData,
       id: 1,
       kanban_order: 0,
+      image_urls: [],
       is_archived: false,
       archived_at: null,
       created_at: "2026-08-25T10:00:00",
@@ -334,4 +341,13 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(html).toContain("/uploads/task_images/detail.jpg",);
     expect(html).toContain('aria-label="첨부 이미지 크게 보기"',);
   });
+
+  it("태스크 관리 상단 컨트롤 규격을 통일한다", () => {
+    expect(TASK_CONTROL_HEIGHT).toBe("40.8px");
+    expect(TASK_CONTROL_GAP).toBe("16px");
+    expect(TASK_ACTION_BUTTON_WIDTH).toBe("112px");
+    expect(TASK_CONTROL_FIELD_WIDTH).toBe("180px");
+
+  });
+
 });
