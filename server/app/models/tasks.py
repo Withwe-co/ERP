@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
 )
@@ -54,6 +55,13 @@ class Task(Base):
     description = Column(
         Text,
         nullable=True,
+    )
+
+    # 태스크 첨부 이미지 URL 목록
+    image_urls = Column(
+        JSON,
+        nullable=False,
+        default=list,
     )
 
     # 담당자명

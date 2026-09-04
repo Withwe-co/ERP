@@ -1,9 +1,20 @@
 """태스크 관리 API 엔드포인트를 정의하는 모듈"""
+import json
+import os
+import uuid
 from datetime import datetime
-from zoneinfo import ZoneInfo
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, status as http_status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status as http_status,
+)
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -20,6 +31,9 @@ from app.schemas.tasks import (
 
 # FastAPI에서 API endpoint들을 하나의 Router로 묶는 객체
 router = APIRouter()
+
+# 태스크 첨부 이미지 전체 최대 용량
+MAX_TASK_IMAGE_SIZE = 10 * 1024 * 1024
 
 
 # 태스크 등록
@@ -81,6 +95,147 @@ def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
         "message": "태스크가 성공적으로 등록되었습니다.",
         "data": task,
     }
+
+@router.put("/{task_id}/images")
+async def update_task_images(
+    task_id: int,
+    keep_image_urls: str = Form("[]"),
+    images: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+):
+    """태스크의 기존 이미지와 새 첨부 이미지를 저장한다."""
+
+    task = (
+        db.query(Task)
+        .filter(Task.id == task_id)
+        .first()
+    )
+
+    if task is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="태스크를 찾을 수 없습니다.",
+        )
+
+    try:
+        kept_urls = json.loads(keep_image_urls)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="이미지 목록 형식이 올바르지 않습니다.",
+        ) from exc
+
+    if (
+        not isinstance(kept_urls, list)
+        or not all(
+            isinstance(image_url, str)
+            for image_url in kept_urls
+        )
+    ):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="이미지 목록 형식이 올바르지 않습니다.",
+        )
+
+    upload_dir = os.path.join(os.getcwd(), "uploads", "task_images",)
+    os.makedirs(upload_dir, exist_ok=True)
+
+    existing_urls = task.image_urls or []
+
+    # 현재 태스크에 실제로 등록된 이미지만 유지할 수 있음
+    if any(
+        image_url not in existing_urls
+        for image_url in kept_urls
+    ):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="유지할 이미지 목록이 올바르지 않습니다.",
+        )
+
+    new_image_urls: list[str] = []
+    image_contents: list[tuple[UploadFile, bytes]] = []
+
+    # 유지할 기존 이미지들의 실제 파일 크기부터 계산
+    total_size = 0
+
+    for image_url in kept_urls:
+        filename = os.path.basename(image_url)
+
+        file_path = os.path.join(
+            upload_dir,
+            filename,
+        )
+
+        if os.path.isfile(file_path):
+            total_size += os.path.getsize(file_path)
+
+    # 새 이미지의 형식과 전체 용량을 먼저 검증
+    for image in images or []:
+        if (
+            not image.content_type
+            or not image.content_type.startswith("image/")
+        ):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="이미지 파일만 첨부할 수 있습니다.",
+            )
+
+        contents = await image.read()
+
+        total_size += len(contents)
+
+        if total_size > MAX_TASK_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "첨부 이미지 전체 용량은 "
+                    "10MB를 초과할 수 없습니다."
+                ),
+            )
+
+        image_contents.append(
+            (image, contents),
+        )
+
+    # 검증이 완료된 경우에만 실제 파일 저장
+    for image, contents in image_contents:
+        extension = os.path.splitext(
+            image.filename or "",
+        )[1]
+
+        unique_filename = (f"{uuid.uuid4()}{extension}")
+
+        file_path = os.path.join(upload_dir, unique_filename,)
+
+        with open(file_path, "wb") as file:
+            file.write(contents)
+
+        new_image_urls.append(f"/uploads/task_images/{unique_filename}")
+
+
+    # 기존 이미지 중 사용자가 유지하지 않은 이미지 확인
+    removed_urls = [
+        image_url
+        for image_url in existing_urls
+        if image_url not in kept_urls
+    ]
+
+    # 제외된 이미지의 실제 파일 삭제
+    for image_url in removed_urls:
+        filename = os.path.basename(image_url)
+
+        file_path = os.path.join(upload_dir, filename,)
+
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+    # 유지할 기존 이미지와 새로 업로드한 이미지를 최종 저장
+    task.image_urls = [*kept_urls, *new_image_urls,]
+
+    db.commit()
+    db.refresh(task)
+
+    return {"image_urls": task.image_urls,}
 
 # 태스크 목록 조회
 @router.get("/", response_model=List[TaskResponse])
