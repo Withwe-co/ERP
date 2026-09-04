@@ -1,30 +1,25 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import {QueryClient,QueryClientProvider,} from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ThemeProvider } from "styled-components";
 import { describe, expect, it } from "vitest";
 
 import { theme } from "../../styles/theme";
-import {
-  TaskCreateData,
-  TaskResponse,
-} from "../../types/task";
+import {TaskCreateData, TaskResponse,} from "../../types/task";
 
 import TaskManagementPage from "./TaskManagementPage";
+import {shouldSaveKanbanOrder,} from "./task/TaskKanbanBoard";
+import {validateTaskCreateData,} from "./task/taskValidation";
+import {getTaskContentView,} from "./task/taskViewMode";
+import {getSelectableWbsCodes,} from "./task/wbsOptions";
+
 import {
-  shouldSaveKanbanOrder,
-} from "./task/TaskKanbanBoard";
-import {
-  validateTaskCreateData,
-} from "./task/taskValidation";
-import {
-  getTaskContentView,
-} from "./task/taskViewMode";
-import {
-  getSelectableWbsCodes,
-} from "./task/wbsOptions";
+  createTaskImageFormData,
+  getNewImageTotalSize,
+  hasTaskImageChanges,
+} from "./task/taskImageUtils";
+
+import TaskCreateForm from "./task/TaskCreateForm";
+import TaskDetail from "./task/TaskDetail";
 
 
 const validTaskData: TaskCreateData = {
@@ -173,5 +168,170 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(
       shouldSaveKanbanOrder(-1, 0),
     ).toBe(false);
+  });
+
+  it("새로 선택한 이미지의 전체 용량을 계산한다", () => {
+    const files = [
+      new File(
+        [new Uint8Array(3 * 1024 * 1024)],
+        "image1.jpg",
+        { type: "image/jpeg" },
+      ),
+      new File(
+        [new Uint8Array(2 * 1024 * 1024)],
+        "image2.png",
+        { type: "image/png" },
+      ),
+    ];
+
+    expect(
+      getNewImageTotalSize(files),
+    ).toBe(5 * 1024 * 1024);
+  });
+
+
+  it("기존 이미지 삭제나 신규 이미지 추가를 수정사항으로 판단한다", () => {
+    expect(
+      hasTaskImageChanges(
+        ["/uploads/task_images/a.jpg"],
+        ["/uploads/task_images/a.jpg"],
+        [],
+      ),
+    ).toBe(false);
+
+    expect(
+      hasTaskImageChanges(
+        [
+          "/uploads/task_images/a.jpg",
+          "/uploads/task_images/b.jpg",
+        ],
+        ["/uploads/task_images/a.jpg"],
+        [],
+      ),
+    ).toBe(true);
+
+    expect(
+      hasTaskImageChanges(
+        ["/uploads/task_images/a.jpg"],
+        ["/uploads/task_images/a.jpg"],
+        [
+          new File(
+            ["image"],
+            "new.jpg",
+            { type: "image/jpeg" },
+          ),
+        ],
+      ),
+    ).toBe(true);
+  });
+
+  it("유지할 이미지와 신규 이미지를 FormData로 만든다", () => {
+    const image = new File(
+      ["image-data"],
+      "new.jpg",
+      { type: "image/jpeg" },
+    );
+
+    const formData = createTaskImageFormData(
+      ["/uploads/task_images/a.jpg"],
+      [image],
+    );
+
+    expect(
+      formData.get("keep_image_urls"),
+    ).toBe(
+      JSON.stringify([
+        "/uploads/task_images/a.jpg",
+      ]),
+    );
+
+    expect(
+      formData.getAll("images"),
+    ).toHaveLength(1);
+  });
+
+  it("태스크 등록 폼의 설명 아래에 이미지 첨부 영역을 표시한다", () => {
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskCreateForm
+          projectId={1}
+          projectName="테스트 프로젝트"
+          wbsCodes={["1.1"]}
+          projectStartDate="2026-08-01"
+          projectDueDate="2026-09-30"
+          onSuccess={() => {}}
+          onCancel={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(html).toContain("이미지 첨부");
+    expect(html).toContain("전체 최대 10MB");
+    expect(html).toContain('type="file"');
+    expect(html).toContain('accept="image/*"');
+  });
+
+  it("태스크 수정 폼에 기존 첨부 이미지를 표시한다", () => {
+    const task: TaskResponse = {
+      ...validTaskData,
+      id: 1,
+      kanban_order: 0,
+      image_urls: [
+        "/uploads/task_images/existing.jpg",
+      ],
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-09-04T09:00:00",
+      updated_at: "2026-09-04T09:00:00",
+    };
+
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskCreateForm
+          projectId={1}
+          projectName="테스트 프로젝트"
+          wbsCodes={["1.1"]}
+          projectStartDate="2026-08-01"
+          projectDueDate="2026-09-30"
+          mode="edit"
+          initialData={task}
+          onSuccess={() => {}}
+          onCancel={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(html).toContain(
+      "/uploads/task_images/existing.jpg",
+    );
+  });
+
+  it("태스크 상세 화면에 첨부 이미지를 표시한다", () => {
+    const task: TaskResponse = {
+      ...validTaskData,
+      id: 1,
+      kanban_order: 0,
+      image_urls: [
+        "/uploads/task_images/detail.jpg",
+      ],
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-09-04T09:00:00",
+      updated_at: "2026-09-04T09:00:00",
+    };
+
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskDetail
+          task={task}
+          onEdit={() => {}}
+          onClose={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(html).toContain("첨부 이미지");
+    expect(html).toContain("/uploads/task_images/detail.jpg",);
+    expect(html).toContain('aria-label="첨부 이미지 크게 보기"',);
   });
 });

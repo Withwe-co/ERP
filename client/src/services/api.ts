@@ -4,6 +4,8 @@ import axios from 'axios';
 // 태스크 API 요청/응답에 사용할 타입
 import {TaskCreateData, TaskFilter, TaskResponse,TaskUpdateData,} from '../types/task';
 
+import {createTaskImageFormData,} from '../components/wbs/task/taskImageUtils';
+
 // API 기본 설정
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
 // const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
@@ -431,6 +433,40 @@ export const taskApi = {
       return response;
     } 
     catch (error) {console.error("태스크 수정 실패:", error); throw error;}
+  },
+
+  // 태스크의 기존 이미지 유지 목록과 신규 이미지를 저장
+  updateTaskImages: async (
+    taskId: number,
+    keptImageUrls: string[],
+    newImages: File[],
+  ): Promise<{
+    image_urls: string[];
+  }> => {
+    try {
+      const formData = createTaskImageFormData(
+        keptImageUrls,
+        newImages,
+      );
+
+      const response = await api.put(
+        `/tasks/${taskId}/images`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error(
+        "태스크 이미지 저장 실패:",
+        error,
+      );
+      throw error;
+    }
   },
 
   archiveTask: async (taskId: number,): Promise<TaskUpdateResponse> => {

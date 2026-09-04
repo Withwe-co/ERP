@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "styled-components";
 
 import Button from "../../common/Button";
@@ -8,8 +8,12 @@ import Select from "../../common/Select";
 import {TaskCreateData,TaskPriority,TaskStatus,TaskResponse,} from "../../../types/task";
 import { toast } from "react-toastify";
 import { hasTaskChanges, validateTaskCreateData } from "./taskValidation";
+import {getNewImageTotalSize, hasTaskImageChanges,} from "./taskImageUtils";
 import { taskApi } from "../../../services/api";
 
+// 태스크 신규 첨부 이미지 전체 최대 용량
+const MAX_TASK_IMAGE_SIZE =
+  10 * 1024 * 1024;
 
 // 태스크 등록/수정 시 사용할 담당부서 목록
 // 화면에서는 아래 순서를 오름차순 기준으로 고정하여 표시
@@ -77,6 +81,19 @@ function TaskCreateForm({
             note: initialData?.note ?? "",
         }));
 
+        // 수정 화면에서 유지할 기존 이미지 URL
+        const [keptImageUrls, setKeptImageUrls] =
+        useState<string[]>(() => initialData?.image_urls ?? [],);
+
+        // 사용자가 새로 선택한 이미지
+        const [newImages, setNewImages] = useState<File[]>([]);
+
+        // 신규 이미지 미리보기 URL
+        const [
+        newImagePreviewUrls,
+        setNewImagePreviewUrls,
+        ] = useState<string[]>([]);
+
         // POST 요청이 진행 중인지 관리
         // 중복으로 등록 버튼을 누르는 것을 방지하기 위해 사용
         const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,6 +116,79 @@ function TaskCreateForm({
             )
         );
 
+        // 신규 이미지 선택
+        const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>,) => {
+            const selectedFiles = Array.from(event.target.files ?? [],);
+
+            if (selectedFiles.length === 0) {return;}
+
+            const invalidFile = selectedFiles.find(
+                (file) => !file.type.startsWith("image/"),
+            );
+
+            if (invalidFile) {
+                toast.error(
+                "이미지 파일만 첨부할 수 있습니다.",
+                );
+                event.target.value = "";
+                return;
+            }
+
+            const nextImages = [...newImages, ...selectedFiles,];
+
+            if (
+                getNewImageTotalSize(nextImages) >
+                MAX_TASK_IMAGE_SIZE
+            ) {
+                toast.error(
+                "새로 첨부하는 이미지의 전체 용량은 " +
+                "10MB를 초과할 수 없습니다.",
+                );
+                event.target.value = "";
+                return;
+            }
+
+            const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file),);
+
+            setNewImages(nextImages);
+
+            setNewImagePreviewUrls((current) => [...current, ...previewUrls,]);
+
+            // 같은 파일을 다시 선택할 수 있도록 초기화
+            event.target.value = "";
+        };
+
+        // 기존 이미지 제거 예약
+        const handleRemoveExistingImage = (imageUrl: string,) => {
+            setKeptImageUrls((current) =>
+                current.filter((url) => url !== imageUrl,),
+            );
+        };
+
+        // 새로 선택한 이미지 취소
+        const handleRemoveNewImage = (index: number,) => {
+            const previewUrl =
+                newImagePreviewUrls[index];
+
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+            }
+
+            setNewImages((current) =>
+                current.filter(
+                (_, imageIndex) =>
+                    imageIndex !== index,
+                ),
+            );
+
+            setNewImagePreviewUrls((current) =>
+                current.filter(
+                (_, imageIndex) =>
+                    imageIndex !== index,
+                ),
+            );
+        };
+
         // 등록 버튼 클릭 시 실행
         const handleSubmit = async (event: React.FormEvent<HTMLFormElement>,) => {
 
@@ -112,26 +202,70 @@ function TaskCreateForm({
             );
             // 검증에 실패하면 오류 메시지를 보여주고 등록 중단
             if (errorMessage) {toast.error(errorMessage); return;}
-            // 수정 모드에서 실제 변경된 값이 없으면 API 요청하지 않음
-            if (mode === "edit" && initialData && !hasTaskChanges(initialData, formData)) {
-                toast.info("수정사항이 없습니다.");
-                return;
-            }
+            
+            // 일반 태스크 정보가 변경되었는지 확인
+            const hasDataChanges =
+            mode === "edit" && initialData
+                ? hasTaskChanges(
+                    initialData,
+                    formData,
+                )
+                : true;
 
+            // 기존 이미지 삭제 또는 신규 이미지 추가 여부 확인
+            const hasImageChanges =
+            mode === "edit" && initialData
+                ? hasTaskImageChanges(
+                    initialData.image_urls ?? [],
+                    keptImageUrls,
+                    newImages,
+                )
+                : newImages.length > 0;
+
+            // 일반 정보와 이미지 모두 변경되지 않은 경우에만 수정 중단
+            if (
+            mode === "edit" &&
+            !hasDataChanges &&
+            !hasImageChanges
+            ) {
+            toast.info("수정사항이 없습니다.");
+            return;
+            }
             try {
                 // API 요청 시작
                 setIsSubmitting(true);
 
                 if (mode === "edit" && initialData) {
-                    const response = await taskApi.updateTask(initialData.id, formData,);
-                    toast.success(response.message);
-                }
-                else {
-                    const response = await taskApi.createTask(formData);
-                    toast.success(response.message);
-                }
+                    if (hasDataChanges) {
+                        await taskApi.updateTask(
+                        initialData.id,
+                        formData,
+                        );
+                    }
 
-                onSuccess();
+                    if (hasImageChanges) {
+                        await taskApi.updateTaskImages(
+                        initialData.id,
+                        keptImageUrls,
+                        newImages,
+                        );
+                    }
+
+                    toast.success("태스크가 성공적으로 수정되었습니다.",);
+                    } else {
+                    const response = await taskApi.createTask(formData);
+
+                    if (newImages.length > 0) {
+                        await taskApi.updateTaskImages(
+                        response.data.id,
+                        [],
+                        newImages,
+                        );
+                    }
+
+                    toast.success(response.message);
+                }
+                    onSuccess();
 
             } catch (error: any) {
                 // FastAPI가 문자열 형태의 detail을 반환한 경우 사용
@@ -280,6 +414,78 @@ function TaskCreateForm({
                 />
             </TextAreaGroup>
 
+            {/* 태스크 이미지 첨부 */}
+            <ImageGroup>
+            <Label>이미지 첨부</Label>
+
+            <ImageUploadArea>
+                <ImageInput
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageSelect}
+                />
+
+                <ImageUploadHint>
+                여러 이미지를 첨부할 수 있습니다.
+                신규 첨부 이미지 전체 최대 10MB
+                </ImageUploadHint>
+            </ImageUploadArea>
+
+            {(keptImageUrls.length > 0 ||
+                newImages.length > 0) && (
+                <ImagePreviewGrid>
+                {keptImageUrls.map((imageUrl) => (
+                    <ImagePreviewItem
+                    key={imageUrl}
+                    >
+                    <PreviewImage
+                        src={imageUrl}
+                        alt="기존 태스크 첨부 이미지"
+                    />
+
+                    <RemoveImageButton
+                        type="button"
+                        onClick={() =>
+                        handleRemoveExistingImage(
+                            imageUrl,
+                        )
+                        }
+                    >
+                        ×
+                    </RemoveImageButton>
+                    </ImagePreviewItem>
+                ))}
+
+                {newImagePreviewUrls.map(
+                    (previewUrl, index) => (
+                    <ImagePreviewItem
+                        key={previewUrl}
+                    >
+                        <PreviewImage
+                        src={previewUrl}
+                        alt={`신규 첨부 이미지 ${
+                            index + 1
+                        }`}
+                        />
+
+                        <RemoveImageButton
+                        type="button"
+                        onClick={() =>
+                            handleRemoveNewImage(
+                            index,
+                            )
+                        }
+                        >
+                        ×
+                        </RemoveImageButton>
+                    </ImagePreviewItem>
+                    ),
+                )}
+                </ImagePreviewGrid>
+            )}
+            </ImageGroup>
+
 
             {/* 비고 */}
             <TextAreaGroup>
@@ -389,4 +595,83 @@ const DateWarning = styled.p`
   margin: -12px 0 0 8px;
   font-size: 13px;
   color: ${props => props.theme.colors.error};
+`;
+
+
+// 태스크 이미지 첨부 전체 영역
+const ImageGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+
+// 이미지 파일 선택 영역
+const ImageUploadArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+`;
+
+
+// 이미지 파일 선택 input
+const ImageInput = styled.input`
+  font-size: 14px;
+`;
+
+
+// 이미지 첨부 안내 문구
+const ImageUploadHint = styled.span`
+  font-size: 12px;
+  color: ${props =>
+    props.theme.colors.textSecondary};
+`;
+
+
+// 첨부 이미지 미리보기 목록
+const ImagePreviewGrid = styled.div`
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+`;
+
+
+// 이미지 한 개의 미리보기 영역
+const ImagePreviewItem = styled.div`
+  position: relative;
+  height: 110px;
+  overflow: hidden;
+  border: 1px solid
+    ${props => props.theme.colors.border};
+  border-radius: 6px;
+`;
+
+
+// 첨부 이미지
+const PreviewImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+
+// 첨부 이미지 제거 버튼
+const RemoveImageButton = styled.button`
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 24px;
+  cursor: pointer;
 `;
