@@ -103,16 +103,24 @@ function TaskCreateForm({
         const projectDue = projectDueDate?.slice(0, 10);
 
         // 선택한 일정이 프로젝트 기간을 벗어났는지 확인
-        const isOutsideProjectPeriod =
-        Boolean(projectStart && projectDue) &&
-        (
+        const isOutsideProjectPeriod = Boolean(
+            projectStart &&
+            projectDue &&
             (
-            formData.planned_start_date &&
-            formData.planned_start_date < projectStart
-            ) ||
-            (
-            formData.planned_end_date &&
-            formData.planned_end_date > projectDue
+                (
+                    formData.planned_start_date &&
+                    (
+                        formData.planned_start_date < projectStart ||
+                        formData.planned_start_date > projectDue
+                    )
+                ) ||
+                (
+                    formData.planned_end_date &&
+                    (
+                        formData.planned_end_date < projectStart ||
+                        formData.planned_end_date > projectDue
+                    )
+                )
             )
         );
 

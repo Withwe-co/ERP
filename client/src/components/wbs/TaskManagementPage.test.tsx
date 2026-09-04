@@ -127,6 +127,34 @@ describe("TaskManagementPage 통합 테스트", () => {
         "2026-09-30",
       ),
     ).toBeNull();
+
+    expect(
+      validateTaskCreateData(
+        {
+          ...validTaskData,
+          planned_start_date: "2026-10-01",
+        },
+        "2026-08-01",
+        "2026-09-30",
+      ),
+    ).toBe(
+      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
+      "벗어난 날짜는 선택할 수 없습니다.",
+    );
+
+    expect(
+      validateTaskCreateData(
+        {
+          ...validTaskData,
+          planned_end_date: "2026-07-31",
+        },
+        "2026-08-01",
+        "2026-09-30",
+      ),
+    ).toBe(
+      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
+      "벗어난 날짜는 선택할 수 없습니다.",
+    );
   });
 
   // 전체 태스크는 선택한 보기 방식을 사용하고

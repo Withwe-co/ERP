@@ -28,6 +28,23 @@ export function validateTaskCreateData(
     // 완료 예정일은 필수 입력값
     if (!task.planned_end_date) {return "완료 예정일을 입력해주세요.";}
 
+    // 프로젝트 기간이 전달된 경우 기간 밖 날짜는 허용하지 않음
+    if (
+      projectStartDate &&
+      projectDueDate &&
+      (
+        task.planned_start_date < projectStartDate ||
+        task.planned_start_date > projectDueDate ||
+        task.planned_end_date < projectStartDate ||
+        task.planned_end_date > projectDueDate
+      )
+    ) {
+      return (
+        `프로젝트 기간(${projectStartDate} ~ ${projectDueDate})을 ` +
+        "벗어난 날짜는 선택할 수 없습니다."
+      );
+    }
+
     // 완료 예정일은 시작 예정일보다 빠를 수 없음
     if (task.planned_start_date > task.planned_end_date) {return "완료 예정일은 시작 예정일보다 빠를 수 없습니다.";}
 
