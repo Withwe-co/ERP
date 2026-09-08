@@ -20,12 +20,12 @@ const SearchGroup = styled.div`
 
 const SearchInput = styled.input`
   width: 100%;
-  padding: 8px 12px 8px 40px;
+  padding: 8px 16px 8px 40px;
   border: 1px solid ${props => props.theme.colors.border};
   border-radius: ${props => props.theme.borderRadius.md};
   font-size: 14px;
   background: ${props => props.theme.colors.surface};
-  min-height: 40px;
+  height: 40.8px;
   
   &:focus {
     outline: none;
@@ -45,14 +45,14 @@ const SearchIcon = styled(Search)`
 `;
 
 const FilterSelect = styled.select`
-  padding: 8px 12px;
+  padding: 8px 16px;
   border: 1px solid ${props => props.theme.colors.border};
   border-radius: ${props => props.theme.borderRadius.md};
   font-size: 14px;
   background: ${props => props.theme.colors.surface};
   cursor: pointer;
   min-width: 120px;
-  min-height: 40px;
+  height: 40.8px;
   
   &:focus {
     outline: none;

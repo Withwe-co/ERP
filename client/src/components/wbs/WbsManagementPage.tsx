@@ -79,14 +79,14 @@ const Container = styled.div`
 // 버튼 컨데이너
 const ActionButtons = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 16px;
   margin-left: auto;
 `;
 
 // 버튼 컨테이너 용도
 const FilterContainer = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 16px;
   margin-bottom: 20px;
   flex-wrap: wrap;
   align-items: center;
@@ -475,7 +475,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 verticalAlign: 'middle',
                                                 }}
                                             >
-                                                {parent.wbs_name}
+                                                [{parent.wbs_code}] {parent.wbs_name}
                                             </td>
                                         )}
 
@@ -491,7 +491,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 verticalAlign: 'middle',
                                                 }}
                                             >
-                                                {child.wbs_name}
+                                                [{child.wbs_code}] {child.wbs_name}
                                             </td>
                                             )
                                         ) : (

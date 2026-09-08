@@ -12,7 +12,7 @@ data
 # Python local environment
 server/.venv/
 server/.pytest_cache/
-
+/client/dist/index.html
 /logs/nginx/access.log
 /logs/nginx/error.log
 
