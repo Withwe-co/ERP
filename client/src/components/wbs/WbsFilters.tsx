@@ -45,7 +45,7 @@ const SearchIcon = styled(Search)`
 `;
 
 const FilterSelect = styled.select`
-  padding: 8px 28px 8px 16px;
+  padding: 8px 16px;
   border: 1px solid ${props => props.theme.colors.border};
   border-radius: ${props => props.theme.borderRadius.md};
   font-size: 14px;

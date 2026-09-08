@@ -2,7 +2,7 @@
 프로젝트 목록 조회 & 프로젝트 등록,수정
 """
 from typing import List, Optional, Any, Literal
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response,Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func, or_, and_, extract
 import pandas as pd
@@ -16,6 +16,7 @@ from app import crud
 from app.core.database import get_db
 from app.core.config import settings
 from app.schemas.projects import (ProjectsBase,UpdateProject,ProjectsList,ProjectInDB)
+from app.core.rate_limit import rate_limit
 
 from app.models.projects import Project as DBProject
 from app.models.tasks import Task as DBTask
@@ -78,7 +79,8 @@ def make_project_list_items(db: Session, projects: list[DBProject]):
     return result
 
 @router.post("/",response_model=dict)
-def create_project(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+@rate_limit(max_requests=10, window_seconds=300)
+def create_project(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
 
     """
         summary : 프로젝트 등록 함수
