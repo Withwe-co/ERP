@@ -31,7 +31,7 @@ interface TaskKanbanBoardProps {
 
 
 const KANBAN_COLUMNS: {
-  status: TaskResponse["status"];
+  status: TaskResponse["status"]; 
   label: string;
 }[] = [
   { status: "TODO", label: "대기" },
@@ -43,9 +43,7 @@ const COLUMN_END_PREFIX = "column-end:";
 
 
 // 칸반 컬럼 ID를 태스크 상태로 변환
-export const getDropStatus = (
-  columnId: string,
-): TaskResponse["status"] | null => {
+export const getDropStatus = (columnId: string,): TaskResponse["status"] | null => {
   if (
     columnId === "TODO" ||
     columnId === "IN_PROGRESS" ||
@@ -59,10 +57,7 @@ export const getDropStatus = (
 
 
 // Drop 대상의 상태와 기준 카드 ID 반환
-export const getKanbanDropTarget = (
-  tasks: TaskResponse[],
-  overId: string | number,
-): {
+export const getKanbanDropTarget = (tasks: TaskResponse[], overId: string | number,): {
   status: TaskResponse["status"];
   targetTaskId: number | null;
 } | null => {
@@ -74,12 +69,7 @@ export const getKanbanDropTarget = (
 
   const columnStatus = getDropStatus(columnId);
 
-  if (columnStatus) {
-    return {
-      status: columnStatus,
-      targetTaskId: null,
-    };
-  }
+  if (columnStatus) {return {status: columnStatus, targetTaskId: null,};}
 
   const targetTask = tasks.find(
     (task) => task.id === Number(overId),
@@ -110,6 +100,13 @@ export const getDragSensorOptions = () => ({
   },
 });
 
+// Drop 위치를 정상적으로 찾았다면 현재 칸반 상태와 순서를 서버에 저장
+export const shouldSaveKanbanOrder = (
+  oldIndex: number,
+  newIndex: number,
+): boolean => {
+  return oldIndex !== -1 && newIndex !== -1;
+};
 
 // 태스크를 다른 컬럼의 지정된 위치로 이동
 export const moveTaskInKanban = (
@@ -285,10 +282,8 @@ function TaskKanbanBoard({
     });
   };
 
-  // Drop 시 Sortable에서 보이던 카드 순서를 최종 확정
-  const handleDragEnd = (
-    event: DragEndEvent,
-  ) => {
+  // Drop 시 카드 상태와 순서를 최종 확정하고 서버에 한 번만 저장
+  const handleDragEnd = (event: DragEndEvent,) => {
     const { active, over } = event;
 
     setActiveTask(null);
@@ -298,58 +293,65 @@ function TaskKanbanBoard({
     const activeId = Number(active.id);
     const overId = Number(over.id);
 
-    setKanbanTasks((currentTasks) => {
-      const draggedTask = currentTasks.find(
-        (task) => task.id === activeId,
-      );
+    const draggedTask = kanbanTasks.find(
+      (task) => task.id === activeId,
+    );
 
-      const targetTask = currentTasks.find(
-        (task) => task.id === overId,
-      );
+    const targetTask = kanbanTasks.find(
+      (task) => task.id === overId,
+    );
 
-      if (!draggedTask || !targetTask) {
-        onOrderChange?.(currentTasks);
-        return currentTasks;
-      }
+    // 빈 컬럼 또는 컬럼 끝에 Drop한 경우
+    if (!draggedTask || !targetTask) {
+      onOrderChange?.(kanbanTasks);
+      return;
+    }
 
-      const columnTasks = currentTasks.filter(
-        (task) => task.status === draggedTask.status,
-      );
+    const columnTasks = kanbanTasks.filter(
+      (task) => task.status === draggedTask.status,
+    );
 
-      const oldIndex = columnTasks.findIndex(
-        (task) => task.id === activeId,
-      );
+    const oldIndex = columnTasks.findIndex(
+      (task) => task.id === activeId,
+    );
 
-      const newIndex = columnTasks.findIndex(
-        (task) => task.id === overId,
-      );
+    const newIndex = columnTasks.findIndex(
+      (task) => task.id === overId,
+    );
 
-      if (
-        oldIndex === -1 ||
-        newIndex === -1 ||
-        oldIndex === newIndex
-      ) {
-        return currentTasks;
-      }
-
-      const reorderedColumn = arrayMove(
-        columnTasks,
+    if (
+      !shouldSaveKanbanOrder(
         oldIndex,
         newIndex,
-      );
+      )
+    ) {
+      return;
+    }
 
-      let index = 0;
+    // 상태는 변경됐지만 같은 위치에 Drop한 경우에도 서버에 저장
+    if (oldIndex === newIndex) {
+      onOrderChange?.(kanbanTasks);
+      return;
+    }
 
-      const nextTasks = currentTasks.map((task) => {
-        if (task.status !== draggedTask.status) {return task;}
+    const reorderedColumn = arrayMove(
+      columnTasks,
+      oldIndex,
+      newIndex,
+    );
 
-        return reorderedColumn[index++];
-      });
+    let index = 0;
 
-      onOrderChange?.(nextTasks);
+    const nextTasks = kanbanTasks.map((task) => {
+      if (task.status !== draggedTask.status) {
+        return task;
+      }
 
-      return nextTasks;
+      return reorderedColumn[index++];
     });
+
+    setKanbanTasks(nextTasks);
+    onOrderChange?.(nextTasks);
   };
 
   const handleDragCancel = () => {

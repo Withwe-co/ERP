@@ -1,3 +1,5 @@
+import json
+import os
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -394,6 +396,65 @@ def test_update_missing_task_returns_404():
     assert response.status_code == 404
     assert response.json()["detail"] == "태스크를 찾을 수 없습니다."
 
+def test_create_task_rejects_invalid_priority():
+    """허용되지 않은 우선순위로 태스크를 등록할 수 없다."""
+
+    task_data = valid_task_data()
+    task_data["priority"] = "MEDIUM"
+
+    response = client.post(
+        "/tasks/",
+        json=task_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_task_rejects_invalid_status():
+    """허용되지 않은 상태값으로 태스크를 등록할 수 없다."""
+
+    task_data = valid_task_data()
+    task_data["status"] = "COMPLETED"
+
+    response = client.post(
+        "/tasks/",
+        json=task_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_task_rejects_empty_wbs_code():
+    """태스크 등록 시 빈 WBS 코드를 사용할 수 없다."""
+
+    task_data = valid_task_data()
+    task_data["wbs_code"] = ""
+
+    response = client.post(
+        "/tasks/",
+        json=task_data,
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_task_rejects_empty_wbs_code():
+    """태스크 수정 시 WBS 코드를 빈 값으로 변경할 수 없다."""
+
+    create_response = client.post(
+        "/tasks/",
+        json=valid_task_data(),
+    )
+
+    task_id = create_response.json()["data"]["id"]
+
+    response = client.put(
+        f"/tasks/{task_id}",
+        json={"wbs_code": ""},
+    )
+
+    assert response.status_code == 422
+
 def test_create_task_rejects_on_hold_status():
     """태스크 상태로 ON_HOLD를 사용할 수 없다."""
 
@@ -759,3 +820,215 @@ def test_get_tasks_returns_kanban_order():
         "태스크 A",
         "태스크 B",
     ]
+
+def test_update_task_images():
+    """태스크에 여러 이미지를 첨부하고 이미지 URL을 저장한다."""
+
+    create_response = client.post("/tasks/", json=valid_task_data(),)
+
+    task_id = create_response.json()["data"]["id"]
+
+    response = client.put(
+        f"/tasks/{task_id}/images",
+        data={"keep_image_urls": "[]",},
+        files=[
+            (
+                "images",
+                (
+                    "task_image_1.jpg",
+                    b"test-image-1",
+                    "image/jpeg",
+                ),
+            ),
+            (
+                "images",
+                (
+                    "task_image_2.png",
+                    b"test-image-2",
+                    "image/png",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data["image_urls"]) == 2
+    assert data["image_urls"][0].startswith("/uploads/task_images/",)
+    assert data["image_urls"][1].startswith("/uploads/task_images/",)
+
+def test_update_task_images_deletes_removed_image():
+    """수정 저장 시 제외한 기존 이미지를 DB와 실제 파일에서 삭제한다."""
+
+    create_response = client.post(
+        "/tasks/",
+        json=valid_task_data(),
+    )
+    task_id = create_response.json()["data"]["id"]
+
+    # 이미지 2장 먼저 등록
+    upload_response = client.put(
+        f"/tasks/{task_id}/images",
+        data={"keep_image_urls": "[]"},
+        files=[
+            (
+                "images",
+                (
+                    "task_keep.jpg",
+                    b"keep-image",
+                    "image/jpeg",
+                ),
+            ),
+            (
+                "images",
+                (
+                    "task_delete.jpg",
+                    b"delete-image",
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+
+    image_urls = upload_response.json()["image_urls"]
+
+    keep_url = image_urls[0]
+    delete_url = image_urls[1]
+
+    delete_path = os.path.join(
+        os.getcwd(),
+        delete_url.lstrip("/"),
+    )
+
+    # 첫 번째 이미지만 유지하고 두 번째 이미지는 수정 저장에서 제외
+    response = client.put(
+        f"/tasks/{task_id}/images",
+        data={"keep_image_urls": json.dumps([keep_url],),},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["image_urls"] == [keep_url,]
+
+    # 제외한 이미지의 실제 파일도 삭제되어야 함
+    assert not os.path.exists(delete_path)
+
+def test_update_task_images_rejects_total_size_over_10mb():
+    """새로 첨부하는 이미지의 전체 합계가 10MB를 초과하면 거부한다."""
+
+    create_response = client.post(
+        "/tasks/",
+        json=valid_task_data(),
+    )
+    task_id = create_response.json()["data"]["id"]
+
+    six_mb = b"a" * (6 * 1024 * 1024)
+    five_mb = b"b" * (5 * 1024 * 1024)
+
+    response = client.put(
+        f"/tasks/{task_id}/images",
+        data={"keep_image_urls": "[]"},
+        files=[
+            (
+                "images",
+                (
+                    "task_image_1.jpg",
+                    six_mb,
+                    "image/jpeg",
+                ),
+            ),
+            (
+                "images",
+                (
+                    "task_image_2.jpg",
+                    five_mb,
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "첨부 이미지 전체 용량은 10MB를 초과할 수 없습니다."
+    )
+def test_update_task_images_rejects_total_size_with_existing_images():
+    """기존 이미지와 새 이미지의 전체 합계가 10MB를 초과하면 거부한다."""
+
+    create_response = client.post(
+        "/tasks/",
+        json=valid_task_data(),
+    )
+    task_id = create_response.json()["data"]["id"]
+
+    six_mb = b"a" * (6 * 1024 * 1024)
+
+    # 기존 이미지 6MB 등록
+    upload_response = client.put(
+        f"/tasks/{task_id}/images",
+        data={"keep_image_urls": "[]"},
+        files=[
+            (
+                "images",
+                (
+                    "existing_image.jpg",
+                    six_mb,
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+
+    assert upload_response.status_code == 200
+
+    existing_url = upload_response.json()["image_urls"][0]
+
+    five_mb = b"b" * (5 * 1024 * 1024)
+
+    # 기존 6MB 이미지를 유지하면서 새 이미지 5MB 추가
+    response = client.put(
+        f"/tasks/{task_id}/images",
+        data={"keep_image_urls": json.dumps([existing_url],),},
+        files=[
+            (
+                "images",
+                (
+                    "new_image.jpg",
+                    five_mb,
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "첨부 이미지 전체 용량은 10MB를 초과할 수 없습니다."
+    )
+
+def test_update_task_images_rejects_non_image_file():
+    """이미지가 아닌 파일은 태스크에 첨부할 수 없다."""
+
+    create_response = client.post("/tasks/", json=valid_task_data(),)
+    task_id = create_response.json()["data"]["id"]
+
+    response = client.put(
+        f"/tasks/{task_id}/images",
+        data={"keep_image_urls": "[]"},
+        files=[
+            (
+                "images",
+                (
+                    "document.txt",
+                    b"not-an-image",
+                    "text/plain",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "이미지 파일만 첨부할 수 있습니다."
+    )

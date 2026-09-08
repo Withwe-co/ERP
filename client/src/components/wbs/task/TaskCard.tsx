@@ -75,7 +75,7 @@ function TaskCardContent({task}: {task: TaskResponse}) {
   const deadlineStatus = getDeadlineStatus(task);
 
   return (
-    <>
+    <CardContent>
       {/* 카드에서 가장 중요한 태스크명 */}
       <TaskName>
         {task.task_name}
@@ -114,7 +114,7 @@ function TaskCardContent({task}: {task: TaskResponse}) {
           </DeadlineBadge>
         )}
       </Footer>
-    </>
+    </CardContent>
   );
 }
 
@@ -132,11 +132,6 @@ function TaskCard({task, onDetail, }: TaskCardProps) {
     transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.6 : 1,
   };
-
-
-  // 현재 태스크의 완료 예정일을 기준으로
-  // 마감 임박 / 오늘 마감 / 지연 여부 계산
-  const deadlineStatus = getDeadlineStatus(task);
 
   return (
     <CardContainer
@@ -215,25 +210,27 @@ const OverlayCard = styled.div`
   pointer-events: none;
 `;
 
+// 카드 내부 주요 정보의 세로 간격을 동일하게 유지
+const CardContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
 // 태스크명
 const TaskName = styled.div`
   font-size: 1rem;
   font-weight: 600;
-
   line-height: 1.4;
-
   color: ${props => props.theme.colors.text};
-
-  margin-bottom: 5px;
 `;
-
 
 // 태스크가 연결된 WBS 코드
 const WbsCode = styled.div`
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
   padding: 3px 7px;
-  margin-bottom: 16px;
   border-radius: 6px;
   background: #f1f5f9;
   font-size: 0.75rem;
@@ -264,7 +261,6 @@ const Assignee = styled.div`
 
 // "담당자", "완료예정" 같은 보조 라벨
 const InfoLabel = styled.span`
-  margin-right: 4px;
   font-size: 0.78rem;
   color: ${props => props.theme.colors.textSecondary};
 `;
@@ -306,7 +302,6 @@ const PriorityBadge = styled.span<{$priority: TaskResponse["priority"];}>`
     }
   }};
 
-
   // 배경색과 함께 글자색도 우선순위별로 변경
   color: ${({ $priority }) => {
 
@@ -329,11 +324,10 @@ const PriorityBadge = styled.span<{$priority: TaskResponse["priority"];}>`
   }};
 `;
 
-
 // 카드 상단 정보와 하단 일정 정보를 구분
 const Divider = styled.div`
+  width: 100%;
   height: 1px;
-  margin: 14px 0;
   background: #f1f5f9;
 `;
 
@@ -343,18 +337,19 @@ const Footer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 12px;
 `;
-
 
 // 태스크 완료 예정일
 const EndDate = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
+
   font-size: 0.8rem;
-  color: ${props => props.theme.colors.textSecondary};
+  line-height: 1.4;
+  color: ${props =>
+    props.theme.colors.textSecondary};
 `;
 
 

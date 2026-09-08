@@ -100,6 +100,7 @@ class TaskResponse(TaskBase):
     """태스크 조회 결과에 사용하는 응답 스키마"""
     id: int
     kanban_order: int
+    image_urls: list[str] = Field(default_factory=list,)
     is_archived: bool
     archived_at: Optional[datetime] = None
     created_at: datetime

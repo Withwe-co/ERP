@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    WATCHFILES_FORCE_POLLING: bool = False
     
     # API 설정
     API_V1_STR: str = "/api/v1"
