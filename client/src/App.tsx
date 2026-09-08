@@ -15,6 +15,8 @@ import PurchaseRequestPage from './components/purshase/PurchaseRequestPage';  //
 import KakaoPage from './components/kakao/KakaoPage';
 import UploadPage from './components/upload/UploadPage';
 import WbsPage from './components/wbs/WbsPage';
+import EmployeesPage from './components/employees/EmployeesPage';
+import LeavessPage from './components/leaves/LeavesPage';
 import ProjectPage from './components/wbs/ProjectPage';
 import StatisticsPage from './components/statistics/StatisticsPage';
 import LogsPage from './components/logs/LogsPage';
@@ -40,6 +42,8 @@ const App: React.FC = () => {
                 <Route path="purchase-requests" element={<PurchaseRequestPage />} />
                 <Route path="/wbs" element={<WbsPage />} />
                 <Route path="/wbs/project-page" element={<ProjectPage />} />
+                <Route path="/employees" element={<EmployeesPage />} />
+                <Route path="/leaves" element={<LeavessPage />} />
                 <Route path="kakao" element={<KakaoPage />} />
                 <Route path="upload" element={<UploadPage />} />
                 {/* <Route path="statistics" element={<StatisticsPage />} /> */}
