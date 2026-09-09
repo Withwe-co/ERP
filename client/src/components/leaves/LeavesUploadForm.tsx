@@ -89,6 +89,8 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
         {value: '오후 반차', label: '오후 반차'},
         {value: '병가', label: '병가'}
     ];
+    // 반차 유형 체크
+    const HALF_DAY_TYPES = ['오전 반차', '오후 반차'];
 
     const {data: employeesData,isLoading: isEmployeesLoading,isError: isEmployeesError,} = useQuery({
         queryKey: ['employees'],
@@ -173,6 +175,38 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
             total_days: totalDays,
         }));
     }, [formData.start_date, formData.end_date]);
+
+    useEffect(() => {
+        const { start_date, end_date, leave_type } = formData;
+        const isHalfDay = HALF_DAY_TYPES.includes(leave_type);
+
+        if (!start_date) {
+            return;
+        }
+
+        // 오전/오후 반차: 시작일과 종료일을 같게, 사용 일수는 0.5일로 고정
+        if (isHalfDay) {
+            setFormData((prev) => ({...prev,end_date: prev.start_date,total_days: 0.5,}));
+            return;
+        }
+
+        // 일반 휴가
+        if (!end_date || end_date < start_date) {
+            setFormData((prev) => ({...prev,total_days: 0,}));
+            return;
+        }
+
+        const start = new Date(`${start_date}T00:00:00`);
+        const end = new Date(`${end_date}T00:00:00`);
+
+        const totalDays =
+            Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        setFormData((prev) => ({
+            ...prev,
+            total_days: totalDays,
+        }));
+    }, [formData.start_date, formData.end_date, formData.leave_type]);
 
     const validateForm = (): boolean => {
        const newErrors: Record<string, string> = {};
@@ -292,6 +326,8 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
                             value={formData.end_date}
                             onChange={(e) => handleChange('end_date', e.target.value)}
                             min={formData.start_date||undefined}
+                            max={HALF_DAY_TYPES.includes(formData.leave_type)  ? formData.start_date  : undefined}
+                            disabled={HALF_DAY_TYPES.includes(formData.leave_type)}
                             required
                         />
 
