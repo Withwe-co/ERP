@@ -1,9 +1,8 @@
 import React, {useState,useMemo} from 'react';
 import styled from 'styled-components';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation} from '@tanstack/react-query';
 import {toast} from 'react-toastify';
 import {Edit,Plus} from 'lucide-react'
-import { useNavigate } from 'react-router-dom';
 
 // Components
 import Table from '../common/Table';
@@ -13,7 +12,7 @@ import Modal from '../common/Modal';
 import EmployeesUploadForm from './EmployeesUploadForm';
 
 // Services
-import api, { EmployeeApi } from '../../services/api';
+import { EmployeeApi } from '../../services/api';
 
 // Type
 import { TableColumn } from '../../types';
@@ -59,6 +58,14 @@ const ActionButtonGroup = styled.div`
   justify-content: center;
   height: 100%;
   min-height: 40px;
+`;
+
+const FilterContainer = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
 `;
 
 const EmployeesPage: React.FC = () => {
@@ -214,6 +221,7 @@ const EmployeesPage: React.FC = () => {
           <PageTitle>팀원 관리</PageTitle>
           <PageSubtitle>팀원을 등록하고 관리하세요.</PageSubtitle>
           <Card>
+            <FilterContainer>
               <ActionButtons>
                   <Button
                   onClick={() => setIsFormModalOpen(true)} 
@@ -223,6 +231,7 @@ const EmployeesPage: React.FC = () => {
                   팀원 등록
                   </Button>
               </ActionButtons>
+            </FilterContainer>
               <Table
                 columns={columns}
                 data={employees}
