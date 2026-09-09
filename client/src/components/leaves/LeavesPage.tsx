@@ -204,7 +204,7 @@ const LeavesPage: React.FC = () => {
                     title="휴가 추가"
                     >
                     <Plus size={16}/>
-                    휴가 일정 등록
+                    휴가 등록
                     </Button>
                 </ActionButtons>
             </FilterContainer>
