@@ -75,15 +75,40 @@ const LeavesPage: React.FC = () => {
         refetchOnMount: 'always',
         refetchOnWindowFocus: 'always'
     });
+    
+    // 날짜 포맷 변환 함수 (YYYY-MM-DD)
+    const formatDateInput = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
 
     const handleDateClick = (info: { dateStr: string }) => {
         console.log('선택한 날짜:', info.dateStr);
         toast.info(`${info.dateStr} 날짜를 선택했습니다.`);
     };
 
-    const handleEventClick = (info: { event: { id: string; title: string } }) => {
-        console.log('선택한 휴가:', info.event.id, info.event.title);
-        toast.info(`${info.event.title} 일정을 선택했습니다.`);
+    const handleEventClick = (info: any) => {
+        const startDate = info.event.start;
+        const exclusiveEndDate = info.event.end ?? info.event.start;
+
+        // FullCalendar end는 제외 날짜이므로 실제 종료일로 되돌림
+        const endDate = new Date(exclusiveEndDate);
+        endDate.setDate(endDate.getDate() - 1);
+
+        const leave: Leave = {
+            id: Number(info.event.id),
+            employee_id: Number(info.event.extendedProps.employeeId),
+            leave_type: String(info.event.extendedProps.leaveType),
+            start_date: formatDateInput(startDate),
+            end_date: formatDateInput(endDate),
+            total_days: Number(info.event.extendedProps.totalDays),
+        };
+
+        setEditingLeave(leave);
+        setIsFormModalOpen(true);
     };
 
     const handleRefresh = async () => {
@@ -112,6 +137,7 @@ const LeavesPage: React.FC = () => {
         setEditingLeave(item);
         setIsFormModalOpen(true);
     };
+
     return (
         <>
         <Container>

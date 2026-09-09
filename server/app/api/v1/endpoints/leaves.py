@@ -119,10 +119,14 @@ def read_leave_events(
     """
         summary : 휴가 일정 조회 함수
     
-        arg : db (Session) : DB 세션
+        arg : 
+            - start (date | None) : 조회 시작일
+            - end (date | None) : 조회 종료일
+            - db (Session) : DB 세션
     
         desc : 
-            - 
+            - 조회 기간과 겹치는 휴가 일정만 반환
+            - FullCalendar에서 사용하기 위한 형식으로 반환
     """
     if start and end and start >= end:
         raise HTTPException(status_code=422,detail="종료일은 시작일보다 이후여야 합니다.")
@@ -154,3 +158,108 @@ def read_leave_events(
         }
         for leave, employee in leave_rows
     ]
+
+
+@router.put("/{leave_id}", response_model=dict)
+def update_leave(leave_id: int,request_in: dict,db: Session = Depends(get_db)):
+    """
+        summary : 휴가 일정 수정 함수
+    
+        arg : 
+            - leave_id (int) : 수정할 휴가 일정 ID
+            - request_in (dict) : 수정할 휴가 일정 데이터
+            - db (Session) : DB 세션
+    
+        desc : 
+            - DB에서 전달받은 id와 같은 휴가 일정 조회
+            - 전달받은 id가 DB에 없으면 404 에러 반환
+            - 필수 필드 검증 후, 휴가 일정 데이터를 수정합니다.
+            - 직원의 사용 휴가 일수도 함께 갱신합니다.
+            - 예외 처리 : 500 에러 반환 & Rollback
+                
+    """
+    
+    try:
+        # 수정 대상 휴가 일정 잠금
+        leave = db.query(DBLeaves).filter(DBLeaves.id == leave_id).with_for_update().first()
+
+        # 해당 휴가 일정 없으면 404 에러 발생
+        if not leave:
+            raise HTTPException(status_code=404,detail="수정할 휴가 일정을 찾을 수 없습니다.")
+
+        required_fields = ["leave_type","start_date","end_date","total_days"]
+
+        for field in required_fields:
+            if field not in request_in or request_in[field] in (None, ""):
+                raise HTTPException(status_code=422,detail=f"필수 필드가 누락되었습니다: {field}")
+
+        # 신규 수정 날짜 데이터
+        new_start_date = datetime.strptime(request_in["start_date"],"%Y-%m-%d",).date()
+        new_end_date = datetime.strptime(request_in["end_date"],"%Y-%m-%d",).date()
+        new_total_days = Decimal(str(request_in["total_days"]))
+
+        # 날짜 검증 실패 시 422 에러 발생
+        if new_total_days <= 0:
+            raise HTTPException(status_code=422,detail="휴가 일수는 0보다 커야 합니다.",)
+
+        if new_end_date < new_start_date:
+            raise HTTPException(status_code=422,detail="종료일은 시작일보다 빠를 수 없습니다.",)
+
+        # 기존 휴가의 직원만 조회 — 직원 변경 불가
+        employee = db.query(DBEmployee).filter(DBEmployee.id == leave.employee_id).with_for_update().first()
+        
+        # 직원이 존재하지 않으면 409 에러 발생
+        if not employee:
+            raise HTTPException(status_code=409,detail="기존 휴가 일정의 팀원 정보를 찾을 수 없습니다.")
+        
+        old_total_days = Decimal(str(leave.total_days))
+        current_used_leave = Decimal(str(employee.used_leave or 0))
+        total_leave = Decimal(str(employee.total_leave or 0))
+
+        # 기존 일수는 되돌리고, 새 일수를 반영
+        updated_used_leave = current_used_leave- old_total_days+ new_total_days
+
+        # 잔여 휴가 보다 사용 휴가가 많으면 400 에러 발생
+        if updated_used_leave > total_leave:
+            available_days = total_leave - current_used_leave + old_total_days
+
+            raise HTTPException(status_code=400,detail=(f"잔여 휴가 일수가 부족합니다. 수정 가능: {available_days}일, 요청: {new_total_days}일"))
+
+        if updated_used_leave < 0:
+            raise HTTPException(status_code=409,detail="사용 휴가 일수 데이터가 올바르지 않습니다.")
+
+        # 사용 휴가 일수 갱신
+        employee.used_leave = updated_used_leave
+
+        # 직원 ID는 건드리지 않고 휴가 내용만 수정
+        leave.leave_type = str(request_in["leave_type"]).strip()
+        leave.start_date = new_start_date
+        leave.end_date = new_end_date
+        leave.total_days = new_total_days
+
+        db.commit()
+        db.refresh(leave)
+
+        return {
+            "success": 200,
+            "message": "휴가 일정이 수정되었습니다.",
+            "data": {
+                "id": leave.id,
+                "employee_id": leave.employee_id,
+                "leave_type": leave.leave_type,
+                "start_date": leave.start_date,
+                "end_date": leave.end_date,
+                "total_days": float(leave.total_days),
+            },
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"휴가 일정 수정 중 오류가 발생했습니다: {str(error)}",
+        )
