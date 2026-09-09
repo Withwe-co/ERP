@@ -1,13 +1,13 @@
 import React, {useState} from 'react';
 import styled from 'styled-components';
-import {useMutation,useQueryClient} from '@tanstack/react-query';
+import {useMutation, useQuery,useQueryClient} from '@tanstack/react-query';
 import {toast} from 'react-toastify';
 import {Package,AlertCircle} from 'lucide-react';
 import Input from '../common/Input';
 import Select from '../common/Select';
 import Button from '../common/Button';
 import Card from '../common/Card';
-import { LeavesApi} from '../../services/api';
+import { EmployeeApi, LeavesApi} from '../../services/api';
 
 interface LeavesUploadFormData {
     employee_id: number;
@@ -89,6 +89,15 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
         {value: '오후 반차', label: '오후 반차'},
         {value: '병가', label: '병가'}
     ];
+
+    const {data: employeesData,isLoading: isEmployeesLoading,isError: isEmployeesError,} = useQuery({
+        queryKey: ['employees'],
+        queryFn: EmployeeApi.getEmployeeList,
+    });
+    const employeeOptions = (employeesData?.data?.items ?? []).map((employee: { id: number; name: string; position: string }) => ({
+        value: employee.id,
+        label: `${employee.name} (${employee.position})`,
+    }));
 
     const getInitialFormData = (): LeavesUploadFormData => {
         if (!initialData) {
@@ -220,14 +229,24 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
                     </div>
 
                     <FormGrid>
-                        <Input
-                            label={'\u00A0\u00A0요청자 ID\u00A0'}
-                            value={formData.employee_id}
-                            onChange={(e) => handleChange('employee_id',  Number(e.target.value))}
-                            placeholder="요청자 ID를 입력하세요"
-                            type="number"
+                        <Select
+                            label="팀원"
+                            value={formData.employee_id || ''}
+                            options={employeeOptions}
+                            onChange={(value) => handleChange('employee_id', Number(value))}
+                            placeholder={
+                                isEmployeesLoading
+                                ? '팀원 목록을 불러오는 중입니다...'
+                                : '팀원을 선택하세요'
+                            }
+                            disabled={isEmployeesLoading || isEmployeesError}
                             required
                         />
+                        {isEmployeesError && (
+                            <div style={{ color: '#dc2626', fontSize: '12px' }}>
+                                팀원 목록을 불러오지 못했습니다.
+                            </div>
+                        )}
 
                         <Select
                             label={'\u00A0\u00A0휴가 형태\u00A0'}
