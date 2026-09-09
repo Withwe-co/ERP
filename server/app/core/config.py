@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
     SMTP_USE_SSL: bool = False
 
+    # Slack
+    SLACK_BOT_TOKEN: str = ""
+    SLACK_TASK_CHANNEL_ID: str = ""
+
     # 한국천문연구원 특일 정보 API 일반 키
     KOREA_HOLIDAY_SERVICE_KEY: Optional[str] = None
     
