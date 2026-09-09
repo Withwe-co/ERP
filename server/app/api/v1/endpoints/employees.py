@@ -80,10 +80,15 @@ def create_employee(*,request: Request,db:Session=Depends(get_db),background_tas
         print(f"팀원 생성 시작")
 
         # 필수 필드 검증
-        required_fields = ['name', 'position', 'total_leave', 'used_leave']
+        required_fields = ['name', 'position']
+
         for field in required_fields:
-            if field not in request_in or not request_in[field]:
-                raise HTTPException(status_code=422 , detail=f"필수 필드가 누락되었습니다: {field}")
+            if field not in request_in or not str(request_in[field]).strip():
+                raise HTTPException(status_code=422,detail=f"필수 필드가 누락되었습니다: {field}")
+
+        for field in ["total_leave", "used_leave"]:
+            if field not in request_in or request_in[field] is None:
+                raise HTTPException(status_code=422,detail=f"필수 필드가 누락되었습니다: {field}")
             
         # 데이터 생성
         safe_data = {

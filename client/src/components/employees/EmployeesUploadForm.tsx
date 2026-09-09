@@ -165,13 +165,13 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
           newErrors.position = '직책을 선택해주세요.';
         }
     
-        if (!formData.total_leave.toString().trim()) {
-          newErrors.total_leave = '총 휴가일수를 입력해주세요.';
+        if (formData.total_leave < 0) {
+            newErrors.total_leave = '총 연가는 0 이상이어야 합니다.';
         }
 
-        if (!formData.used_leave.toString().trim()) {
-          newErrors.used_leave = '사용 휴가일수를 입력해주세요.';
-        } 
+        if (formData.used_leave < 0) {
+            newErrors.used_leave = '사용 연가는 0 이상이어야 합니다.';
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -192,14 +192,6 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
         };
         console.log('submitData:', JSON.stringify(submitData, null, 2));
         
-        // 필수 필드 체크
-        const requiredFields = ['name', 'position', 'total_leave', 'used_leave'];
-        const missingFields = requiredFields.filter(field => !submitData[field]);
-        if (missingFields.length > 0) {
-            console.error('누락된 필수 필드:', missingFields);
-            toast.error(`필수 필드가 누락되었습니다: ${missingFields.join(', ')}`);
-            return;
-        }
         // 수정 모드면 업데이트, 아니면 생성
         if (isEdit && initialData?.id) {
             updateMutation.mutate({ id: initialData.id, data: submitData });
