@@ -167,6 +167,20 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
         },
     });
 
+    //휴가 일정 삭제
+    const deleteItemMutation = useMutation({
+        mutationFn: LeavesApi.deleteLeave,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['leaves'] });
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+            toast.success('휴가 일정이 철회되었습니다.');
+            onSuccess();
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || '휴가 일정 철회 중 오류가 발생했습니다.');
+        },
+    });
+
     const isLoading = createMutation.isPending || updateMutation.isPending;
 
     const [formData, setFormData] = useState<LeavesUploadFormData>(getInitialFormData());
@@ -288,6 +302,13 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
         }
     };
 
+    // 휴가 삭제
+    const handleDelete = async (itemId: number) => {
+        if (window.confirm('정말로 이 휴가 일정을 철회하시겠습니까?')) {
+            deleteItemMutation.mutate(itemId);
+        }
+    };
+
     return (
         <FormContainer>
             <form onSubmit={handleSubmit}>
@@ -356,6 +377,15 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
                     </FormGrid>
                 </FormSection>
                 <ButtonGroup>
+                    {isEdit && initialData && (
+                        <Button 
+                            type="button" 
+                            variant="danger" 
+                            onClick={()=>handleDelete(initialData.id)}
+                        >
+                            철회
+                        </Button>
+                    )}
                     <Button type="button" variant="outline" onClick={onCancel}>
                         취소
                     </Button>

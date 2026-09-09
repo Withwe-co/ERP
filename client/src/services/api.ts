@@ -2089,6 +2089,16 @@ export const LeavesApi = {
       throw error;
     }
   },
+  // Leaves 삭제
+  deleteLeave: async (id: number): Promise<any> => {
+    try {
+      const response = await apiRequest.delete(`/leaves/${id}`);
+      return response;
+    } catch (error) {
+      console.error('휴가 철회 실패:', error);
+      throw error;
+    }
+  },
   // Leaves 조회
   getLeaves: async () => {
     return apiRequest.get('/leaves/');

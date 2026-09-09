@@ -180,7 +180,7 @@ def update_leave(leave_id: int,request_in: dict,db: Session = Depends(get_db)):
     """
     
     try:
-        # 수정 대상 휴가 일정 잠금
+        # 수정 대상 휴가 일정 
         leave = db.query(DBLeaves).filter(DBLeaves.id == leave_id).with_for_update().first()
 
         # 해당 휴가 일정 없으면 404 에러 발생
@@ -259,7 +259,67 @@ def update_leave(leave_id: int,request_in: dict,db: Session = Depends(get_db)):
 
     except Exception as error:
         db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"휴가 일정 수정 중 오류가 발생했습니다: {str(error)}",
-        )
+        raise HTTPException(status_code=500,detail=f"휴가 일정 수정 중 오류가 발생했습니다: {str(error)}")
+
+@router.delete("/{leave_id}", response_model=dict)
+def delete_leave(leave_id: int,db: Session = Depends(get_db)):
+    """
+            summary : 휴가 일정 철회 함수
+        
+            arg : 
+                - leave_id (int) : 철회할 휴가 일정 ID
+                - db (Session) : DB 세션
+        
+            desc : 
+                - DB에서 전달받은 id와 같은 휴가 일정 조회
+                - 전달받은 id가 DB에 없으면 404 에러 반환
+                - 해당 휴가 일정의 직원 조회 후, 사용 휴가 일수 복구
+                - 휴가 일정 철회
+                - 예외 처리 : 500 에러 반환 & Rollback
+    """
+    try:
+        # 철회할 휴가 일정
+        leave = db.query(DBLeaves).filter(DBLeaves.id == leave_id).with_for_update().first()
+        
+        # 해당 휴가 일정 없으면 404 에러 발생
+        if not leave:
+            raise HTTPException(status_code=404,detail="철회할 휴가 일정을 찾을 수 없습니다.")
+
+        # 해당 직원 조회 실패 시 409 에러 발생
+        employee = db.query(DBEmployee).filter(DBEmployee.id == leave.employee_id).with_for_update().first()
+    
+        if not employee:
+            raise HTTPException(status_code=409, detail="휴가 일정의 팀원 정보를 찾을 수 없습니다.")
+
+        # 사용 휴가 일수 복구
+        leave_days = Decimal(str(leave.total_days))
+        current_used_leave = Decimal(str(employee.used_leave or 0))
+        updated_used_leave = current_used_leave - leave_days
+
+        # 데이터가 비정상인 경우 음수 방지 -> 409 에러 발생
+        if updated_used_leave < 0:
+            raise HTTPException(status_code=409,detail="직원의 사용 휴가 일수 데이터가 올바르지 않습니다.")
+
+        # 사용 휴가 복구 후 일정 삭제
+        employee.used_leave = updated_used_leave
+        db.delete(leave)
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "휴가 일정이 철회되었습니다.",
+            "data": {
+                "id": leave_id,
+                "employee_id": employee.id,
+                "restored_leave_days": float(leave_days),
+                "used_leave": float(updated_used_leave),
+            },
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(status_code=500,detail=f"휴가 일정 철회 중 오류가 발생했습니다: {str(error)}")

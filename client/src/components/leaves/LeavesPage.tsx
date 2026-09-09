@@ -160,7 +160,7 @@ const LeavesPage: React.FC = () => {
                     initialView="dayGridMonth"
                     locale={koLocale}
                     events={leaveEvents}
-                    dateClick={handleDateClick}
+                    //dateClick={handleDateClick}
                     eventClick={handleEventClick}
                     headerToolbar={{
                         left: 'prev,next today',
