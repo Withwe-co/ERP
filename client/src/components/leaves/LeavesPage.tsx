@@ -167,7 +167,7 @@ const LeavesPage: React.FC = () => {
                         center: 'title',
                         right: 'dayGridMonth',
                     }}
-                    height="auto"
+                    height="800px"
                 />
           </Card>
       </Container>
