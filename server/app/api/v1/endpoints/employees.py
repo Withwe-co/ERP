@@ -134,3 +134,103 @@ def create_employee(*,request: Request,db:Session=Depends(get_db),background_tas
         import traceback
         print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"팀원 등록에 실패했습니다: {str(e)}")
+
+
+@router.put("/{employee_id}",response_model=dict)
+def update_employee(employee_id: int,request_in: UpdateEmployee,db:Session=Depends(get_db)):
+
+    """
+        summary : 팀원 수정 함수
+
+        arg : 
+            - employee_id (int) : 수정 팀원 ID
+            - request_in : 수정스키마
+            - db (Session) : DB 세션
+            
+        desc : 
+            - DB에서 전달받은 id와 같은 데이터 조회
+            - 전달받은 id가 DB에 없으면 404 에러 반환
+            - 실제로 전달된 부분과 변경된 부분 확인
+            - 변경된 값 X -> 400에러 반환
+            - DB에 데이터 저장
+            - 예외 처리 : 500 에러 반환 & Rollback
+    """
+
+    try:
+        # DB에서 전달받은 id조회
+        employee=db.query(DBEmployee).filter(DBEmployee.id==employee_id).first()
+
+        # DB에서 id조회 실패 -> 404에러
+        if employee is None:
+            raise HTTPException(status_code=404,detail="팀원을 찾을 수 없습니다.")
+
+        # 실제로 전달된 항목만 추출
+        update_data = request_in.model_dump(exclude_unset=True)
+
+        # 실제로 변경된 부분 확인
+        changed_data = {
+            field: value
+            for field, value in update_data.items()
+            if getattr(employee, field) != value
+        }
+
+        # 실제로 변경된 값 X -> 400 에러
+        if not changed_data:
+            raise HTTPException(status_code=400,detail="수정 사항이 없습니다.")
+
+        # 수정값으로 변경
+        for field, value in changed_data.items():
+            setattr(employee,field,value)
+
+        db.commit()
+        db.refresh(employee)
+
+        return {
+            # 성공 코드
+            "success": 200,
+            "message": "팀원정보가 수정되었습니다.",
+            "data": EmployeeInDB.model_validate(employee).model_dump(),
+        }
+
+    except HTTPException:
+            raise
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"팀원 수정 중 오류가 발생했습니다: {str(e)}")
+
+
+@router.delete("/{employee_id}")
+def delete_employee(employee_id: int,db: Session = Depends(get_db)):
+    """
+        summary : 팀원 삭제 함수
+
+        arg : 
+            - id(int) : 해당 팀원의 ID
+            - db(Session) : 데이터베이스
+        
+        desc :
+            - 해당 ID에 맞는 팀원 조회
+            - 조회 실패 시 -> 404에러
+            - db에서 팀원 삭제
+            - 삭제 실패 시 -> 500에러
+    """
+    # 해당 ID에 맞는 팀원 조회
+    employee=db.query(DBEmployee).filter(DBEmployee.id==employee_id).first()
+
+    # 조회 실패 시 -> 404에러
+    if employee is None:
+        raise HTTPException(status_code=404, detail="팀원을 찾을 수 없습니다.")
+
+    # db에서 팀원 삭제
+    try:
+        db.delete(employee)
+        db.commit()
+    except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"팀원 삭제 중 오류가 발생했습니다: {str(e)}")
+
+    return {
+        "success": 204,
+        "message": "팀원이 삭제되었습니다.",
+    }

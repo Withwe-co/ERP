@@ -95,11 +95,11 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
     const [errors,setErrors] = useState<Record<string,string>>({});
     
     const positionOption =[
-        {value: 'Chief', label: '수석 연구원'},
-        {value: 'Principal', label: '책임 연구원'},
-        {value: 'Senior', label: '선임 연구원'},
-        {value: 'Junior', label: '연구원'},       
-        {value: 'Intern', label: '인턴'}
+        {value: '수석 연구원', label: '수석 연구원'},
+        {value: '책임 연구원', label: '책임 연구원'},
+        {value: '선임 연구원', label: '선임 연구원'},
+        {value: '연구원', label: '연구원'},       
+        {value: '인턴', label: '인턴'}
     ];
 
     const getInitialFormData = (): EmployeesUploadFormData => {

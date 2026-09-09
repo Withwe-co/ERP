@@ -52,6 +52,14 @@ const ActionButtons = styled.div`
   margin-left: auto;
 `;
 
+const ActionButtonGroup = styled.div`
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 40px;
+`;
 
 const EmployeesPage: React.FC = () => {
 
@@ -67,7 +75,18 @@ const EmployeesPage: React.FC = () => {
       retry: 2,
   });
 
-  //const employees = employeesData?.data?.items || [];
+  // 팀원 정보 삭제
+      const deleteMutation = useMutation({
+          mutationFn: EmployeeApi.deleteEmployee,
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+            toast.success('팀원 정보가 삭제되었습니다.');
+          },
+          onError: (error: any) => {
+            toast.error(error.response?.data?.message || '삭제 중 오류가 발생했습니다.');
+          },
+      });
+  
   
   // 테이블 컬럼 정의
   const handleRefresh = async () => {
@@ -93,12 +112,24 @@ const EmployeesPage: React.FC = () => {
     setEditingEmployee(null);
   };
 
+  const handleEdit = (item: EmployeeList) => {
+    setEditingEmployee(item);
+    setIsFormModalOpen(true);
+  };
+
+  const handleDelete = async (itemId: number) => {
+    if (window.confirm('정말로 이 팀원을 삭제하시겠습니까?')) {
+        deleteMutation.mutate(itemId);
+    }
+  };
+
   const columns: TableColumn<EmployeeList>[] = useMemo(() => [
     {
       key: 'name',
       label: '이름',
       sortable: true,
       width: '200px',
+      align: 'center',
       render: (value) => (
         <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value}</div>
@@ -110,6 +141,7 @@ const EmployeesPage: React.FC = () => {
       label: '직책',
       sortable: true,
       width: '200px',
+      align: 'center',
       render: (value) => (
         <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value}</div>
@@ -121,6 +153,7 @@ const EmployeesPage: React.FC = () => {
       label: '잔여 연차',
       sortable: true,
       width: '80px',
+      align: 'center',
       render: (value) => (
         <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value}</div>
@@ -132,12 +165,47 @@ const EmployeesPage: React.FC = () => {
       label: '사용 연차',
       sortable: true,
       width: '80px',
+      align: 'center',
       render: (value) => (
         <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value}</div>
         </div>
       )
     },
+    {
+      key: 'actions',
+      label: '관리',
+      width: '180px',
+      align: 'center',
+      verticalAlign: 'middle',
+      style: { verticalAlign: 'middle' },
+      render: (_, item) => {
+        
+        return (
+          <ActionButtonGroup>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {handleEdit(item)}}
+              title="수정"
+            >
+              <Edit size={14} />
+              수정
+            </Button>
+            
+              <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {handleDelete(item.id)}}
+              title="삭제"
+            >
+              <Edit size={14} />
+              삭제
+            </Button>
+          </ActionButtonGroup>
+        );
+      },
+    }
   ], []);
 
     return (
