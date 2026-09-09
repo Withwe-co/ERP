@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState,useEffect} from 'react';
 import styled from 'styled-components';
 import {useMutation, useQuery,useQueryClient} from '@tanstack/react-query';
 import {toast} from 'react-toastify';
@@ -152,7 +152,28 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
     });
 
     const isLoading = createMutation.isPending || updateMutation.isPending;
+
     const [formData, setFormData] = useState<LeavesUploadFormData>(getInitialFormData());
+    useEffect(() => {
+        const { start_date, end_date } = formData;
+
+        if (!start_date || !end_date || end_date < start_date) {
+            setFormData((prev) => ({ ...prev, total_days: 0 }));
+            return;
+        }
+
+        const start = new Date(`${start_date}T00:00:00`);
+        const end = new Date(`${end_date}T00:00:00`);
+
+        const diffInMilliseconds = end.getTime() - start.getTime();
+        const totalDays = Math.floor(diffInMilliseconds / (1000 * 60 * 60 * 24)) + 1;
+
+        setFormData((prev) => ({
+            ...prev,
+            total_days: totalDays,
+        }));
+    }, [formData.start_date, formData.end_date]);
+
     const validateForm = (): boolean => {
        const newErrors: Record<string, string> = {};
     
@@ -275,11 +296,11 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
                         />
 
                         <Input
-                            label={'\u00A0\u00A0신청 일수\u00A0'}
+                            label={'\u00A0\u00A0총 사용 휴가\u00A0'}
                             value={formData.total_days}
-                            onChange={(e) => handleChange('total_days', Number(e.target.value))}
-                            placeholder="신청 일수"
+                            placeholder="시작일과 종료일을 선택하면 자동 계산됩니다."
                             type="number"
+                            disabled
                             required
                         />
                     </FormGrid>
