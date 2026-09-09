@@ -79,6 +79,7 @@ const EmployeesPage: React.FC = () => {
       },
       staleTime: 0,
       refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
       retry: 2,
   });
 

@@ -71,6 +71,9 @@ const LeavesPage: React.FC = () => {
     const { data: leaveEvents = [], refetch } = useQuery({
         queryKey: ['leaves'],
         queryFn: () => LeavesApi.getLeaves(),
+        staleTime: 0,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: 'always'
     });
 
     const handleDateClick = (info: { dateStr: string }) => {

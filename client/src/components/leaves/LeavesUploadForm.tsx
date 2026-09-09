@@ -33,6 +33,13 @@ interface LeavesUploadFormProps {
     isEdit?: boolean;
 }
 
+// 직원 선탭 옵션 조회용
+interface EmployeeOptionItem {
+  id: number;
+  name: string;
+  position: string;
+}
+
 const FormContainer = styled.div`
   max-width: 800px;
   margin: 0 auto;
@@ -92,11 +99,16 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
     // 반차 유형 체크
     const HALF_DAY_TYPES = ['오전 반차', '오후 반차'];
 
-    const {data: employeesData,isLoading: isEmployeesLoading,isError: isEmployeesError,} = useQuery({
+    const {data: employees = [],isLoading: isEmployeesLoading,isError: isEmployeesError,} = useQuery<EmployeeOptionItem[]>({
         queryKey: ['employees'],
-        queryFn: EmployeeApi.getEmployeeList,
+        queryFn: async () => {
+            const response = await EmployeeApi.getEmployeeList();
+            return response.data?.items ?? [];
+        },
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
-    const employeeOptions = (employeesData?.data?.items ?? []).map((employee: { id: number; name: string; position: string }) => ({
+    const employeeOptions = employees.map((employee) => ({
         value: employee.id,
         label: `${employee.name} (${employee.position})`,
     }));
@@ -127,7 +139,8 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
             mutationFn: LeavesApi.createLeave,
             onSuccess: () => {
               queryClient.invalidateQueries({ queryKey: ['leaves'] });
-              toast.success(isEdit ? '휴가 정보가 수정되었습니다.' : '휴가가 등록되었습니다.');
+              queryClient.invalidateQueries({ queryKey: ['employees'] });
+              toast.success('휴가가 등록되었습니다.');
               onSuccess();
             },
             onError: (error: any) => {
@@ -144,6 +157,7 @@ const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
         mutationFn: ({ id, data }: { id: number; data: any }) => LeavesApi.updateLeave(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['leaves'] });
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
             toast.success('휴가 정보가 수정되었습니다.');
             onSuccess();
         },
