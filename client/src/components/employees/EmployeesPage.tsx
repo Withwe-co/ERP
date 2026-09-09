@@ -232,6 +232,7 @@ const EmployeesPage: React.FC = () => {
                   </Button>
               </ActionButtons>
             </FilterContainer>
+
               <Table
                 columns={columns}
                 data={employees}

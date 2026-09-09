@@ -413,6 +413,23 @@ export interface EmployeeUploadFormData {
   used_leave: number;
 }
 
+export interface Leaves{
+  id: number;
+  employee_id: number;
+  leave_type: string;
+  start_date: Date;
+  end_date: Date;
+  total_days: number;
+}
+
+export interface LeavesUploadFormData {
+    employee_id: number;
+    leave_type: string;
+    start_date: Date;
+    end_date: Date;
+    total_days: number;
+}
+
 // 태스크 관리 API
 export const taskApi = {
   createTask: async (data: TaskCreateData,): Promise<TaskCreateResponse> => {
@@ -2048,6 +2065,36 @@ export const EmployeeApi = {
 
 };
 
+// Leaves Api
+export const LeavesApi = {
+
+  // Leaves 생성
+  createLeave: async (data: LeavesUploadFormData): Promise<Leaves> => {
+    try {
+      const response = await apiRequest.post('/leaves/', data);
+      console.log('HTTP 상태 코드 : ',response.success);
+      return response;
+    } catch (error) {
+      console.error('휴가 등록 실패:', error);
+      throw error;
+    }
+  },
+  // Leaves 수정
+  updateLeave: async (id: number, data: Partial<LeavesUploadFormData>): Promise<Leaves> => {
+    try {
+      const response = await apiRequest.put(`/leaves/${id}`, data);
+      return response;
+    } catch (error) {
+      console.error('API 오류 상세:', error.response?.data);
+      throw error;
+    }
+  },
+  // Leaves 조회
+  getLeaves: async () => {
+    return apiRequest.get('/leaves/');
+  },
+};
+
 export default {
   dashboard: dashboardApi,
   purchase: purchaseApi,
@@ -2062,4 +2109,5 @@ export default {
   projectwbs: WbsApi,
   holiday: holidayApi, // 공휴일 조회 API
   employee: EmployeeApi, // 팀원 관리 API
+  leaves: LeavesApi, // 공휴일 조회 API
 };

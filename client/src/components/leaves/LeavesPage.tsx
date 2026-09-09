@@ -6,24 +6,29 @@ import {Edit,Plus} from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 
 // Components
-import Table from '../common/Table';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
+import LeavesUploadForm from './LeavesUploadForm';
 
 // Services
-//import { projectApi, type Project } from '@/services/api';
-import api from '../../services/api';
-
-// Type
-import { TableColumn } from '../../types';
+import {LeavesApi} from '../../services/api';
 
 //Fullcalendar
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import koLocale from '@fullcalendar/core/locales/ko';
+import queryClient from '@/hooks/queryClient';
 
+interface Leave {
+  id: number;
+  employee_id: number;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  total_days: number;
+}
 
 const Container = styled.div`
   padding: 20px;
@@ -61,16 +66,12 @@ const ActionButtons = styled.div`
 
 const LeavesPage: React.FC = () => {
 
-    //더미 데이터
-    const leaveEvents = [
-        {
-            id: '1',
-            title: '성연아 · 연차',
-            start: '2026-09-10',
-            end: '2026-09-11',
-            allDay: true,
-        },
-    ];
+    const queryClient = useQueryClient();
+    // 휴가 일정 조회
+    const { data: leaveEvents = [], refetch } = useQuery({
+        queryKey: ['leaves'],
+        queryFn: () => LeavesApi.getLeaves(),
+    });
 
     const handleDateClick = (info: { dateStr: string }) => {
         console.log('선택한 날짜:', info.dateStr);
@@ -82,7 +83,34 @@ const LeavesPage: React.FC = () => {
         toast.info(`${info.event.title} 일정을 선택했습니다.`);
     };
 
+    const handleRefresh = async () => {
+      try {
+        await queryClient.invalidateQueries({ queryKey: ['leaves'] });
+        await refetch();
+      } catch (error) {
+        console.error('휴가 일정 새로고침 실패:', error);
+        toast.error('휴가 일정을 새로고침하지 못했습니다.');
+      }
+    };
+
+    const [editingLeave, setEditingLeave] = useState<Leave | null>(null);
+    const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
+    const handleFormSuccess = () => {
+        setIsFormModalOpen(false);
+        setEditingLeave(null);
+        handleRefresh();
+    };
+    const handleFormCancel = () => {
+        setIsFormModalOpen(false);
+        setEditingLeave(null);
+    };
+
+    const handleEdit = (item: Leave) => {
+        setEditingLeave(item);
+        setIsFormModalOpen(true);
+    };
     return (
+        <>
         <Container>
           <PageTitle>휴가 관리</PageTitle>
           <PageSubtitle>휴가 일정을 등록하고 관리하세요.</PageSubtitle>
@@ -90,7 +118,7 @@ const LeavesPage: React.FC = () => {
             <FilterContainer>
                 <ActionButtons>
                     <Button
-                    onClick={() => {}} 
+                    onClick={() => setIsFormModalOpen(true)}
                     title="휴가 추가"
                     >
                     <Plus size={16}/>
@@ -114,7 +142,21 @@ const LeavesPage: React.FC = () => {
                 />
           </Card>
       </Container>
-    )
+      <Modal
+        isOpen={isFormModalOpen}
+        onClose={handleFormCancel}
+        title={editingLeave ? '휴가 일정 수정' : '새 휴가 일정 등록'}
+        size="xl"
+      >
+        <LeavesUploadForm
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormCancel}
+          initialData={editingLeave || undefined}
+          isEdit={!!editingLeave}
+        />
+      </Modal>
+      </>
+    );
 
 };
 export default LeavesPage;
