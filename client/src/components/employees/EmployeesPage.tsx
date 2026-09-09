@@ -2,7 +2,7 @@ import React, {useState,useMemo} from 'react';
 import styled from 'styled-components';
 import { useQuery, useMutation} from '@tanstack/react-query';
 import {toast} from 'react-toastify';
-import {Edit,Plus} from 'lucide-react'
+import {Edit,Plus, Trash2} from 'lucide-react'
 
 // Components
 import Table from '../common/Table';
@@ -135,7 +135,6 @@ const EmployeesPage: React.FC = () => {
     {
       key: 'name',
       label: '이름',
-      sortable: true,
       width: '200px',
       align: 'center',
       render: (value) => (
@@ -147,7 +146,6 @@ const EmployeesPage: React.FC = () => {
     {
       key: 'position',
       label: '직책',
-      sortable: true,
       width: '200px',
       align: 'center',
       render: (value) => (
@@ -159,7 +157,6 @@ const EmployeesPage: React.FC = () => {
     {
       key: 'total_leave',
       label: '잔여 연차',
-      sortable: true,
       width: '80px',
       align: 'center',
       render: (value) => (
@@ -171,7 +168,6 @@ const EmployeesPage: React.FC = () => {
     {
       key: 'used_leave',
       label: '사용 연차',
-      sortable: true,
       width: '80px',
       align: 'center',
       render: (value) => (
@@ -207,7 +203,7 @@ const EmployeesPage: React.FC = () => {
               onClick={() => {handleDelete(item.id)}}
               title="삭제"
             >
-              <Edit size={14} />
+              <Trash2 size={14} />
               삭제
             </Button>
           </ActionButtonGroup>
