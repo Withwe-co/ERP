@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     tasks,
     projectwbs,
     holidays,
+    employees,
 )
 
 api_router = APIRouter()
@@ -77,3 +78,9 @@ api_router.include_router(
     tags=["holidays"],
 )
 
+# employees 팀원 관리 엔드포인트
+api_router.include_router(
+    employees.router,
+    prefix="/employees",
+    tags=["employees"],
+)

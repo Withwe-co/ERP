@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     SMTP_USE_SSL: bool = False
 
     # 한국천문연구원 특일 정보 API 일반 키
-    KOREA_HOLIDAY_SERVICE_KEY: Optional[str] = None
+    KOREA_HOLIDAY_SERVICE_KEY: str = ""
     
     #class Config:
     #    env_file = ".env"
