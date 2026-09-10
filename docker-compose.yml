@@ -59,6 +59,12 @@ services:
       - WATCHFILES_FORCE_POLLING=true  # 파일 변경 감지 강제
       # 데이터베이스 설정
       - DATABASE_URL=postgresql://inventory_user:inventory_password@postgres:5432/inventory_db
+
+      # 슬랙 연동
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_TASK_CHANNEL_ID=${SLACK_TASK_CHANNEL_ID}
+
+      # 공휴일 연동 키값
       - KOREA_HOLIDAY_SERVICE_KEY=${KOREA_HOLIDAY_SERVICE_KEY}
     
       
