@@ -2,7 +2,7 @@
 프로젝트 선택 후 WBS탭 선택 시 사용하는 함수들
 """
 from typing import List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query,Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import pandas as pd
@@ -10,6 +10,8 @@ from io import BytesIO
 from datetime import datetime
 
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
+
 from app.schemas.wbs import WbsBase,UpdateWbs,WbsInDB
 
 from app.models.wbs import Wbs as DBWbs
@@ -17,12 +19,15 @@ from app.models.tasks import Task as DBTask
 router = APIRouter()
 
 @router.post("/",response_model=dict)
-def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+@rate_limit(max_requests=10, window_seconds=300)
+def create_wbs(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
 
     """
         summary : WBS 등록 함수
 
-        arg : db (Session) : DB 세션
+        arg : 
+            - Request : 현재 HTTP 요청 정보
+            - db (Session) : DB 세션
 
         desc : 
             - 필수 항목 검증 (WBS코드,WBS명)
