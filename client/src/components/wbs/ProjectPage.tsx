@@ -200,6 +200,7 @@ const ProjectPage: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const project = location.state?.project;
+    const queryClient = useQueryClient();
 
     // 테스크 목록 조회
     const { data: taskList = [] } = useQuery({
@@ -272,6 +273,18 @@ const ProjectPage: React.FC = () => {
     }, [taskList]);
 
 
+  // 탭 변경 시 WBS 및 태스크 관련 캐시를 무효화하여 다음 렌더링 때 API 재조회
+  const handleTabChange = (tab: 'wbs' | 'tasks') => {
+    queryClient.invalidateQueries({
+      queryKey: ['projectwbs', project.id],
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: ['tasks', project.id],
+    });
+
+    setActiveTab(tab);
+  };
 
 
     // 현재 선택된 프로젝트 상세 탭
@@ -355,14 +368,14 @@ const ProjectPage: React.FC = () => {
               <TabArea>
                   <TabButton
                   $active={activeTab === 'wbs'}
-                  onClick={() => setActiveTab('wbs')}
+                  onClick={() => handleTabChange('wbs')}
                   >
                   WBS
                   </TabButton>
 
                   <TabButton
                   $active={activeTab === 'tasks'}
-                  onClick={() => setActiveTab('tasks')}
+                  onClick={() => handleTabChange('tasks')}
                   >
                   전체 태스크
                   </TabButton>
