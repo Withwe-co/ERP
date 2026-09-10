@@ -56,10 +56,11 @@ const SidebarHeader = styled.div<{ isOpen: boolean }>`
   position: relative;
 `;
 
-const Logo = styled.div<{ isOpen: boolean }>`
+const Logo = styled.div<{ isOpen: boolean; $clickable?: boolean}>`
   display: flex;
   align-items: center;
   gap: ${props => props.isOpen ? '8px' : '0'};
+  cursor: ${props => (props.$clickable ? 'pointer' : 'default')};
   
   .logo-icon {
     min-width: 28px;
@@ -447,15 +448,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   return (
     <SidebarContainer isOpen={isOpen}>
       <SidebarHeader isOpen={isOpen}>
-        <Logo isOpen={isOpen}>
+        <Logo isOpen={isOpen} $clickable={!isOpen} onClick={!isOpen ? onToggle : undefined}>
           <div className="logo-icon">
             <Package size={16} />
           </div>
           <h1 className="logo-text">ERP 시스템</h1>
         </Logo>
-        <ToggleButton isOpen={isOpen} onClick={onToggle}>
-          {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-        </ToggleButton>
+        {isOpen && (
+          <ToggleButton isOpen={isOpen} onClick={onToggle}>
+            <ChevronLeft size={14} />
+          </ToggleButton>
+        )}
         
         {/* 🔥 API 연결 상태 표시 */}
         <ConnectionStatus connected={apiConnected} title={apiConnected ? 'API 연결됨' : 'API 미연결 (샘플 모드)'} />
