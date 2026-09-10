@@ -652,15 +652,6 @@ const InventoryPage: React.FC = () => {
     // 어느 하나라도 있으면 수령 완료로 판단
     const result = hasReceiptHistory || hasLastReceived || hasReceivedBy || hasTotalReceived;
     
-    console.log(`품목 ${item.id} 수령 상태 확인:`, {
-      hasReceiptHistory,
-      hasLastReceived,
-      hasReceivedBy,
-      hasTotalReceived,
-      result,
-      receipt_history_length: item.receipt_history?.length || 0
-    });
-    
     return result;
   };
 
