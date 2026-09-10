@@ -419,16 +419,16 @@ export interface Leaves{
   id: number;
   employee_id: number;
   leave_type: string;
-  start_date: Date;
-  end_date: Date;
+  start_date: string;
+  end_date: string;
   total_days: number;
 }
 
 export interface LeavesUploadFormData {
     employee_id: number;
     leave_type: string;
-    start_date: Date;
-    end_date: Date;
+    start_date: string;
+    end_date: string;
     total_days: number;
 }
 
