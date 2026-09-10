@@ -1,5 +1,5 @@
 from typing import Any
-
+import os
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
@@ -14,7 +14,7 @@ HOLIDAY_API_URL = (
 
 # 서버가 실행되는 동안 같은 연도의 결과를 재사용
 holiday_cache: dict[int, list[dict[str, str]]] = {}
-
+settings.KOREA_HOLIDAY_SERVICE_KEY
 
 @router.get("/")
 async def get_korean_holidays(year: int = Query(..., ge=1900, le=2100),):

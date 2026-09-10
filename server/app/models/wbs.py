@@ -1,4 +1,4 @@
-from sqlalchemy import Column,Integer,String,Text,Date,UniqueConstraint
+from sqlalchemy import Column,Integer,String,Date,UniqueConstraint
 from app.core.database import Base
 from zoneinfo import ZoneInfo
 from datetime import datetime

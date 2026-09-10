@@ -10,8 +10,8 @@ import {createTaskImageFormData,} from '../components/wbs/task/taskImageUtils';
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
 // const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
 
-const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
-// const API_BASE_URL = 'http://localhost:8000/api/v1';
+//const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
+ const API_BASE_URL = '/api/v1';
 
 
 const api = axios.create({
@@ -398,6 +398,38 @@ export interface Wbs {
 export interface KoreanHoliday {
   date: string;
   name: string;
+}
+
+export interface Employee {
+  id: number;
+  name: string;
+  position: string;
+  total_leave: number;
+  used_leave: number;
+}
+
+export interface EmployeeUploadFormData {
+  name: string;
+  position: string;
+  total_leave: number;
+  used_leave: number;
+}
+
+export interface Leaves{
+  id: number;
+  employee_id: number;
+  leave_type: string;
+  start_date: Date;
+  end_date: Date;
+  total_days: number;
+}
+
+export interface LeavesUploadFormData {
+    employee_id: number;
+    leave_type: string;
+    start_date: Date;
+    end_date: Date;
+    total_days: number;
 }
 
 // 태스크 관리 API
@@ -2025,6 +2057,90 @@ export const holidayApi = {
   },
 };
 
+// EmployeeAPI
+export const EmployeeApi = {
+  // Employee 생성
+  createEmployee: async (data: EmployeeUploadFormData): Promise<Employee> => {
+    try {
+      const response = await apiRequest.post('/employees/', data);
+      console.log('HTTP 상태 코드 : ',response.success);
+      return response;
+    } catch (error) {
+      console.error('팀원 등록 실패:', error);
+      throw error;
+    }
+  },
+
+  // Employee 수정
+  updateEmployee: async (id: number, data: Partial<EmployeeUploadFormData>): Promise<Employee> => {
+    try {
+      const response = await apiRequest.put(`/employees/${id}`, data);
+      return response;
+    } catch (error) {
+      console.error('API 오류 상세:', error.response?.data);
+      throw error;
+    }
+  },
+
+  // Employee 삭제
+  deleteEmployee: async (id: number): Promise<any> => {
+    try {
+      const response = await apiRequest.delete(`/employees/${id}`);
+      return response;
+    } catch (error) {
+      console.error('팀원 삭제 실패:', error);
+      throw error;
+    }
+  },
+  
+  //  Employee 리스트 조회
+  getEmployeeList: async () => {
+    const response = await apiRequest.get('/employees/');
+    return { data: response };
+  },
+
+};
+
+// Leaves Api
+export const LeavesApi = {
+
+  // Leaves 생성
+  createLeave: async (data: LeavesUploadFormData): Promise<Leaves> => {
+    try {
+      const response = await apiRequest.post('/leaves/', data);
+      console.log('HTTP 상태 코드 : ',response.success);
+      return response;
+    } catch (error) {
+      console.error('휴가 등록 실패:', error);
+      throw error;
+    }
+  },
+  // Leaves 수정
+  updateLeave: async (id: number, data: Partial<LeavesUploadFormData>): Promise<Leaves> => {
+    try {
+      const response = await apiRequest.put(`/leaves/${id}`, data);
+      return response;
+    } catch (error) {
+      console.error('API 오류 상세:', error.response?.data);
+      throw error;
+    }
+  },
+  // Leaves 삭제
+  deleteLeave: async (id: number): Promise<any> => {
+    try {
+      const response = await apiRequest.delete(`/leaves/${id}`);
+      return response;
+    } catch (error) {
+      console.error('휴가 철회 실패:', error);
+      throw error;
+    }
+  },
+  // Leaves 조회
+  getLeaves: async () => {
+    return apiRequest.get('/leaves/');
+  },
+};
+
 export default {
   dashboard: dashboardApi,
   purchase: purchaseApi,
@@ -2038,4 +2154,6 @@ export default {
   task: taskApi, // 태스크 관리 API
   projectwbs: WbsApi,
   holiday: holidayApi, // 공휴일 조회 API
+  employee: EmployeeApi, // 팀원 관리 API
+  leaves: LeavesApi, // 공휴일 조회 API
 };

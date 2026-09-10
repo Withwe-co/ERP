@@ -19,7 +19,8 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Network
+  Network,
+  Plane
 } from 'lucide-react';
 import { purchaseApi } from '../../services/api';
 
@@ -381,6 +382,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { path: '/inventory', label: '품목 관리', icon: Package },
     { path: '/receipts', label: '수령 관리', icon: ClipboardCheck },
     { path: '/wbs', label: 'WBS', icon: Network},
+    { path: '/employees', label: '팀원 관리', icon: Users },
+    { path: '/leaves', label: '휴가 관리', icon: Plane },
     { path: '/kakao', label: '이메일 발송 이력', icon: MessageSquare },
   ];
 

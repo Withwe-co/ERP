@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     SLACK_TASK_CHANNEL_ID: str = ""
 
     # 한국천문연구원 특일 정보 API 일반 키
-    KOREA_HOLIDAY_SERVICE_KEY: Optional[str] = None
+    KOREA_HOLIDAY_SERVICE_KEY: str = ""
     
     #class Config:
     #    env_file = ".env"

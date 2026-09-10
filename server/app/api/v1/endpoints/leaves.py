@@ -1,0 +1,325 @@
+from typing import List, Optional, Any, Literal
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response,Request
+from sqlalchemy.orm import Session
+from sqlalchemy import text, func, or_, and_, extract
+import pandas as pd
+from io import BytesIO
+from datetime import datetime,date,timedelta
+from pydantic import BaseModel, Field
+from decimal import Decimal
+
+from app.core.database import get_db
+from app.models.employees import Employees as DBEmployee
+from app.models.leaves import Leaves as DBLeaves
+
+router = APIRouter()
+
+@router.post("/",response_model=dict)
+def create_leave(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+
+    """
+        summary : 휴가 일정 등록 함수
+
+        arg : db (Session) : DB 세션
+
+        desc : 
+            - 필수 필드 검증 후, 휴가 일정 데이터를 DB에 등록합니다.
+            - 등록 성공 시, 생성된 휴가 일정의 정보를 반환합니다.
+    """
+
+    try:
+        # 휴가 일정 생성 확인용 출력문
+        print(f"휴가 일정 생성 시작")
+
+        # 필수 필드 검증
+        required_fields = ['employee_id', 'leave_type', 'start_date', 'end_date', 'total_days']
+        for field in required_fields:
+            if field not in request_in or not request_in[field]:
+                raise HTTPException(status_code=422 , detail=f"필수 필드가 누락되었습니다: {field}")
+            
+        # 데이터 생성
+        safe_data = {
+            'employee_id': int(request_in['employee_id']),
+            'leave_type': str(request_in['leave_type']).strip(),
+            'start_date': datetime.strptime(request_in['start_date'], "%Y-%m-%d").date(),
+            'end_date': datetime.strptime(request_in['end_date'], "%Y-%m-%d").date(),
+            'total_days': Decimal(str(request_in['total_days'])),
+        }
+
+        # 직원 존재 여부 확인
+        employee = db.query(DBEmployee).filter(DBEmployee.id == safe_data['employee_id']).first()
+
+        # 직원이 존재하지 않으면 404 에러 발생
+        if not employee:
+            raise HTTPException(status_code=404, detail=f"해당 ID의 팀원을 찾을 수 없습니다: {safe_data['employee_id']}")
+
+        # 요청된 휴가
+        requested_days = safe_data["total_days"]
+
+        # 사용 휴가
+        current_used_leave = Decimal(str(employee.used_leave or 0))
+
+        # 전체 휴가
+        total_leave = Decimal(str(employee.total_leave or 0))
+
+        # 남은 휴가
+        remaining_leave = total_leave - current_used_leave
+
+        if requested_days <= 0:
+            raise HTTPException(status_code=422,detail="휴가 일수는 0보다 커야 합니다.")
+        
+        # 요청된 휴가가 남은 휴가보다 많으면 422 에러 발생
+        if requested_days > remaining_leave:   
+            raise HTTPException(status_code=422, detail=f"요청된 휴가 일수({requested_days})가 남은 휴가 일수({remaining_leave})보다 많습니다.")
+
+        # 휴가 일정 저장
+        leave = DBLeaves(**safe_data)
+        db.add(leave)
+
+        # 해당 직원의 사용 휴가 일수 누적
+        employee.used_leave = current_used_leave + requested_days
+
+        # 휴가 등록과 사용 일수 수정
+        db.commit()
+        db.refresh(leave)
+        db.refresh(employee)
+
+        print(f"휴가 일정 생성 완료")
+                
+        return {
+            "success": 201,
+            "message": "휴가 일정이 성공적으로 등록되었습니다.",
+            "data": {
+                "id": leave.id,
+                "employee_id": leave.employee_id,
+                "leave_type": leave.leave_type,
+                "start_date": leave.start_date,
+                "end_date": leave.end_date,
+                "total_days": leave.total_days
+            }
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        db.rollback()
+        print(f"휴가 일정 등록 실패: {e}")
+        import traceback
+        print(f"스택 트레이스: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"휴가 일정 등록에 실패했습니다: {str(e)}")
+
+
+@router.get("/")
+def read_leave_events(
+    start: date | None = Query(None, description="조회 시작일"),
+    end: date | None = Query(None, description="조회 종료일"),
+    db: Session = Depends(get_db),
+):
+    """
+        summary : 휴가 일정 조회 함수
+    
+        arg : 
+            - start (date | None) : 조회 시작일
+            - end (date | None) : 조회 종료일
+            - db (Session) : DB 세션
+    
+        desc : 
+            - 조회 기간과 겹치는 휴가 일정만 반환
+            - FullCalendar에서 사용하기 위한 형식으로 반환
+    """
+    if start and end and start >= end:
+        raise HTTPException(status_code=422,detail="종료일은 시작일보다 이후여야 합니다.")
+
+    query = db.query(DBLeaves, DBEmployee).join(DBEmployee, DBLeaves.employee_id == DBEmployee.id)
+
+    # 조회 기간과 겹치는 휴가만 반환
+    if start:
+        query = query.filter(DBLeaves.end_date >= start)
+
+    if end:
+        query = query.filter(DBLeaves.start_date < end)
+
+    leave_rows = query.order_by(DBLeaves.start_date.asc(), DBLeaves.id.asc()).all()
+    
+    return [
+        {
+            "id": str(leave.id),
+            "title": f"{employee.name} · {leave.leave_type}",
+            "start": leave.start_date.date().isoformat(),
+            # FullCalendar 종일 이벤트의 end는 제외 날짜이므로 하루를 더함
+            "end": (leave.end_date.date() + timedelta(days=1)).isoformat(),
+            "allDay": True,
+            "extendedProps": {
+                "employeeId": leave.employee_id,
+                "leaveType": leave.leave_type,
+                "totalDays": float(leave.total_days),
+            },
+        }
+        for leave, employee in leave_rows
+    ]
+
+
+@router.put("/{leave_id}", response_model=dict)
+def update_leave(leave_id: int,request_in: dict,db: Session = Depends(get_db)):
+    """
+        summary : 휴가 일정 수정 함수
+    
+        arg : 
+            - leave_id (int) : 수정할 휴가 일정 ID
+            - request_in (dict) : 수정할 휴가 일정 데이터
+            - db (Session) : DB 세션
+    
+        desc : 
+            - DB에서 전달받은 id와 같은 휴가 일정 조회
+            - 전달받은 id가 DB에 없으면 404 에러 반환
+            - 필수 필드 검증 후, 휴가 일정 데이터를 수정합니다.
+            - 직원의 사용 휴가 일수도 함께 갱신합니다.
+            - 예외 처리 : 500 에러 반환 & Rollback
+                
+    """
+    
+    try:
+        # 수정 대상 휴가 일정 
+        leave = db.query(DBLeaves).filter(DBLeaves.id == leave_id).with_for_update().first()
+
+        # 해당 휴가 일정 없으면 404 에러 발생
+        if not leave:
+            raise HTTPException(status_code=404,detail="수정할 휴가 일정을 찾을 수 없습니다.")
+
+        required_fields = ["leave_type","start_date","end_date","total_days"]
+
+        for field in required_fields:
+            if field not in request_in or request_in[field] in (None, ""):
+                raise HTTPException(status_code=422,detail=f"필수 필드가 누락되었습니다: {field}")
+
+        # 신규 수정 날짜 데이터
+        new_start_date = datetime.strptime(request_in["start_date"],"%Y-%m-%d",).date()
+        new_end_date = datetime.strptime(request_in["end_date"],"%Y-%m-%d",).date()
+        new_total_days = Decimal(str(request_in["total_days"]))
+
+        # 날짜 검증 실패 시 422 에러 발생
+        if new_total_days <= 0:
+            raise HTTPException(status_code=422,detail="휴가 일수는 0보다 커야 합니다.",)
+
+        if new_end_date < new_start_date:
+            raise HTTPException(status_code=422,detail="종료일은 시작일보다 빠를 수 없습니다.",)
+
+        # 기존 휴가의 직원만 조회 — 직원 변경 불가
+        employee = db.query(DBEmployee).filter(DBEmployee.id == leave.employee_id).with_for_update().first()
+        
+        # 직원이 존재하지 않으면 409 에러 발생
+        if not employee:
+            raise HTTPException(status_code=409,detail="기존 휴가 일정의 팀원 정보를 찾을 수 없습니다.")
+        
+        old_total_days = Decimal(str(leave.total_days))
+        current_used_leave = Decimal(str(employee.used_leave or 0))
+        total_leave = Decimal(str(employee.total_leave or 0))
+
+        # 기존 일수는 되돌리고, 새 일수를 반영
+        updated_used_leave = current_used_leave- old_total_days+ new_total_days
+
+        # 잔여 휴가 보다 사용 휴가가 많으면 400 에러 발생
+        if updated_used_leave > total_leave:
+            available_days = total_leave - current_used_leave + old_total_days
+
+            raise HTTPException(status_code=400,detail=(f"잔여 휴가 일수가 부족합니다. 수정 가능: {available_days}일, 요청: {new_total_days}일"))
+
+        if updated_used_leave < 0:
+            raise HTTPException(status_code=409,detail="사용 휴가 일수 데이터가 올바르지 않습니다.")
+
+        # 사용 휴가 일수 갱신
+        employee.used_leave = updated_used_leave
+
+        # 직원 ID는 건드리지 않고 휴가 내용만 수정
+        leave.leave_type = str(request_in["leave_type"]).strip()
+        leave.start_date = new_start_date
+        leave.end_date = new_end_date
+        leave.total_days = new_total_days
+
+        db.commit()
+        db.refresh(leave)
+
+        return {
+            "success": 200,
+            "message": "휴가 일정이 수정되었습니다.",
+            "data": {
+                "id": leave.id,
+                "employee_id": leave.employee_id,
+                "leave_type": leave.leave_type,
+                "start_date": leave.start_date,
+                "end_date": leave.end_date,
+                "total_days": float(leave.total_days),
+            },
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(status_code=500,detail=f"휴가 일정 수정 중 오류가 발생했습니다: {str(error)}")
+
+@router.delete("/{leave_id}", response_model=dict)
+def delete_leave(leave_id: int,db: Session = Depends(get_db)):
+    """
+            summary : 휴가 일정 철회 함수
+        
+            arg : 
+                - leave_id (int) : 철회할 휴가 일정 ID
+                - db (Session) : DB 세션
+        
+            desc : 
+                - DB에서 전달받은 id와 같은 휴가 일정 조회
+                - 전달받은 id가 DB에 없으면 404 에러 반환
+                - 해당 휴가 일정의 직원 조회 후, 사용 휴가 일수 복구
+                - 휴가 일정 철회
+                - 예외 처리 : 500 에러 반환 & Rollback
+    """
+    try:
+        # 철회할 휴가 일정
+        leave = db.query(DBLeaves).filter(DBLeaves.id == leave_id).with_for_update().first()
+        
+        # 해당 휴가 일정 없으면 404 에러 발생
+        if not leave:
+            raise HTTPException(status_code=404,detail="철회할 휴가 일정을 찾을 수 없습니다.")
+
+        # 해당 직원 조회 실패 시 409 에러 발생
+        employee = db.query(DBEmployee).filter(DBEmployee.id == leave.employee_id).with_for_update().first()
+    
+        if not employee:
+            raise HTTPException(status_code=409, detail="휴가 일정의 팀원 정보를 찾을 수 없습니다.")
+
+        # 사용 휴가 일수 복구
+        leave_days = Decimal(str(leave.total_days))
+        current_used_leave = Decimal(str(employee.used_leave or 0))
+        updated_used_leave = current_used_leave - leave_days
+
+        # 데이터가 비정상인 경우 음수 방지 -> 409 에러 발생
+        if updated_used_leave < 0:
+            raise HTTPException(status_code=409,detail="직원의 사용 휴가 일수 데이터가 올바르지 않습니다.")
+
+        # 사용 휴가 복구 후 일정 삭제
+        employee.used_leave = updated_used_leave
+        db.delete(leave)
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "휴가 일정이 철회되었습니다.",
+            "data": {
+                "id": leave_id,
+                "employee_id": employee.id,
+                "restored_leave_days": float(leave_days),
+                "used_leave": float(updated_used_leave),
+            },
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(status_code=500,detail=f"휴가 일정 철회 중 오류가 발생했습니다: {str(error)}")

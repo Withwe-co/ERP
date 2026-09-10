@@ -40,8 +40,6 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    env_file:
-      - ./server/.env
     container_name: inventory-api
     restart: unless-stopped
     user: "0:0"
@@ -61,6 +59,7 @@ services:
       - WATCHFILES_FORCE_POLLING=true  # 파일 변경 감지 강제
       # 데이터베이스 설정
       - DATABASE_URL=postgresql://inventory_user:inventory_password@postgres:5432/inventory_db
+      - "KOREA_HOLIDAY_SERVICE_KEY=f6de259bd93f1937b961af9b0057b6d14be331f7ce388dde7b45648bbc6ab83c"
     
       
       # CORS 설정
