@@ -10,7 +10,7 @@ import TaskList from "./task/TaskList";
 import TaskDetail from "./task/TaskDetail";
 import { TaskFilter, TaskResponse, } from "../../types/task";
 import TaskKanbanBoard from "./task/TaskKanbanBoard";
-import { getSelectableWbsCodes } from "./task/wbsOptions";
+import { getSelectableWbsOptions } from "./task/wbsOptions";
 import { getTaskContentView } from "./task/taskViewMode";
 import { toast } from "react-toastify";
 
@@ -62,7 +62,10 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
     });
     
   // 하위 WBS가 없는 최하위 WBS만 태스크 등록 대상으로 사용
-  const selectableWbsCodes = getSelectableWbsCodes(wbsList);
+  const selectableWbsOptions = getSelectableWbsOptions(wbsList);
+
+  // 검색 필터에서는 기존처럼 WBS 코드만 사용
+  const selectableWbsCodes = selectableWbsOptions.map((option) => option.value,);
 
   // 현재 프로젝트의 태스크 목록 조회
   const {data: tasks = [], isLoading, error, refetch,} = useQuery({
@@ -192,11 +195,11 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
       >
         {/* 실제 태스크 등록 Form */}
         <TaskCreateForm
-            projectId={projectId}
-            projectName={projectName}
-            wbsCodes={selectableWbsCodes}
-            projectStartDate={projectStartDate}
-            projectDueDate={projectDueDate}
+          projectId={projectId}
+          projectName={projectName}
+          wbsOptions={selectableWbsOptions}
+          projectStartDate={projectStartDate}
+          projectDueDate={projectDueDate}
             // 태스크 등록 성공 시 Modal은 닫고 태스크 목록을 다시 조회
             onSuccess={() => {setIsCreateModalOpen(false); refetch();}}
             // 사용자가 취소한 경우에는 Modal만 닫음
@@ -218,7 +221,7 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
             projectName={projectName}
             projectStartDate={projectStartDate}
             projectDueDate={projectDueDate}
-            wbsCodes={selectableWbsCodes}
+            wbsOptions={selectableWbsOptions}
             mode="edit"
             initialData={selectedTask}
             onSuccess={() => {setSelectedTask(null); refetch();}}

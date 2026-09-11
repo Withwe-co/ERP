@@ -10,7 +10,7 @@ import TaskManagementPage from "./TaskManagementPage";
 import {shouldSaveKanbanOrder,} from "./task/TaskKanbanBoard";
 import {validateTaskCreateData,} from "./task/taskValidation";
 import {getTaskContentView,} from "./task/taskViewMode";
-import {getSelectableWbsCodes,} from "./task/wbsOptions";
+import {getSelectableWbsOptions,} from "./task/wbsOptions";
 
 import {
   createTaskImageFormData,
@@ -89,14 +89,63 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(html).toContain("태스크 등록");
   });
 
-  // 태스크 등록에 필요한 필수값과 프로젝트 기간 검증 확인
+  // 태스크 등록 폼 순서대로 필수값과 프로젝트 기간을 검증
   it("태스크 등록 데이터의 필수값과 날짜를 검증한다", () => {
+    expect(
+      validateTaskCreateData({
+        ...validTaskData,
+        task_name: "",
+      }),
+    ).toBe("태스크명을 입력해주세요.");
+
     expect(
       validateTaskCreateData({
         ...validTaskData,
         wbs_code: "",
       }),
-    ).toBe("WBS 코드를 선택해주세요.");
+    ).toBe("WBS명을 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({
+        ...validTaskData,
+        department: "",
+      }),
+    ).toBe("담당 부서명을 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({
+        ...validTaskData,
+        assignee_name: "",
+      }),
+    ).toBe("담당자명을 입력해주세요.");
+
+    expect(
+      validateTaskCreateData({
+        ...validTaskData,
+        priority: "" as TaskCreateData["priority"],
+      }),
+    ).toBe("우선순위를 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({
+        ...validTaskData,
+        status: "" as TaskCreateData["status"],
+      }),
+    ).toBe("상태를 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({
+        ...validTaskData,
+        planned_start_date: "",
+      }),
+    ).toBe("시작예정일을 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({
+        ...validTaskData,
+        planned_end_date: "",
+      }),
+    ).toBe("완료예정일을 선택해주세요.");
 
     expect(
       validateTaskCreateData({
@@ -118,7 +167,7 @@ describe("TaskManagementPage 통합 테스트", () => {
       ),
     ).toBe(
       "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-      "벗어난 날짜는 선택할 수 없습니다.",
+        "벗어난 날짜는 선택할 수 없습니다.",
     );
 
     expect(
@@ -140,7 +189,7 @@ describe("TaskManagementPage 통합 테스트", () => {
       ),
     ).toBe(
       "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-      "벗어난 날짜는 선택할 수 없습니다.",
+        "벗어난 날짜는 선택할 수 없습니다.",
     );
 
     expect(
@@ -154,7 +203,7 @@ describe("TaskManagementPage 통합 테스트", () => {
       ),
     ).toBe(
       "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-      "벗어난 날짜는 선택할 수 없습니다.",
+        "벗어난 날짜는 선택할 수 없습니다.",
     );
   });
 
@@ -174,24 +223,68 @@ describe("TaskManagementPage 통합 테스트", () => {
     ).toBe("list");
   });
 
-  // 부모 WBS를 제외하고 실제 태스크를 연결할 최하위 WBS만 반환
-  it("태스크 등록에 사용할 최하위 WBS를 계층 순서로 반환한다", () => {
-    const result = getSelectableWbsCodes([
-      { wbs_code: "3.2" },
-      { wbs_code: "1" },
-      { wbs_code: "2" },
-      { wbs_code: "1.2" },
-      { wbs_code: "3" },
-      { wbs_code: "3.1" },
-      { wbs_code: "1.1" },
+  // 부모 WBS를 제외하고 최하위 WBS를 선택지로 반환하며,
+  // 하위 WBS는 "상위 WBS명 + 하위 WBS명" 형태로 표시
+  it("태스크 등록에 사용할 WBS명 선택지를 계층 순서로 반환한다", () => {
+    const result = getSelectableWbsOptions([
+      {
+        wbs_code: "3.2",
+        wbs_name: "상세 조회",
+        parent_wbs: "3",
+      },
+      {
+        wbs_code: "1",
+        wbs_name: "프로젝트 관리",
+        parent_wbs: null,
+      },
+      {
+        wbs_code: "2",
+        wbs_name: "단독 WBS",
+        parent_wbs: null,
+      },
+      {
+        wbs_code: "1.2",
+        wbs_name: "UI 개선",
+        parent_wbs: "1",
+      },
+      {
+        wbs_code: "3",
+        wbs_name: "태스크 페이지",
+        parent_wbs: null,
+      },
+      {
+        wbs_code: "3.1",
+        wbs_name: "기능 추가",
+        parent_wbs: "3",
+      },
+      {
+        wbs_code: "1.1",
+        wbs_name: "기능 추가",
+        parent_wbs: "1",
+      },
     ]);
 
     expect(result).toEqual([
-      "1.1",
-      "1.2",
-      "2",
-      "3.1",
-      "3.2",
+      {
+        value: "1.1",
+        label: "프로젝트 관리 기능 추가",
+      },
+      {
+        value: "1.2",
+        label: "프로젝트 관리 UI 개선",
+      },
+      {
+        value: "2",
+        label: "단독 WBS",
+      },
+      {
+        value: "3.1",
+        label: "태스크 페이지 기능 추가",
+      },
+      {
+        value: "3.2",
+        label: "태스크 페이지 상세 조회",
+      },
     ]);
   });
 
@@ -327,7 +420,16 @@ describe("TaskManagementPage 통합 테스트", () => {
         <TaskCreateForm
           projectId={1}
           projectName="테스트 프로젝트"
-          wbsCodes={["1.1"]}
+          wbsOptions={[
+            {
+              value: "1.1",
+              label: "태스크 페이지 기능 추가",
+            },
+            {
+              value: "1.2",
+              label: "태스크 페이지 UI 개선",
+            },
+          ]}
           projectStartDate="2026-08-01"
           projectDueDate="2026-09-30"
           onSuccess={() => {}}
@@ -361,7 +463,12 @@ describe("TaskManagementPage 통합 테스트", () => {
         <TaskCreateForm
           projectId={1}
           projectName="테스트 프로젝트"
-          wbsCodes={["1.1"]}
+          wbsOptions={[
+          {
+            value: "1.1",
+            label: "태스크 페이지 기능 추가",
+          },
+        ]}
           projectStartDate="2026-08-01"
           projectDueDate="2026-09-30"
           mode="edit"
@@ -414,4 +521,38 @@ describe("TaskManagementPage 통합 테스트", () => {
 
   });
 
+});
+
+// 태스크 등록/수정 폼의 주요 입력 항목 배치 순서를 확인
+it("태스크 폼의 주요 입력 항목을 지정된 순서로 표시한다", () => {
+  const html = renderToStaticMarkup(
+    <ThemeProvider theme={theme}>
+      <TaskCreateForm
+        projectId={1}
+        projectName="테스트 프로젝트"
+        wbsOptions={[
+          {
+            value: "1.1",
+            label: "태스크 페이지 기능 추가",
+          },
+        ]}
+        projectStartDate="2026-08-01"
+        projectDueDate="2026-09-30"
+        onSuccess={() => {}}
+        onCancel={() => {}}
+      />
+    </ThemeProvider>,
+  );
+
+  const projectIndex = html.indexOf("프로젝트");
+  const taskNameIndex = html.indexOf("태스크명");
+  const wbsNameIndex = html.indexOf("WBS명");
+  const departmentIndex = html.indexOf("담당 부서");
+  const assigneeIndex = html.indexOf("담당자");
+
+  expect(projectIndex).toBeGreaterThan(-1);
+  expect(taskNameIndex).toBeGreaterThan(projectIndex);
+  expect(wbsNameIndex).toBeGreaterThan(taskNameIndex);
+  expect(departmentIndex).toBeGreaterThan(wbsNameIndex);
+  expect(assigneeIndex).toBeGreaterThan(departmentIndex);
 });

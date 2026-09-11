@@ -39,8 +39,8 @@ interface TaskCreateFormProps {
   // 수정할 기존 태스크 데이터
   initialData?: TaskResponse;
 
-  //WBS 코드 
-  wbsCodes: string[];
+  // 태스크에서 선택 가능한 WBS 목록
+  wbsOptions: { value: string; label: string;}[];
 
   // 프로젝트 기간
   projectStartDate: string;
@@ -58,7 +58,7 @@ interface TaskCreateFormProps {
 function TaskCreateForm({
     projectId, 
     projectName, 
-    wbsCodes,   
+    wbsOptions,  
     projectStartDate,
     projectDueDate, 
     mode = "create", 
@@ -302,7 +302,7 @@ function TaskCreateForm({
         <>
             {/* 브라우저 기본 검증 대신 직접 만든 검증 로직 사용 */}
             <Form onSubmit={handleSubmit} noValidate>
-            {/* 현재 프로젝트 정보와 WBS ID 입력 영역 */}
+            {/* 프로젝트명과 태스크명 */}
             <FormGrid>
                 <Input
                 label={'\u00A0\u00A0프로젝트\u00A0'}
@@ -310,25 +310,52 @@ function TaskCreateForm({
                 disabled
                 />
 
-                <TaskSelect
-                    label={'\u00A0\u00A0WBS 코드\u00A0'}
-                    value={formData.wbs_code}
-                    required
-                    placeholder="WBS 코드를 선택하세요"
-                    options={wbsCodes.map((code) => ({value: code, label: code,}))}
-                    onChange={(value) => setFormData({...formData, wbs_code: String(value),})}
-                />
-            </FormGrid>
-
-
-            {/* 태스크 기본 정보 */}
-            <FormGrid>
                 <Input
                 label={'\u00A0\u00A0태스크명\u00A0'}
                 value={formData.task_name}
                 required
                 placeholder="태스크명을 입력하세요."
-                onChange={(event) =>setFormData({...formData, task_name: event.target.value,})}
+                onChange={(event) =>
+                    setFormData({
+                    ...formData,
+                    task_name: event.target.value,
+                    })
+                }
+                />
+            </FormGrid>
+
+            {/* 태스크가 연결될 WBS */}
+            <TaskSelect
+                label={'\u00A0\u00A0WBS명\u00A0'}
+                value={formData.wbs_code}
+                required
+                placeholder="WBS명을 선택하세요"
+                options={wbsOptions}
+                onChange={(value) =>
+                setFormData({
+                    ...formData,
+                    wbs_code: String(value),
+                })
+                }
+            />
+
+            {/* 담당 부서와 담당자 */}
+            <FormGrid>
+                <TaskSelect
+                label={'\u00A0\u00A0담당 부서\u00A0'}
+                value={formData.department}
+                required
+                placeholder="담당 부서를 선택하세요"
+                options={TASK_DEPARTMENTS.map((department) => ({
+                    value: department,
+                    label: department,
+                }))}
+                onChange={(value) =>
+                    setFormData({
+                    ...formData,
+                    department: String(value),
+                    })
+                }
                 />
 
                 <Input
@@ -336,26 +363,14 @@ function TaskCreateForm({
                 value={formData.assignee_name}
                 required
                 placeholder="담당자명을 입력하세요."
-                onChange={(event) =>setFormData({...formData, assignee_name: event.target.value,})}
+                onChange={(event) =>
+                    setFormData({
+                    ...formData,
+                    assignee_name: event.target.value,
+                    })
+                }
                 />
             </FormGrid>
-
-
-            {/* 담당 부서 */}
-            <TaskSelect
-            label={'\u00A0\u00A0담당 부서\u00A0'}
-            value={formData.department}
-            required
-            placeholder="담당 부서를 선택하세요"
-            options={TASK_DEPARTMENTS.map((department) => ({
-                value: department,
-                label: department,
-            }))}
-            onChange={(value) =>
-                setFormData({...formData, department: String(value),})
-            }
-            />
-
 
             {/* 우선순위와 상태 */}
             <FormGrid>
