@@ -103,7 +103,7 @@ EOF
     if [ ! -f "client/.env" ]; then
         cat > client/.env << EOF
 # API URL - NAS IP로 변경하세요
-VITE_API_URL=http://http://211.197.16.248:8000/api/v1
+VITE_API_URL=http:http://211.197.16.248:8000/api/v1
 VITE_APP_TITLE=Inventory Management System
 VITE_APP_VERSION=1.0.0
 

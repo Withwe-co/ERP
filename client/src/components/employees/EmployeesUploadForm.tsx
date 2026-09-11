@@ -239,7 +239,7 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
                         )}
 
                         <Select
-                            label={'\u00A0\u00A0직책\u00A0'}
+                            label={'\u00A0\u00A0직위\u00A0'}
                             value={formData.position}
                             options={positionOption}
                             onChange={(value) => handleChange('position', value)}

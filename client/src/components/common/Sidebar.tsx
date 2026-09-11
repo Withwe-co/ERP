@@ -18,11 +18,9 @@ import {
   CreditCard,
   Bell,
   ChevronLeft,
-  ChevronRight,
   Network,
   Plane
 } from 'lucide-react';
-import { purchaseApi } from '../../services/api';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -56,10 +54,11 @@ const SidebarHeader = styled.div<{ isOpen: boolean }>`
   position: relative;
 `;
 
-const Logo = styled.div<{ isOpen: boolean }>`
+const Logo = styled.div<{ isOpen: boolean; $clickable?: boolean}>`
   display: flex;
   align-items: center;
   gap: ${props => props.isOpen ? '8px' : '0'};
+  cursor: ${props => (props.$clickable ? 'pointer' : 'default')};
   
   .logo-icon {
     min-width: 28px;
@@ -321,54 +320,8 @@ const ConnectionStatus = styled.div<{ connected: boolean }>`
   transition: all 0.3s ease;
 `;
 
-// 🔥 안전한 구매 요청 개수 조회 훅
-const usePurchaseRequestCount = () => {
-  const [apiConnected, setApiConnected] = useState(false);
-  
-  const { data: pendingRequestsData, isError } = useQuery({
-    queryKey: ['purchase-requests-pending-count'],
-    queryFn: async () => {
-      try {
-        console.log('🔍 구매 요청 개수 조회 시도...');
-        
-        const response = await purchaseApi.getRequests({
-          page: 1,
-          limit: 100, // 개수만 확인하므로 적게
-        });
-        
-        console.log('✅ API 연결 성공:', response);
-        setApiConnected(true);
-        
-        // 완료되지 않은 요청만 필터링
-        const pendingRequests = response.data.items.filter(
-          request => request.status !== 'COMPLETED' && request.status !== 'CANCELLED'
-        );
-        
-        return pendingRequests.length;
-      } catch (error) {
-        console.warn('⚠️ API 연결 실패, 샘플 모드로 전환:', error.message);
-        setApiConnected(false);
-        
-        // 🔥 샘플 데이터 반환 (데모용)
-        return 3; // 샘플: 3개의 미완료 요청
-      }
-    },
-    refetchInterval: apiConnected ? 30000 : 300000, // 연결 시 30초, 미연결 시 5분
-    staleTime: 15000, // 15초 캐시
-    retry: 1, // 1회만 재시도
-    retryDelay: 3000, // 3초 후 재시도
-  });
-
-  return {
-    pendingCount: pendingRequestsData || 0,
-    apiConnected,
-    hasError: isError
-  };
-};
-
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
-  const { pendingCount, apiConnected } = usePurchaseRequestCount();
 
   // 🔥 메뉴 아이템들 (동적 배지 포함)
   const mainMenuItems = [
@@ -377,7 +330,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       path: '/purchase-requests', 
       label: '구매 요청', 
       icon: ShoppingCart, 
-      dynamicBadge: pendingCount // 동적 배지
+      // dynamicBadge: pendingCount // 동적 배지 (보류)
     },
     { path: '/inventory', label: '품목 관리', icon: Package },
     { path: '/receipts', label: '수령 관리', icon: ClipboardCheck },
@@ -436,7 +389,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             <Tooltip show={!isOpen} className="tooltip">
               {item.label}
               {showBadge && ` (${badgeCount})`}
-              {item.path === '/purchase-requests' && !apiConnected && ' [샘플]'}
+              {/*item.path === '/purchase-requests' && !apiConnected && ' [샘플]'*/}
             </Tooltip>
           )}
         </NavItemWithTooltip>
@@ -447,18 +400,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   return (
     <SidebarContainer isOpen={isOpen}>
       <SidebarHeader isOpen={isOpen}>
-        <Logo isOpen={isOpen}>
+        <Logo isOpen={isOpen} $clickable={!isOpen} onClick={!isOpen ? onToggle : undefined}>
           <div className="logo-icon">
             <Package size={16} />
           </div>
           <h1 className="logo-text">ERP 시스템</h1>
         </Logo>
-        <ToggleButton isOpen={isOpen} onClick={onToggle}>
-          {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-        </ToggleButton>
+        {isOpen && (
+          <ToggleButton isOpen={isOpen} onClick={onToggle}>
+            <ChevronLeft size={14} />
+          </ToggleButton>
+        )}
         
         {/* 🔥 API 연결 상태 표시 */}
-        <ConnectionStatus connected={apiConnected} title={apiConnected ? 'API 연결됨' : 'API 미연결 (샘플 모드)'} />
+        {/*<ConnectionStatus connected={apiConnected} title={apiConnected ? 'API 연결됨' : 'API 미연결 (샘플 모드)'} />*/}
       </SidebarHeader>
 
       <Navigation>

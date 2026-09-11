@@ -9,9 +9,11 @@ import Card from "../common/Card";
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
-
+import TaskCreateForm from "./task/TaskCreateForm";
+import {TaskResponse,} from "../../types/task";
 // Api
 import {WbsApi, taskApi, holidayApi, type Wbs} from '../../services/api'
+
 
 
 const TableWrapper = styled.div`
@@ -68,6 +70,7 @@ const StyledRow = styled.tr`
 
 interface WbsManagementPageProps {
     projectId: number;
+    projectName: string;
     projectStartDate: string;
     projectDueDate: string;
 }
@@ -94,12 +97,24 @@ const FilterContainer = styled.div`
 
 const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     projectId,
+    projectName,
     projectStartDate,
     projectDueDate,
 }) => {
 
+    // WBS 추가 FormModalOpen
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+    
+    // 태스크 추가 FormModalOpen
+    const [isTaskFormModalOpen, setIsTaskFormModalOpen] = useState(false);
+
+    // WBS 수정
     const [editingWbs, setEditingWbs] = useState<Wbs | null>(null);
+
+    // 태스크 수정
+    const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
+
+    const queryClient = useQueryClient();
 
     // 차트 일정 보기 조절
     type GanttViewMode = 'day' | 'week' | 'month';
@@ -114,6 +129,12 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     const openEditModal = (wbs:Wbs) =>{
         setEditingWbs(wbs);
         setIsFormModalOpen(true);
+    }
+
+    //태스크 수정 모달 오픈
+    const openEditTaskModal = (Task:TaskResponse) =>{
+        setEditingTask(Task);
+        setIsTaskFormModalOpen(true);
     }
 
     // wbs 목록 불러오기
@@ -379,8 +400,17 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                         월
                     </Button>
                     <Button
-                        onClick={() => setIsFormModalOpen(true)}       
+                        onClick={() => {setEditingTask(null); setIsTaskFormModalOpen(true);}}       
+                        title="태스크 추가"
+                        style={{width: '130px',height: '42px'}}
+                    >
+                        <Plus size={16}/>
+                        태스크 추가
+                    </Button>
+                    <Button
+                        onClick={() => {setEditingWbs(null); setIsFormModalOpen(true);}} 
                         title="WBS 추가"
+                        style={{width: '130px',height: '42px'}}
                     >
                         <Plus size={16}/>
                         WBS 추가
@@ -475,7 +505,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 verticalAlign: 'middle',
                                                 }}
                                             >
-                                                [{parent.wbs_code}] {parent.wbs_name}
+                                                {parent.wbs_name}
                                             </td>
                                         )}
 
@@ -491,7 +521,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 verticalAlign: 'middle',
                                                 }}
                                             >
-                                                [{child.wbs_code}] {child.wbs_name}
+                                                {child.wbs_name}
                                             </td>
                                             )
                                         ) : (
@@ -504,6 +534,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         )}
 
                                         <td
+                                            onClick={() => openEditTaskModal(linkedTask)}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
@@ -518,6 +549,13 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             const isTodayColumn = today >= column.startDate && today <= column.endDate;
                                             const dateStyle =ganttViewMode === 'day'? getDayColumnStyle(column.startDate, holidayDateSet): { background: '#fff' };
                                             
+                                            // 일정이 존재하는 오늘 날짜에도 배경을 동일하게 설정하기 위한 변수들
+                                            const todayIndex = timelineColumns.findIndex((item) => today >= item.startDate && today <= item.endDate);
+                                            const isTodayInMergedCell =todayIndex >= ganttStartIndex && todayIndex < ganttStartIndex + ganttColumnCount;
+                                            const todayOffsetInMergedCell = todayIndex - ganttStartIndex;
+                                            const todayLeft = todayOffsetInMergedCell * cellWidth;
+                                            const todayRight = (todayOffsetInMergedCell + 1) * cellWidth;
+
                                             // 간트 바가 시작하는 날짜 칸: 필요한 날짜 칸 수만큼 가로 병합
                                             if (showGanttBar && index === ganttStartIndex) {
                                                 return (
@@ -526,7 +564,10 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     colSpan={ganttColumnCount}
                                                     style={{
                                                     position: 'relative',
-                                                    background: '#fff',
+                                                    backgroundColor: '#fff',
+                                                    backgroundOrigin: 'border-box',
+                                                    backgroundClip: 'border-box',
+                                                    backgroundImage: isTodayInMergedCell ? `linear-gradient(to right,transparent ${todayLeft}px,#FFF3CD ${todayLeft}px,#FFF3CD ${todayRight}px,transparent ${todayRight}px)`: undefined,
                                                     }}
                                                 >
                                                 {/* 이미 지난 일정 구간 */}
@@ -535,7 +576,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     color="#9CA3AF"
                                                     style={{
                                                     left: '2px',
-                                                    width: `${pastColumnCount * cellWidth - 2}px`,
+                                                    width: `${pastColumnCount * cellWidth -2}px`,
                                                     }}
                                                 />
                                                 )}
@@ -546,7 +587,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     color="#3B82F6"
                                                     style={{
                                                     left: `${pastColumnCount * cellWidth }px`,
-                                                    width: `${remainingColumnCount * cellWidth - 4}px`,
+                                                    width: `${remainingColumnCount * cellWidth -2}px`,
                                                     }}
                                                 />
                                                 )}
@@ -582,6 +623,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                 </TableWrapper>
             </Card>
         </Container>
+
         <Modal
             isOpen={isFormModalOpen}
             onClose={() => setIsFormModalOpen(false)}
@@ -600,6 +642,32 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                 onCancel={() => {
                     setIsFormModalOpen(false);
                     setEditingWbs(null);
+                }}
+            />
+        </Modal>
+        <Modal
+            isOpen={isTaskFormModalOpen}
+            onClose={() => setIsTaskFormModalOpen(false)}
+            title={editingTask ? "태스크 수정" : "새 태스크 등록"}
+            size="xl"
+            >
+            <TaskCreateForm
+                key={editingTask?.id ?? 'create'}
+                projectId={projectId}
+                projectName={projectName}
+                wbsCodes={sortedWbs.map((wbs) => wbs.wbs_code)}
+                projectStartDate={projectStartDate}
+                projectDueDate={projectDueDate}
+                mode={editingTask ? 'edit' : 'create'}
+                initialData={editingTask ?? undefined}
+                onSuccess={() => {
+                    setIsTaskFormModalOpen(false);
+                    setEditingTask(null);
+                    queryClient.invalidateQueries({queryKey: ['tasks', projectId],});
+                }}
+                onCancel={() => {
+                    setIsTaskFormModalOpen(false);
+                    setEditingTask(null);
                 }}
             />
         </Modal>

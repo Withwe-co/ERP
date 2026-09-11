@@ -156,7 +156,7 @@ const EmployeesPage: React.FC = () => {
     },
     {
       key: 'total_leave',
-      label: '잔여 연차',
+      label: '총 연차',
       width: '80px',
       align: 'center',
       render: (value) => (
@@ -173,6 +173,17 @@ const EmployeesPage: React.FC = () => {
       render: (value) => (
         <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           <div>{value}</div>
+        </div>
+      )
+    },
+    {
+      key: 'remaining_leave',
+      label: '잔여 연차',
+      width: '80px',
+      align: 'center',
+      render: (_value,row) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
+          <div>{(Number(row.total_leave) || 0) - (Number(row.used_leave) || 0)}</div>
         </div>
       )
     },
@@ -202,6 +213,7 @@ const EmployeesPage: React.FC = () => {
               variant="outline"
               onClick={() => {handleDelete(item.id)}}
               title="삭제"
+              style={{borderColor: '#dc2626',color: '#dc2626'}}
             >
               <Trash2 size={14} />
               삭제

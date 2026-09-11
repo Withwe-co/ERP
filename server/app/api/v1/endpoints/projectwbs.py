@@ -2,7 +2,7 @@
 프로젝트 선택 후 WBS탭 선택 시 사용하는 함수들
 """
 from typing import List, Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query,Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import pandas as pd
@@ -10,6 +10,8 @@ from io import BytesIO
 from datetime import datetime
 
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
+
 from app.schemas.wbs import WbsBase,UpdateWbs,WbsInDB
 
 from app.models.wbs import Wbs as DBWbs
@@ -17,12 +19,15 @@ from app.models.tasks import Task as DBTask
 router = APIRouter()
 
 @router.post("/",response_model=dict)
-def create_wbs(*,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+@rate_limit(max_requests=10, window_seconds=300)
+def create_wbs(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
 
     """
         summary : WBS 등록 함수
 
-        arg : db (Session) : DB 세션
+        arg : 
+            - Request : 현재 HTTP 요청 정보
+            - db (Session) : DB 세션
 
         desc : 
             - 필수 항목 검증 (WBS코드,WBS명)
@@ -151,11 +156,6 @@ def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
         # 실제로 변경된 값 X -> 400 에러
         if not changed_data:
             raise HTTPException(status_code=400,detail="수정 사항이 없습니다.")
-        
-        # WBS명 중복 -> 400 에러
-        if "wbs_name" in changed_data:
-            if db.query(DBWbs.id).filter(func.lower(DBWbs.wbs_name)==changed_data["wbs_name"].lower(),DBWbs.id != wbs_id).first():
-                raise HTTPException(status_code=400,detail="이미 등록된 WBS명입니다.")
 
         # 순서 또는 상위 WBS 변경 로직
         if "wbs_order" in changed_data or "parent_wbs" in changed_data:
@@ -257,8 +257,8 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
         desc :
             - 해당 ID에 맞는 wbs 조회
             - 조회 실패 시 -> 404에러
-            - wbs 하위 task 확인, 존재 -> 409에러 삭제 불가
             - wbs 하위 wbs 확인, 존재 -> 409에러 삭제 불가
+            - db에서 wbs의 하위 task 삭제
             - db에서 wbs삭제
             - 삭제 실패 시 -> 500에러
     """
@@ -269,22 +269,18 @@ def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
     if wbs is None:
         raise HTTPException(status_code=404, detail="WBS를 찾을 수 없습니다.")
 
-    # 해당 wbs에 하위 task가 존재하는지 확인
-    task = db.query(DBTask).filter(DBTask.project_id==wbs.project_id,DBTask.wbs_code==wbs.wbs_code).first()
-
-    # 존재 -> 409에러 삭제 불가
-    if task:
-        raise HTTPException(status_code=409, detail="태스크가 존재하는 WBS는 삭제할 수 없습니다.")
-
     # 해당 wbs에 하위 wbs가 존재하는지 확인
     child_wbs=db.query(DBWbs).filter(DBWbs.project_id==wbs.project_id,DBWbs.parent_wbs==wbs.wbs_code).first()
-
+    
     # 존재 -> 409에러 삭제 불가
     if child_wbs:
-         raise HTTPException(status_code=409, detail="하위 WBS가 존재하는 WBS는 삭제할 수 없습니다.")
+        raise HTTPException(status_code=409, detail="하위 WBS가 존재하는 WBS는 삭제할 수 없습니다.")
 
-    # db에서 wbs삭제
     try:
+        # 해당 WBS에 연결된 태스크 전체 삭제
+        db.query(DBTask).filter(DBTask.project_id == wbs.project_id,DBTask.wbs_code == wbs.wbs_code).delete(synchronize_session=False)
+        
+        # db에서 wbs삭제
         db.delete(wbs)
         db.commit()
     except Exception as e:

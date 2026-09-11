@@ -652,15 +652,6 @@ const InventoryPage: React.FC = () => {
     // 어느 하나라도 있으면 수령 완료로 판단
     const result = hasReceiptHistory || hasLastReceived || hasReceivedBy || hasTotalReceived;
     
-    console.log(`품목 ${item.id} 수령 상태 확인:`, {
-      hasReceiptHistory,
-      hasLastReceived,
-      hasReceivedBy,
-      hasTotalReceived,
-      result,
-      receipt_history_length: item.receipt_history?.length || 0
-    });
-    
     return result;
   };
 
@@ -802,7 +793,8 @@ const InventoryPage: React.FC = () => {
 
   const handleTransactionDocumentUpload = (item: InventoryItem) => {
     console.log('🔍 거래명세서 업로드 버튼 클릭됨:', item);
-    console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
+    console.log('🔍 API 베이스 URL:', window.location.origin);
+    //console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
     // console.log('🔍 API 베이스 URL:', 'http://211.44.183.165:8000');
     
     setSelectedItemForTransaction(item);
