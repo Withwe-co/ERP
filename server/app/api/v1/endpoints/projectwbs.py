@@ -156,11 +156,6 @@ def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
         # 실제로 변경된 값 X -> 400 에러
         if not changed_data:
             raise HTTPException(status_code=400,detail="수정 사항이 없습니다.")
-        
-        # WBS명 중복 -> 400 에러
-        if "wbs_name" in changed_data:
-            if db.query(DBWbs.id).filter(func.lower(DBWbs.wbs_name)==changed_data["wbs_name"].lower(),DBWbs.id != wbs_id).first():
-                raise HTTPException(status_code=400,detail="이미 등록된 WBS명입니다.")
 
         # 순서 또는 상위 WBS 변경 로직
         if "wbs_order" in changed_data or "parent_wbs" in changed_data:
