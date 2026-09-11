@@ -549,6 +549,13 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                             const isTodayColumn = today >= column.startDate && today <= column.endDate;
                                             const dateStyle =ganttViewMode === 'day'? getDayColumnStyle(column.startDate, holidayDateSet): { background: '#fff' };
                                             
+                                            // 일정이 존재하는 오늘 날짜에도 배경을 동일하게 설정하기 위한 변수들
+                                            const todayIndex = timelineColumns.findIndex((item) => today >= item.startDate && today <= item.endDate);
+                                            const isTodayInMergedCell =todayIndex >= ganttStartIndex && todayIndex < ganttStartIndex + ganttColumnCount;
+                                            const todayOffsetInMergedCell = todayIndex - ganttStartIndex;
+                                            const todayLeft = todayOffsetInMergedCell * cellWidth;
+                                            const todayRight = (todayOffsetInMergedCell + 1) * cellWidth;
+
                                             // 간트 바가 시작하는 날짜 칸: 필요한 날짜 칸 수만큼 가로 병합
                                             if (showGanttBar && index === ganttStartIndex) {
                                                 return (
@@ -557,7 +564,10 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     colSpan={ganttColumnCount}
                                                     style={{
                                                     position: 'relative',
-                                                    background: '#fff',
+                                                    backgroundColor: '#fff',
+                                                    backgroundOrigin: 'border-box',
+                                                    backgroundClip: 'border-box',
+                                                    backgroundImage: isTodayInMergedCell ? `linear-gradient(to right,transparent ${todayLeft}px,#FFF3CD ${todayLeft}px,#FFF3CD ${todayRight}px,transparent ${todayRight}px)`: undefined,
                                                     }}
                                                 >
                                                 {/* 이미 지난 일정 구간 */}
@@ -566,7 +576,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     color="#9CA3AF"
                                                     style={{
                                                     left: '2px',
-                                                    width: `${pastColumnCount * cellWidth - 2}px`,
+                                                    width: `${pastColumnCount * cellWidth -2}px`,
                                                     }}
                                                 />
                                                 )}
@@ -577,7 +587,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     color="#3B82F6"
                                                     style={{
                                                     left: `${pastColumnCount * cellWidth }px`,
-                                                    width: `${remainingColumnCount * cellWidth - 4}px`,
+                                                    width: `${remainingColumnCount * cellWidth -2}px`,
                                                     }}
                                                 />
                                                 )}
