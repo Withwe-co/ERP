@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 
 import Button from "../../common/Button";
@@ -97,6 +97,7 @@ function TaskCreateForm({
         // POST 요청이 진행 중인지 관리
         // 중복으로 등록 버튼을 누르는 것을 방지하기 위해 사용
         const [isSubmitting, setIsSubmitting] = useState(false);
+        const submitLockRef = useRef(false);
 
         // date input 범위
         const projectStart = projectStartDate?.slice(0, 10);
@@ -239,6 +240,14 @@ function TaskCreateForm({
             toast.info("수정사항이 없습니다.");
             return;
             }
+
+            // 이미 요청이 진행 중이면 중복 제출 방지
+            if (submitLockRef.current) {
+                return;
+            }
+
+            submitLockRef.current = true;
+
             try {
                 // API 요청 시작
                 setIsSubmitting(true);
@@ -261,15 +270,7 @@ function TaskCreateForm({
 
                     toast.success("태스크가 성공적으로 수정되었습니다.",);
                     } else {
-                    const response = await taskApi.createTask(formData);
-
-                    if (newImages.length > 0) {
-                        await taskApi.updateTaskImages(
-                        response.data.id,
-                        [],
-                        newImages,
-                        );
-                    }
+                    const response = await taskApi.createTask(formData,newImages,);
 
                     toast.success(response.message);
                 }
@@ -290,7 +291,10 @@ function TaskCreateForm({
                         ? "태스크 수정 중 오류가 발생했습니다."
                         : "태스크 등록 중 오류가 발생했습니다.",
                 );
-            } finally {setIsSubmitting(false);}  // 성공/실패와 관계없이 API 요청 상태 종료
+            } finally {
+                submitLockRef.current = false;
+                setIsSubmitting(false);
+            }  // 성공/실패와 관계없이 API 요청 상태 종료
         };
 
 

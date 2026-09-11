@@ -4,7 +4,10 @@ import axios from 'axios';
 // 태스크 API 요청/응답에 사용할 타입
 import {TaskCreateData, TaskFilter, TaskResponse,TaskUpdateData,} from '../types/task';
 
-import {createTaskImageFormData,} from '../components/wbs/task/taskImageUtils';
+import {
+  createTaskCreateFormData,
+  createTaskImageFormData,
+} from '../components/wbs/task/taskImageUtils';
 
 // API 기본 설정
 // const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
@@ -434,11 +437,31 @@ export interface LeavesUploadFormData {
 
 // 태스크 관리 API
 export const taskApi = {
-  createTask: async (data: TaskCreateData,): Promise<TaskCreateResponse> => {
+  createTask: async (
+    data: TaskCreateData,
+    images: File[],
+  ): Promise<TaskCreateResponse> => {
     try {
-      const response = await apiRequest.post("/tasks/", data);
-      return response;
-    } catch (error) {console.error("태스크 등록 실패:", error); throw error;}
+      const formData = createTaskCreateFormData(
+        data,
+        images,
+      );
+
+      const response = await api.post(
+        "/tasks/",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("태스크 등록 실패:", error);
+      throw error;
+    }
   },
 
   // 프로젝트별 태스크 목록 조회

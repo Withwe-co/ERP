@@ -1,5 +1,7 @@
 import json
 import os
+import builtins
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -10,6 +12,7 @@ from app.core.database import Base, get_db
 from app.models.projects import Project
 from app.models.tasks import Task
 from app.api.v1.endpoints.tasks import router
+import app.api.v1.endpoints.tasks as task_endpoint
 
 from datetime import datetime
 
@@ -72,13 +75,27 @@ def valid_task_data():
         "note": None,
     }
 
-# POST /tasks/
-def test_create_task():
-    response = client.post(
-        "/tasks/",
-        json=valid_task_data(),
+def create_task_request(task_data=None):
+    """테스트에서 multipart 형식으로 태스크 등록 요청을 보낸다."""
+
+    request_data = (
+        valid_task_data()
+        if task_data is None
+        else task_data
     )
 
+    return client.post(
+        "/tasks/",
+        data={
+            "task_data": json.dumps(
+                request_data,
+            ),
+        },
+    )
+
+# POST /tasks/
+def test_create_task():
+    response = create_task_request()
     # 실제 HTTP 상태 코드 확인
     assert response.status_code == 201
 
@@ -95,10 +112,122 @@ def test_create_task():
     assert task_data["priority"] == "NORMAL"
     assert task_data["status"] == "TODO"
 
+# 시나리오: 신규 태스크 등록 시 이미지를 함께 첨부한다.
+# 검증: 태스크와 이미지가 하나의 요청에서 함께 등록된다.
+def test_create_task_with_image():
+    response = client.post(
+        "/tasks/",
+        data={
+            "task_data": json.dumps(
+                valid_task_data(),
+            ),
+        },
+        files=[
+            (
+                "images",
+                (
+                    "task_image.jpg",
+                    b"test-image",
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 201
+
+    response_data = response.json()
+    task_data = response_data["data"]
+
+    assert task_data["task_name"] == "태스크 API 구현"
+    assert len(task_data["image_urls"]) == 1
+    assert task_data["image_urls"][0].startswith(
+        "/uploads/task_images/",
+    )
+
+# 시나리오: 여러 이미지 저장 중 일부 이미지 저장에 실패한다.
+# 검증: 태스크와 먼저 저장된 이미지 파일도 모두 남지 않는다.
+def test_create_task_rolls_back_when_image_save_fails(
+    monkeypatch,
+    tmp_path,
+):
+    real_open = builtins.open
+    open_count = 0
+
+    # 테스트 이미지가 실제 uploads 폴더에 저장되지 않도록 경로 변경
+    monkeypatch.setattr(
+        task_endpoint.os,
+        "getcwd",
+        lambda: str(tmp_path),
+    )
+
+    def failing_open(*args, **kwargs):
+        nonlocal open_count
+        open_count += 1
+
+        # 두 번째 이미지 저장에서 강제로 오류 발생
+        if open_count == 2:
+            raise OSError("이미지 저장 실패")
+
+        return real_open(*args, **kwargs)
+
+    monkeypatch.setattr(
+        task_endpoint,
+        "open",
+        failing_open,
+        raising=False,
+    )
+
+    response = client.post(
+        "/tasks/",
+        data={
+            "task_data": json.dumps(
+                valid_task_data(),
+            ),
+        },
+        files=[
+            (
+                "images",
+                (
+                    "task_image_1.jpg",
+                    b"test-image-1",
+                    "image/jpeg",
+                ),
+            ),
+            (
+                "images",
+                (
+                    "task_image_2.jpg",
+                    b"test-image-2",
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == (
+        "이미지 저장 중 오류가 발생했습니다."
+    )
+
+    # 태스크가 DB에 남아 있으면 안 됨
+    db = TestingSessionLocal()
+    assert db.query(Task).count() == 0
+    db.close()
+
+    # 먼저 저장됐던 이미지도 삭제되어야 함
+    upload_dir = (
+        tmp_path
+        / "uploads"
+        / "task_images"
+    )
+
+    assert list(upload_dir.glob("*")) == []
+
 # GET /tasks/
 def test_get_task_list():
     '''등록된 태스크 전체 목록을 정상적으로 조회하는지 확인'''
-    client.post("/tasks/", json=valid_task_data(),)
+    create_task_request()
 
     response = client.get("/tasks/")
 
@@ -120,8 +249,8 @@ def test_get_tasks_by_project_id():
     task_2["project_id"] = 2
     task_2["task_name"] = "프로젝트 2 태스크"
 
-    client.post("/tasks/", json=task_1)
-    client.post("/tasks/", json=task_2)
+    create_task_request(task_1)
+    create_task_request(task_2)
 
     response = client.get("/tasks/", params={"project_id": 1},)
 
@@ -145,8 +274,8 @@ def test_get_tasks_by_search():
     task_2["project_id"] = 2
     task_2["task_name"] = "API 테스트"
 
-    client.post("/tasks/", json=task_1)
-    client.post("/tasks/", json=task_2)
+    create_task_request(task_1)
+    create_task_request(task_2)
 
     # 2번 프로젝트에서 태스크명에 "목록"이 포함된 태스크 조회
     response = client.get("/tasks/", params={"project_id": 2, "search": "목록",},)
@@ -162,7 +291,7 @@ def test_get_tasks_by_search():
 # GET /tasks/{task_id}
 def test_get_task_by_id():
     '''태스크 ID를 이용해 특정 태스크 한 건을 조회할 수 있는지 확인'''
-    create_response = client.post("/tasks/", json=valid_task_data(),)
+    create_response = create_task_request()
 
     task_id = create_response.json()["data"]["id"]
 
@@ -185,8 +314,8 @@ def test_get_tasks_by_status():
     task_2["task_name"] = "대기 태스크"
     task_2["status"] = "TODO"
 
-    client.post("/tasks/", json=task_1)
-    client.post("/tasks/", json=task_2)
+    create_task_request(task_1)
+    create_task_request(task_2)
 
     response = client.get("/tasks/", params={"project_id": 2,"status": "IN_PROGRESS",},)
 
@@ -212,8 +341,8 @@ def test_get_tasks_by_priority():
     task_2["task_name"] = "보통 우선순위 태스크"
     task_2["priority"] = "NORMAL"
 
-    client.post("/tasks/", json=task_1)
-    client.post("/tasks/", json=task_2)
+    create_task_request(task_1)
+    create_task_request(task_2)
 
     response = client.get("/tasks/", params={"project_id": 2,"priority": "HIGH",},)
 
@@ -239,8 +368,8 @@ def test_get_tasks_by_assignee_name():
     task_2["task_name"] = "담당자2 태스크"
     task_2["assignee_name"] = "담당자2"
 
-    client.post("/tasks/", json=task_1)
-    client.post("/tasks/", json=task_2)
+    create_task_request(task_1)
+    create_task_request(task_2)
 
     response = client.get("/tasks/", params={"project_id": 2,"assignee_name": "자1",},)
 
@@ -266,8 +395,8 @@ def test_get_tasks_by_department():
     task_2["task_name"] = "담당부서2 태스크"
     task_2["department"] = "담당부서2"
 
-    client.post("/tasks/", json=task_1)
-    client.post("/tasks/", json=task_2)
+    create_task_request(task_1)
+    create_task_request(task_2)
 
     response = client.get("/tasks/", params={"project_id": 2,"department": "부서1",},)
 
@@ -310,9 +439,9 @@ def test_get_tasks_with_multiple_filters():
     task_3["assignee_name"] = "담당자2"
     task_3["department"] = "담당부서1"
 
-    client.post("/tasks/", json=task_1)
-    client.post("/tasks/", json=task_2)
-    client.post("/tasks/", json=task_3)
+    create_task_request(task_1)
+    create_task_request(task_2)
+    create_task_request(task_3)
 
     # 여러 검색/필터 조건을 동시에 전달
     response = client.get(
@@ -352,10 +481,7 @@ def test_update_task():
     """기존 태스크의 일부 정보를 정상적으로 수정할 수 있는지 확인한다."""
 
     # 수정할 태스크를 먼저 등록
-    create_response = client.post(
-        "/tasks/",
-        json=valid_task_data(),
-    )
+    create_response = create_task_request()
 
     task_id = create_response.json()["data"]["id"]
 
@@ -402,10 +528,7 @@ def test_create_task_rejects_invalid_priority():
     task_data = valid_task_data()
     task_data["priority"] = "MEDIUM"
 
-    response = client.post(
-        "/tasks/",
-        json=task_data,
-    )
+    response = create_task_request(task_data)
 
     assert response.status_code == 422
 
@@ -416,10 +539,7 @@ def test_create_task_rejects_invalid_status():
     task_data = valid_task_data()
     task_data["status"] = "COMPLETED"
 
-    response = client.post(
-        "/tasks/",
-        json=task_data,
-    )
+    response = create_task_request(task_data)
 
     assert response.status_code == 422
 
@@ -430,10 +550,7 @@ def test_create_task_rejects_empty_wbs_code():
     task_data = valid_task_data()
     task_data["wbs_code"] = ""
 
-    response = client.post(
-        "/tasks/",
-        json=task_data,
-    )
+    response = create_task_request(task_data)
 
     assert response.status_code == 422
 
@@ -441,10 +558,7 @@ def test_create_task_rejects_empty_wbs_code():
 def test_update_task_rejects_empty_wbs_code():
     """태스크 수정 시 WBS 코드를 빈 값으로 변경할 수 없다."""
 
-    create_response = client.post(
-        "/tasks/",
-        json=valid_task_data(),
-    )
+    create_response = create_task_request()
 
     task_id = create_response.json()["data"]["id"]
 
@@ -461,14 +575,14 @@ def test_create_task_rejects_on_hold_status():
     task_data = valid_task_data()
     task_data["status"] = "ON_HOLD"
 
-    response = client.post("/tasks/", json=task_data,)
+    response = create_task_request(task_data)
 
     assert response.status_code == 422
 
 def test_update_task_rejects_on_hold_status():
     """태스크 수정 시 ON_HOLD 상태를 사용할 수 없다."""
 
-    create_response = client.post("/tasks/", json=valid_task_data(),)
+    create_response = create_task_request()
 
     task_id = create_response.json()["data"]["id"]
 
@@ -504,7 +618,7 @@ def test_create_task_rejects_date_before_project_start():
     task_data["planned_start_date"] = "2026-08-09"
     task_data["planned_end_date"] = "2026-08-20"
 
-    response = client.post("/tasks/", json=task_data,)
+    response = create_task_request(task_data)
 
     assert response.status_code == 400
     assert response.json()["detail"] == ("태스크 일정은 프로젝트 기간 내에서만 설정할 수 있습니다.")
@@ -536,7 +650,7 @@ def test_update_task_rejects_date_after_project_due():
     task_data["planned_start_date"] = "2026-08-15"
     task_data["planned_end_date"] = "2026-08-20"
 
-    create_response = client.post("/tasks/", json=task_data,)
+    create_response = create_task_request(task_data)
 
     task_id = create_response.json()["data"]["id"]
 
@@ -556,8 +670,8 @@ def test_get_tasks_by_wbs_code():
     task2["wbs_code"] = "2.1"
     task2["task_name"] = "WBS 2.1 태스크"
 
-    client.post("/tasks/", json=task1)
-    client.post("/tasks/", json=task2)
+    create_task_request(task1)
+    create_task_request(task2)
 
     response = client.get("/tasks/", params={"wbs_code": "1.1"},)
 
@@ -574,7 +688,7 @@ def test_archive_task():
     task_data = valid_task_data()
     task_data["status"] = "IN_PROGRESS"
 
-    create_response = client.post("/tasks/", json=task_data,)
+    create_response = create_task_request(task_data)
 
     task_id = create_response.json()["data"]["id"]
 
@@ -601,7 +715,7 @@ def test_restore_archived_task():
     task_data = valid_task_data()
     task_data["status"] = "IN_PROGRESS"
 
-    create_response = client.post("/tasks/", json=task_data,)
+    create_response = create_task_request(task_data)
 
     task_id = create_response.json()["data"]["id"]
 
@@ -638,9 +752,8 @@ def test_get_archived_tasks():
     task2 = valid_task_data()
     task2["task_name"] = "보류 태스크"
 
-    response1 = client.post("/tasks/", json=task1,)
-
-    response2 = client.post("/tasks/", json=task2,)
+    response1 = create_task_request(task1)
+    response2 = create_task_request(task2)
 
     archived_task_id = response2.json()["data"]["id"]
 
@@ -681,20 +794,9 @@ def test_update_kanban_order():
     task3 = valid_task_data()
     task3["task_name"] = "태스크 C"
 
-    task1_id = client.post(
-        "/tasks/",
-        json=task1,
-    ).json()["data"]["id"]
-
-    task2_id = client.post(
-        "/tasks/",
-        json=task2,
-    ).json()["data"]["id"]
-
-    task3_id = client.post(
-        "/tasks/",
-        json=task3,
-    ).json()["data"]["id"]
+    task1_id = create_task_request(task1).json()["data"]["id"]
+    task2_id = create_task_request(task2).json()["data"]["id"]
+    task3_id = create_task_request(task3).json()["data"]["id"]
 
     response = client.patch(
         "/tasks/kanban/order",
@@ -747,15 +849,8 @@ def test_create_task_sets_last_kanban_order():
     task2 = valid_task_data()
     task2["task_name"] = "태스크 B"
 
-    response1 = client.post(
-        "/tasks/",
-        json=task1,
-    )
-
-    response2 = client.post(
-        "/tasks/",
-        json=task2,
-    )
+    response1 = create_task_request(task1)
+    response2 = create_task_request(task2)
 
     assert response1.status_code == 201
     assert response2.status_code == 201
@@ -776,20 +871,9 @@ def test_get_tasks_returns_kanban_order():
     task3 = valid_task_data()
     task3["task_name"] = "태스크 C"
 
-    task1_id = client.post(
-        "/tasks/",
-        json=task1,
-    ).json()["data"]["id"]
-
-    task2_id = client.post(
-        "/tasks/",
-        json=task2,
-    ).json()["data"]["id"]
-
-    task3_id = client.post(
-        "/tasks/",
-        json=task3,
-    ).json()["data"]["id"]
+    task1_id = create_task_request(task1).json()["data"]["id"]
+    task2_id = create_task_request(task2).json()["data"]["id"]
+    task3_id = create_task_request(task3).json()["data"]["id"]
 
     # C → A → B 순서로 저장
     client.patch(
@@ -824,7 +908,7 @@ def test_get_tasks_returns_kanban_order():
 def test_update_task_images():
     """태스크에 여러 이미지를 첨부하고 이미지 URL을 저장한다."""
 
-    create_response = client.post("/tasks/", json=valid_task_data(),)
+    create_response = create_task_request()
 
     task_id = create_response.json()["data"]["id"]
 
@@ -862,10 +946,7 @@ def test_update_task_images():
 def test_update_task_images_deletes_removed_image():
     """수정 저장 시 제외한 기존 이미지를 DB와 실제 파일에서 삭제한다."""
 
-    create_response = client.post(
-        "/tasks/",
-        json=valid_task_data(),
-    )
+    create_response = create_task_request()
     task_id = create_response.json()["data"]["id"]
 
     # 이미지 2장 먼저 등록
@@ -917,10 +998,7 @@ def test_update_task_images_deletes_removed_image():
 def test_update_task_images_rejects_total_size_over_10mb():
     """새로 첨부하는 이미지의 전체 합계가 10MB를 초과하면 거부한다."""
 
-    create_response = client.post(
-        "/tasks/",
-        json=valid_task_data(),
-    )
+    create_response = create_task_request()
     task_id = create_response.json()["data"]["id"]
 
     six_mb = b"a" * (6 * 1024 * 1024)
@@ -956,10 +1034,7 @@ def test_update_task_images_rejects_total_size_over_10mb():
 def test_update_task_images_rejects_total_size_with_existing_images():
     """기존 이미지와 새 이미지의 전체 합계가 10MB를 초과하면 거부한다."""
 
-    create_response = client.post(
-        "/tasks/",
-        json=valid_task_data(),
-    )
+    create_response = create_task_request()
     task_id = create_response.json()["data"]["id"]
 
     six_mb = b"a" * (6 * 1024 * 1024)
@@ -1010,7 +1085,7 @@ def test_update_task_images_rejects_total_size_with_existing_images():
 def test_update_task_images_rejects_non_image_file():
     """이미지가 아닌 파일은 태스크에 첨부할 수 없다."""
 
-    create_response = client.post("/tasks/", json=valid_task_data(),)
+    create_response = create_task_request()
     task_id = create_response.json()["data"]["id"]
 
     response = client.put(
@@ -1032,3 +1107,171 @@ def test_update_task_images_rejects_non_image_file():
     assert response.json()["detail"] == (
         "이미지 파일만 첨부할 수 있습니다."
     )
+
+# 시나리오: 신규 태스크 등록 시 첨부 이미지 총 용량이 10MB를 초과한다.
+# 검증: 요청을 거부하고 태스크도 생성하지 않는다.
+def test_create_task_rejects_images_over_10mb():
+    six_mb = b"a" * (6 * 1024 * 1024)
+    five_mb = b"b" * (5 * 1024 * 1024)
+
+    response = client.post(
+        "/tasks/",
+        data={
+            "task_data": json.dumps(
+                valid_task_data(),
+            ),
+        },
+        files=[
+            (
+                "images",
+                (
+                    "image_1.jpg",
+                    six_mb,
+                    "image/jpeg",
+                ),
+            ),
+            (
+                "images",
+                (
+                    "image_2.jpg",
+                    five_mb,
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "첨부 이미지 전체 용량은 10MB를 초과할 수 없습니다."
+    )
+
+    db = TestingSessionLocal()
+
+    try:
+        assert db.query(Task).count() == 0
+    finally:
+        db.close()
+
+# 시나리오: 신규 태스크 등록 시 이미지를 첨부하지 않는다.
+# 검증: 이미지 없이도 태스크가 정상적으로 등록된다.
+def test_create_task_without_image():
+    response = client.post(
+        "/tasks/",
+        data={
+            "task_data": json.dumps(
+                valid_task_data(),
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+
+    response_data = response.json()
+    task_data = response_data["data"]
+
+    assert task_data["task_name"] == "태스크 API 구현"
+    assert task_data["image_urls"] == []
+
+# 시나리오: 신규 태스크 등록 시 이미지가 아닌 파일을 첨부한다.
+# 검증: 요청을 거부하고 태스크도 생성하지 않는다.
+def test_create_task_rejects_non_image_file():
+    response = client.post(
+        "/tasks/",
+        data={
+            "task_data": json.dumps(
+                valid_task_data(),
+            ),
+        },
+        files=[
+            (
+                "images",
+                (
+                    "document.txt",
+                    b"not-an-image",
+                    "text/plain",
+                ),
+            ),
+        ],
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "이미지 파일만 첨부할 수 있습니다."
+    )
+
+    db = TestingSessionLocal()
+
+    try:
+        assert db.query(Task).count() == 0
+    finally:
+        db.close()
+
+# 시나리오: 이미지 저장 후 DB 저장에 실패한다.
+# 검증: 태스크와 저장된 이미지 파일이 모두 남지 않는다.
+def test_create_task_cleans_images_when_db_commit_fails(
+    monkeypatch,
+    tmp_path,
+):
+    # 테스트 이미지가 실제 uploads 폴더에 저장되지 않도록 경로 변경
+    monkeypatch.setattr(
+        task_endpoint.os,
+        "getcwd",
+        lambda: str(tmp_path),
+    )
+
+    def failing_get_db():
+        db = TestingSessionLocal()
+
+        def failing_commit():
+            raise RuntimeError("DB 저장 실패")
+
+        db.commit = failing_commit
+
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = failing_get_db
+
+    try:
+        response = client.post(
+            "/tasks/",
+            data={
+                "task_data": json.dumps(
+                    valid_task_data(),
+                ),
+            },
+            files=[
+                (
+                    "images",
+                    (
+                        "task_image.jpg",
+                        b"test-image",
+                        "image/jpeg",
+                    ),
+                ),
+            ],
+        )
+    finally:
+        app.dependency_overrides[get_db] = override_get_db
+
+    assert response.status_code == 500
+
+    # 태스크가 DB에 남아 있으면 안 됨
+    db = TestingSessionLocal()
+
+    try:
+        assert db.query(Task).count() == 0
+    finally:
+        db.close()
+
+    # 이미 저장된 이미지 파일도 남아 있으면 안 됨
+    upload_dir = (
+        tmp_path
+        / "uploads"
+        / "task_images"
+    )
+
+    assert list(upload_dir.glob("*")) == []

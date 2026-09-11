@@ -16,6 +16,7 @@ import {
   createTaskImageFormData,
   getNewImageTotalSize,
   hasTaskImageChanges,
+  createTaskCreateFormData,
 } from "./task/taskImageUtils";
 
 import TaskCreateForm from "./task/TaskCreateForm";
@@ -279,6 +280,41 @@ describe("TaskManagementPage 통합 테스트", () => {
         "/uploads/task_images/a.jpg",
       ]),
     );
+
+    expect(
+      formData.getAll("images"),
+    ).toHaveLength(1);
+  });
+
+  // 시나리오: 신규 태스크와 이미지를 하나의 FormData로 만든다.
+  // 검증: task_data와 images가 함께 포함된다.
+  it("신규 태스크와 이미지를 FormData로 만든다", () => {
+    const taskData = {
+      project_id: 1,
+      wbs_code: "1.1",
+      task_name: "테스트 태스크",
+      assignee_name: "홍길동",
+      department: "개발팀",
+      priority: "NORMAL",
+      status: "TODO",
+      planned_start_date: "2026-09-10",
+      planned_end_date: "2026-09-11",
+    };
+
+    const image = new File(
+      ["image-data"],
+      "task.jpg",
+      { type: "image/jpeg" },
+    );
+
+    const formData = createTaskCreateFormData(
+      taskData,
+      [image],
+    );
+
+    expect(
+      JSON.parse(formData.get("task_data") as string),
+    ).toEqual(taskData);
 
     expect(
       formData.getAll("images"),

@@ -15,6 +15,7 @@ from fastapi import (
     UploadFile,
     status as http_status,
 )
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -37,9 +38,26 @@ MAX_TASK_IMAGE_SIZE = 10 * 1024 * 1024
 
 
 # 태스크 등록
-@router.post("/", response_model=TaskCreateResponse, status_code=http_status.HTTP_201_CREATED,)
-def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
-    """새로운 태스크 등록"""
+@router.post(
+    "/",
+    response_model=TaskCreateResponse,
+    status_code=http_status.HTTP_201_CREATED,
+)
+async def create_task(
+    task_data: str = Form(...),
+    images: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+):
+    """이미지를 포함한 새로운 태스크를 등록한다."""
+
+    # Form으로 전달된 JSON 문자열을 TaskCreate로 변환
+    try:
+        task_in = TaskCreate.model_validate_json(task_data)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="태스크 등록 정보가 올바르지 않습니다.",
+        ) from exc
 
     # 태스크가 속한 프로젝트 조회
     project = (
@@ -53,7 +71,10 @@ def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
         project_start = project.start_date.date()
         project_due = project.due_date.date()
 
-        if (task_in.planned_start_date < project_start or task_in.planned_end_date > project_due):
+        if (
+            task_in.planned_start_date < project_start
+            or task_in.planned_end_date > project_due
+        ):
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -61,6 +82,34 @@ def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
                     "설정할 수 있습니다."
                 ),
             )
+
+    # 이미지 형식과 전체 용량을 태스크 생성 전에 검증
+    image_contents: list[tuple[UploadFile, bytes]] = []
+    total_size = 0
+
+    for image in images or []:
+        if (
+            not image.content_type
+            or not image.content_type.startswith("image/")
+        ):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="이미지 파일만 첨부할 수 있습니다.",
+            )
+
+        contents = await image.read()
+        total_size += len(contents)
+
+        if total_size > MAX_TASK_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "첨부 이미지 전체 용량은 "
+                    "10MB를 초과할 수 없습니다."
+                ),
+            )
+
+        image_contents.append((image, contents))
 
     # 같은 프로젝트와 상태에서 현재 마지막 칸반 순서 조회
     last_task = (
@@ -74,20 +123,79 @@ def create_task(task_in: TaskCreate, db: Session = Depends(get_db),):
         .first()
     )
 
-    # 새 태스크는 해당 컬럼의 마지막에 배치
     kanban_order = (
         last_task.kanban_order + 1
         if last_task is not None
         else 0
     )
 
+    # 이미지 검증이 모두 끝난 후 태스크 생성 준비
     task = Task(
         **task_in.model_dump(),
         kanban_order=kanban_order,
+        image_urls=[],
     )
 
-    db.add(task)
-    db.commit()
+    image_urls: list[str] = []
+    saved_file_paths: list[str] = []
+
+    try:
+        db.add(task)
+
+        # 첨부 이미지가 있는 경우에만 저장 폴더 생성
+        if image_contents:
+            upload_dir = os.path.join(
+                os.getcwd(),
+                "uploads",
+                "task_images",
+            )
+            os.makedirs(upload_dir, exist_ok=True)
+
+            for image, contents in image_contents:
+                extension = os.path.splitext(
+                    image.filename or "",
+                )[1]
+
+                unique_filename = f"{uuid.uuid4()}{extension}"
+
+                file_path = os.path.join(
+                    upload_dir,
+                    unique_filename,
+                )
+
+                with open(file_path, "wb") as file:
+                    file.write(contents)
+
+                saved_file_paths.append(file_path)
+
+                image_urls.append(
+                    f"/uploads/task_images/{unique_filename}"
+                )
+
+        task.image_urls = image_urls
+
+        # 태스크와 이미지가 모두 성공한 경우에만 DB 저장
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+
+        # 등록 과정에서 실패하면 이미 저장된 이미지 파일도 제거
+        for file_path in saved_file_paths:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+        # 이미지 파일 저장 자체에서 발생한 오류
+        if isinstance(exc, OSError):
+            detail = "이미지 저장 중 오류가 발생했습니다."
+        else:
+            detail = "태스크 등록 중 오류가 발생했습니다."
+
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=detail,
+        ) from exc
+
     db.refresh(task)
 
     return {
