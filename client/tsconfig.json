@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "allowJs": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",  // 추가: alias의 기준 디렉토리 설정
+    //"baseUrl": ".",  // 추가: alias의 기준 디렉토리 설정
     "paths": {  // 추가: Vite alias와 일치하는 paths 매핑
       "@/*": ["./src/*"],
       "@components/*": ["./src/components/*"],

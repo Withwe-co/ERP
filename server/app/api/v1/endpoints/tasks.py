@@ -440,3 +440,38 @@ def restore_task(task_id: int, db: Session = Depends(get_db),):
         "message": "태스크가 다시 진행됩니다.",
         "data": task,
     }
+
+@router.delete("/{task_id}")
+def delete_task(task_id: int,db: Session = Depends(get_db)):
+    """
+        summary : Task 삭제 함수
+
+        arg : 
+            - id(int) : 해당 Task의 ID
+            - db(Session) : 데이터베이스
+        
+        desc :
+            - 해당 ID에 맞는 Task 조회
+            - 조회 실패 시 -> 404에러
+            - db에서 task삭제
+            - 삭제 실패 시 -> 500에러
+    """
+    # 해당 ID에 맞는 wbs 조회
+    task = db.query(Task).filter(Task.id==task_id).first()
+
+    # 조회 실패 시 -> 404에러
+    if task is None:
+        raise HTTPException(status_code=404, detail="태스크를 찾을 수 없습니다.")
+
+    try:
+        # db에서 task삭제
+        db.delete(task)
+        db.commit()
+    except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"태스크 삭제 중 오류가 발생했습니다: {str(e)}")
+
+    return {
+        "success": 204,
+        "message": "태스크가 삭제되었습니다.",
+    }

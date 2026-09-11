@@ -8,7 +8,7 @@ import { TableColumn } from "../../../types";
 import { TaskResponse } from "../../../types/task";
 
 import styled from "styled-components";
-import { Pencil, Archive, Play} from "lucide-react";
+import { Pencil, Archive, Play,Trash2} from "lucide-react";
 
 // TaskList가 부모 컴포넌트로부터 전달받는 값
 interface TaskListProps {
@@ -27,12 +27,15 @@ interface TaskListProps {
   onArchive?: (task: TaskResponse) => void;
   onRestore?: (task: TaskResponse) => void;
 
+  // 삭제 버튼을 눌렀을 때
+  onDelete: (task: TaskResponse) => void;
+
   archivedView?: boolean;
 }
 
 
 // 태스크 목록 컴포넌트
-function TaskList({tasks, loading = false, onEdit, onDetail,  onArchive, onRestore, archivedView = false,}: TaskListProps) {
+function TaskList({tasks, loading = false, onEdit, onDetail, onArchive, onRestore, onDelete, archivedView = false,}: TaskListProps) {
 
   // 목록 보기에서는 태스크를 등록 시점 기준 최신순으로 표시
   // 원본 tasks 배열은 변경하지 않고 복사본만 정렬
@@ -137,7 +140,7 @@ function TaskList({tasks, loading = false, onEdit, onDetail,  onArchive, onResto
       key: "actions",
       label: "관리",
       width: "180px",
-
+      align: 'center',
       render: (_value, task) => (
         <ActionButtons>
           <ActionButton
@@ -165,6 +168,15 @@ function TaskList({tasks, loading = false, onEdit, onDetail,  onArchive, onResto
               보류
             </ActionButton>
           )}
+
+          <ActionButton
+            type="button"
+            onClick={(event) => {event.stopPropagation(); onDelete(task);}}
+            style={{borderColor: '#dc2626',color: '#dc2626'}}
+          >
+            <Trash2 size={14} />
+            삭제
+          </ActionButton>
         </ActionButtons>
       ),
     },

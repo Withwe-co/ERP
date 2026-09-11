@@ -538,6 +538,16 @@ export const taskApi = {
     );
   },
 
+  //태스크 삭제
+  deleteTask: async (taskId:number): Promise<any> => {
+    try{
+      const response = await apiRequest.delete(`/tasks/${taskId}`);
+      return response;
+    }catch(error){
+      console.error('태스크 삭제 실패: ',error);
+      throw error;
+    }
+  },
 };
 
 

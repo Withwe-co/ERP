@@ -98,6 +98,18 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
     catch {toast.error("태스크 진행 처리 중 오류가 발생했습니다.",);}
   };
 
+  // 삭제 함수 추가
+  const handleDelete = async (task: TaskResponse,) =>{
+    try{
+      if(window.confirm('정말로 이 태스크를 삭제하시겠습니까?')){
+        const response = await taskApi.deleteTask(task.id);
+        toast.success(response.message);
+        await queryClient.invalidateQueries({queryKey: ['tasks']});
+      }
+    }
+    catch {toast.error("태스크 삭제 중 오류가 발생했습니다.",);}
+  }
+
   // 칸반에 표시된 상태와 카드 순서를 서버에 저장
   const handleKanbanOrderChange = async (
     kanbanTasks: TaskResponse[],
@@ -171,6 +183,7 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
                 onArchive={handleArchive}
                 onRestore={handleRestore}
                 onDetail={(task) => setDetailTask(task)}
+                onDelete={(task) => handleDelete(task)}
               />
             ) : (
               <TaskKanbanBoard

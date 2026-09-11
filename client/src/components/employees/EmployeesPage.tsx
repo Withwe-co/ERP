@@ -213,6 +213,7 @@ const EmployeesPage: React.FC = () => {
               variant="outline"
               onClick={() => {handleDelete(item.id)}}
               title="삭제"
+              style={{borderColor: '#dc2626',color: '#dc2626'}}
             >
               <Trash2 size={14} />
               삭제
