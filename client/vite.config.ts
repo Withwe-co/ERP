@@ -15,7 +15,7 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '/api/v1')
+        // rewrite: (path) => path.replace(/^\/api/, '/api/v1') 잠시 제거. (ip 주소 테스트)
       },
       '/uploads': {
         target: 'http://localhost:8000',

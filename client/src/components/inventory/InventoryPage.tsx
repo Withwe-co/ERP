@@ -793,7 +793,8 @@ const InventoryPage: React.FC = () => {
 
   const handleTransactionDocumentUpload = (item: InventoryItem) => {
     console.log('🔍 거래명세서 업로드 버튼 클릭됨:', item);
-    console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
+    console.log('🔍 API 베이스 URL:', window.location.origin);
+    //console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
     // console.log('🔍 API 베이스 URL:', 'http://211.44.183.165:8000');
     
     setSelectedItemForTransaction(item);
