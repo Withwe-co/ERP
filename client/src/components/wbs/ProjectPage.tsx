@@ -386,6 +386,7 @@ const ProjectPage: React.FC = () => {
                   {activeTab === 'wbs' ? (
                   <WbsManagementPage 
                     projectId={project.id}
+                    projectName={project.project_name}
                     projectStartDate={project.start_date}
                     projectDueDate={project.due_date}
                    />

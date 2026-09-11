@@ -9,9 +9,11 @@ import Card from "../common/Card";
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
-
+import TaskCreateForm from "./task/TaskCreateForm";
+import {TaskResponse,} from "../../types/task";
 // Api
 import {WbsApi, taskApi, holidayApi, type Wbs} from '../../services/api'
+
 
 
 const TableWrapper = styled.div`
@@ -68,6 +70,7 @@ const StyledRow = styled.tr`
 
 interface WbsManagementPageProps {
     projectId: number;
+    projectName: string;
     projectStartDate: string;
     projectDueDate: string;
 }
@@ -94,12 +97,24 @@ const FilterContainer = styled.div`
 
 const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     projectId,
+    projectName,
     projectStartDate,
     projectDueDate,
 }) => {
 
+    // WBS 추가 FormModalOpen
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+    
+    // 태스크 추가 FormModalOpen
+    const [isTaskFormModalOpen, setIsTaskFormModalOpen] = useState(false);
+
+    // WBS 수정
     const [editingWbs, setEditingWbs] = useState<Wbs | null>(null);
+
+    // 태스크 수정
+    const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
+
+    const queryClient = useQueryClient();
 
     // 차트 일정 보기 조절
     type GanttViewMode = 'day' | 'week' | 'month';
@@ -114,6 +129,12 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     const openEditModal = (wbs:Wbs) =>{
         setEditingWbs(wbs);
         setIsFormModalOpen(true);
+    }
+
+    //태스크 수정 모달 오픈
+    const openEditTaskModal = (Task:TaskResponse) =>{
+        setEditingTask(Task);
+        setIsTaskFormModalOpen(true);
     }
 
     // wbs 목록 불러오기
@@ -379,8 +400,17 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                         월
                     </Button>
                     <Button
-                        onClick={() => setIsFormModalOpen(true)}       
+                        onClick={() => {setEditingTask(null); setIsTaskFormModalOpen(true);}}       
+                        title="태스크 추가"
+                        style={{width: '130px',height: '42px'}}
+                    >
+                        <Plus size={16}/>
+                        태스크 추가
+                    </Button>
+                    <Button
+                        onClick={() => {setEditingWbs(null); setIsFormModalOpen(true);}} 
                         title="WBS 추가"
+                        style={{width: '130px',height: '42px'}}
                     >
                         <Plus size={16}/>
                         WBS 추가
@@ -504,6 +534,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         )}
 
                                         <td
+                                            onClick={() => openEditTaskModal(linkedTask)}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
@@ -582,6 +613,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                 </TableWrapper>
             </Card>
         </Container>
+
         <Modal
             isOpen={isFormModalOpen}
             onClose={() => setIsFormModalOpen(false)}
@@ -600,6 +632,32 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                 onCancel={() => {
                     setIsFormModalOpen(false);
                     setEditingWbs(null);
+                }}
+            />
+        </Modal>
+        <Modal
+            isOpen={isTaskFormModalOpen}
+            onClose={() => setIsTaskFormModalOpen(false)}
+            title={editingTask ? "태스크 수정" : "새 태스크 등록"}
+            size="xl"
+            >
+            <TaskCreateForm
+                key={editingTask?.id ?? 'create'}
+                projectId={projectId}
+                projectName={projectName}
+                wbsCodes={sortedWbs.map((wbs) => wbs.wbs_code)}
+                projectStartDate={projectStartDate}
+                projectDueDate={projectDueDate}
+                mode={editingTask ? 'edit' : 'create'}
+                initialData={editingTask ?? undefined}
+                onSuccess={() => {
+                    setIsTaskFormModalOpen(false);
+                    setEditingTask(null);
+                    queryClient.invalidateQueries({queryKey: ['tasks', projectId],});
+                }}
+                onCancel={() => {
+                    setIsTaskFormModalOpen(false);
+                    setEditingTask(null);
                 }}
             />
         </Modal>
