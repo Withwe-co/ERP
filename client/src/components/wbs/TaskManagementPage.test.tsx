@@ -513,6 +513,40 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(html).toContain('aria-label="첨부 이미지 크게 보기"',);
   });
 
+  // 태스크 상세 하단 액션 버튼의 표시 순서를 확인
+  it("태스크 상세 하단에 보류, 삭제, 닫기, 수정 버튼을 순서대로 표시한다", () => {
+    const task: TaskResponse = {
+      ...validTaskData,
+      id: 1,
+      kanban_order: 0,
+      image_urls: [],
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-09-04T09:00:00",
+      updated_at: "2026-09-04T09:00:00",
+    };
+
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskDetail
+          task={task}
+          onEdit={() => {}}
+          onClose={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    const archiveIndex = html.indexOf("보류");
+    const deleteIndex = html.indexOf("삭제");
+    const closeIndex = html.indexOf("닫기");
+    const editIndex = html.indexOf("수정");
+
+    expect(archiveIndex).toBeGreaterThan(-1);
+    expect(deleteIndex).toBeGreaterThan(archiveIndex);
+    expect(closeIndex).toBeGreaterThan(deleteIndex);
+    expect(editIndex).toBeGreaterThan(closeIndex);
+  });
+
   it("태스크 관리 상단 컨트롤 규격을 통일한다", () => {
     expect(TASK_CONTROL_HEIGHT).toBe("40.8px");
     expect(TASK_CONTROL_GAP).toBe("16px");
