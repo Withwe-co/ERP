@@ -78,6 +78,18 @@ const FormRow = styled.div`
   grid-column: 1 / -1;
 `;
 
+const ManagerField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const ManagerHelpText = styled.div`
+  padding-left: 4px;
+  font-size: 12px;
+  color: #6b7280;
+`;
+
 const ErrorMessage = styled.div`
   color: ${props => props.theme.colors.error};
   font-size: 12px;
@@ -358,13 +370,16 @@ const ProjectUploadForm: React.FC<ProjectUploadFormProps> =({
                             required
                         />
 
-                        <Input
+                        <ManagerField>
+                          <Input
                             label={'\u00A0\u00A0프로젝트 담당자\u00A0'}
                             value={formData.manager_name}
                             onChange={(e) => handleChange('manager_name', e.target.value)}
-                            placeholder="담당자"
+                            placeholder="예: 홍길동, 김철수, 이영희"
                             required
-                        />
+                          />
+                          <ManagerHelpText>여러 명 입력 시 쉼표(,)로 구분해주세요.</ManagerHelpText>
+                        </ManagerField>
 
                         <Select
                             label={'\u00A0\u00A0담당 부서\u00A0'}
