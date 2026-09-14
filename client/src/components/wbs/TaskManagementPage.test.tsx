@@ -21,12 +21,14 @@ import {
 
 import TaskCreateForm from "./task/TaskCreateForm";
 import TaskDetail from "./task/TaskDetail";
+import TaskSearchFilter from "./task/TaskSearchFilter";
 
 import {
   TASK_ACTION_BUTTON_WIDTH,
   TASK_CONTROL_GAP,
   TASK_CONTROL_HEIGHT,
   TASK_CONTROL_FIELD_WIDTH,
+  TASK_WBS_FILTER_WIDTH,
 } from "./task/taskControlStyles";
 
 const validTaskData: TaskCreateData = {
@@ -582,6 +584,7 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(TASK_CONTROL_GAP).toBe("16px");
     expect(TASK_ACTION_BUTTON_WIDTH).toBe("112px");
     expect(TASK_CONTROL_FIELD_WIDTH).toBe("180px");
+    expect(TASK_WBS_FILTER_WIDTH).toBe("260px");
 
   });
 
@@ -619,4 +622,30 @@ it("태스크 폼의 주요 입력 항목을 지정된 순서로 표시한다", 
   expect(wbsNameIndex).toBeGreaterThan(taskNameIndex);
   expect(departmentIndex).toBeGreaterThan(wbsNameIndex);
   expect(assigneeIndex).toBeGreaterThan(departmentIndex);
+});
+
+// WBS 검색 필터에 코드 대신 상위 WBS명 + 하위 WBS명을 표시
+it("WBS 필터에 WBS명을 표시하고 실제 값은 WBS 코드를 사용한다", () => {
+  const html = renderToStaticMarkup(
+    <ThemeProvider theme={theme}>
+      <TaskSearchFilter
+        onFilter={() => {}}
+        wbsOptions={[
+          {
+            value: "2.1",
+            label: "태스크 페이지 기능 추가",
+          },
+          {
+            value: "2.2",
+            label: "태스크 페이지 UI 개선",
+          },
+        ]}
+      />
+    </ThemeProvider>,
+  );
+
+  expect(html).toContain("태스크 페이지 기능 추가");
+  expect(html).toContain("태스크 페이지 UI 개선");
+  expect(html).toContain('value="2.1"');
+  expect(html).toContain('value="2.2"');
 });

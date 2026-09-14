@@ -13,18 +13,19 @@ import {
   TASK_CONTROL_HEIGHT,
   TASK_CONTROL_ICON_SIZE,
   TASK_CONTROL_FIELD_WIDTH,
+  TASK_WBS_FILTER_WIDTH,
 } from "./taskControlStyles";
 
 
 // 부모 컴포넌트에 현재 검색/필터 조건을 전달하기 위한 Props
 interface TaskSearchFilterProps {
   onFilter: (filters: TaskFilter) => void;
-  wbsCodes: string[];
+  wbsOptions: {value: string; label: string;}[];
 }
 
 
 // 태스크 검색 및 필터 영역
-function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
+function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
 
   // 현재 적용된 검색 및 필터 조건
   const [filters, setFilters] = useState<TaskFilter>({});
@@ -75,13 +76,20 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
   // 활성 필터 태그에 사용자용 한글 이름 표시
   const getFilterDisplayName = (key: string, value: string,) => {
     const names: Record<string, string> = {
-      search: "검색",
+      search: "태스크명",
       wbs_code: "WBS",
       status: "상태",
       priority: "우선순위",
       assignee_name: "담당자",
       department: "부서",
     };
+
+    // WBS 코드는 화면에서 WBS명으로 표시
+    if (key === "wbs_code") {
+      const selectedWbs = wbsOptions.find((option) => option.value === value,);
+
+      return `WBS: ${selectedWbs?.label || value}`;
+    }
 
     // 상태값 한글 표시
     if (key === "status") {
@@ -131,27 +139,22 @@ function TaskSearchFilter({onFilter, wbsCodes = [],}: TaskSearchFilterProps) {
           />
         </SearchGroup>
 
-        {/* WBS 코드 필터 */}
-        <FilterSelect
+        {/* WBS명 필터 */}
+        <WbsFilterSelect
           value={filters.wbs_code || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "wbs_code",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("wbs_code", event.target.value,)}
         >
           <option value="">전체 WBS</option>
 
-          {wbsCodes.map((code) => (
+          {wbsOptions.map((option) => (
             <option
-              key={code}
-              value={code}
+              key={option.value}
+              value={option.value}
             >
-              {code}
+              {option.label}
             </option>
           ))}
-        </FilterSelect>
+        </WbsFilterSelect>
 
         {/* 태스크 상태 필터 */}
         <FilterSelect
@@ -366,6 +369,10 @@ const FilterSelect = styled.select`
     border-color:
       ${props => props.theme.colors.primary};
   }
+`;
+
+const WbsFilterSelect = styled(FilterSelect)`
+  width: ${TASK_WBS_FILTER_WIDTH};
 `;
 
 // 담당자 및 담당부서 검색 입력창

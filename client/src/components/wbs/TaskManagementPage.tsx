@@ -64,9 +64,6 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
   // 하위 WBS가 없는 최하위 WBS만 태스크 등록 대상으로 사용
   const selectableWbsOptions = getSelectableWbsOptions(wbsList);
 
-  // 검색 필터에서는 기존처럼 WBS 코드만 사용
-  const selectableWbsCodes = selectableWbsOptions.map((option) => option.value,);
-
   // 현재 프로젝트의 태스크 목록 조회
   const {data: tasks = [], isLoading, error, refetch,} = useQuery({
     // 프로젝트 또는 검색/필터 조건이 변경되면 서로 다른 조회 데이터로 인식하여 API 다시 호출
@@ -157,7 +154,7 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
           {/* 검색 및 필터 조건을 설정하는 영역 */}
           <TaskSearchFilter
             onFilter={handleSearch}
-            wbsCodes={selectableWbsCodes}
+            wbsOptions={selectableWbsOptions}
           />
 
           {/* 보기 방식과 전체/보류 태스크, 태스크 등록을 제어하는 영역 */}
