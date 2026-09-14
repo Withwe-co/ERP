@@ -549,6 +549,34 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(editIndex).toBeGreaterThan(closeIndex);
   });
 
+  it("보류 태스크 상세에서는 보류 대신 진행 버튼을 표시한다", () => {
+  const task: TaskResponse = {
+    ...validTaskData,
+    id: 1,
+    kanban_order: 0,
+    image_urls: [],
+    is_archived: true,
+    archived_at: "2026-09-14T09:00:00",
+    created_at: "2026-09-04T09:00:00",
+    updated_at: "2026-09-14T09:00:00",
+  };
+
+  const html = renderToStaticMarkup(
+    <ThemeProvider theme={theme}>
+      <TaskDetail
+        task={task}
+        onEdit={() => {}}
+        onClose={() => {}}
+        onArchive={() => {}}
+        onRestore={() => {}}
+      />
+    </ThemeProvider>,
+  );
+
+  expect(html).toContain("진행");
+  expect(html).not.toContain(">보류<");
+});
+
   it("태스크 관리 상단 컨트롤 규격을 통일한다", () => {
     expect(TASK_CONTROL_HEIGHT).toBe("40.8px");
     expect(TASK_CONTROL_GAP).toBe("16px");

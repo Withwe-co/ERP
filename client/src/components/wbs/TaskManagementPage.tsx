@@ -97,13 +97,18 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
     }
   };
 
-  const handleRestore = async (task: TaskResponse,) => {
+  const handleRestore = async (task: TaskResponse,): Promise<boolean> => {
     try {
       const response = await taskApi.restoreTask(task.id);
       toast.success(response.message);
       await queryClient.invalidateQueries({queryKey: ["tasks", projectId],});
-    } 
-    catch {toast.error("태스크 진행 처리 중 오류가 발생했습니다.",);}
+
+      return true;
+    } catch {
+      toast.error("태스크 진행 처리 중 오류가 발생했습니다.");
+
+      return false;
+    }
   };
 
   // 칸반에 표시된 상태와 카드 순서를 서버에 저장
@@ -252,8 +257,11 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
             }}
             onArchive={async () => {
               const archived = await handleArchive(detailTask);
-
               if (archived) {setDetailTask(null);}
+            }}
+            onRestore={async () => {
+              const restored = await handleRestore(detailTask);
+              if (restored) {setDetailTask(null);}
             }}
           />
         )}

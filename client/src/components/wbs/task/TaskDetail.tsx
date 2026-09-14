@@ -9,10 +9,10 @@ interface TaskDetailProps {
   onEdit: () => void;
   onClose: () => void;
   onArchive: () => void;
+  onRestore: () => void;
 }
 
-
-function TaskDetail({task,onEdit,onClose,onArchive,}: TaskDetailProps) {
+function TaskDetail({task,onEdit,onClose,onArchive,onRestore}: TaskDetailProps) {
 
   // 이미지 상태 
   const [
@@ -21,29 +21,15 @@ function TaskDetail({task,onEdit,onClose,onArchive,}: TaskDetailProps) {
   ] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedImageUrl) {
-      return;
-    }
+    if (!selectedImageUrl) {return;}
 
-    const handleKeyDown = (
-      event: KeyboardEvent,
-    ) => {
-      if (event.key === "Escape") {
-        setSelectedImageUrl(null);
-      }
+    const handleKeyDown = (event: KeyboardEvent,) => {
+      if (event.key === "Escape") {setSelectedImageUrl(null);}
     };
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
+    window.addEventListener("keydown", handleKeyDown,);
 
-    return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
-    };
+    return () => {window.removeEventListener("keydown", handleKeyDown,);};
   }, [selectedImageUrl]);
 
   const priorityLabel = {
@@ -157,14 +143,23 @@ function TaskDetail({task,onEdit,onClose,onArchive,}: TaskDetailProps) {
       {/* 하단 버튼 */}
       <ButtonArea>
         <LeftButtonGroup>
-          <Button
-            type="button"
-            style={detailActionButtonStyle}
-            onClick={onArchive}
-          >
-            보류
-          </Button>
-
+          {task.is_archived ? (
+            <Button
+              type="button"
+              style={detailActionButtonStyle}
+              onClick={onRestore}
+            >
+              진행
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              style={detailActionButtonStyle}
+              onClick={onArchive}
+            >
+              보류
+            </Button>
+          )}
           <Button
             type="button"
             style={detailActionButtonStyle}
