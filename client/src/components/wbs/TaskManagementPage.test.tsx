@@ -504,6 +504,7 @@ describe("TaskManagementPage 통합 테스트", () => {
           task={task}
           onEdit={() => {}}
           onClose={() => {}}
+          onArchive={() => {}}
         />
       </ThemeProvider>,
     );
@@ -532,6 +533,7 @@ describe("TaskManagementPage 통합 테스트", () => {
           task={task}
           onEdit={() => {}}
           onClose={() => {}}
+          onArchive={() => {}}
         />
       </ThemeProvider>,
     );

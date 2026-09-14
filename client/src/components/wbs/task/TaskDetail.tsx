@@ -8,10 +8,11 @@ interface TaskDetailProps {
   task: TaskResponse;
   onEdit: () => void;
   onClose: () => void;
+  onArchive: () => void;
 }
 
 
-function TaskDetail({task,onEdit,onClose,}: TaskDetailProps) {
+function TaskDetail({task,onEdit,onClose,onArchive,}: TaskDetailProps) {
 
   // 이미지 상태 
   const [
@@ -159,6 +160,7 @@ function TaskDetail({task,onEdit,onClose,}: TaskDetailProps) {
           <Button
             type="button"
             style={detailActionButtonStyle}
+            onClick={onArchive}
           >
             보류
           </Button>

@@ -83,13 +83,18 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
   });
 
   // 보류/진행 함수 추가
-  const handleArchive = async (task: TaskResponse,) => {
+  const handleArchive = async (task: TaskResponse,): Promise<boolean> => {
     try {
       const response = await taskApi.archiveTask(task.id);
       toast.success(response.message);
       await queryClient.invalidateQueries({queryKey: ["tasks", projectId],});
+
+      return true;
+    } catch {
+      toast.error("태스크 보류 중 오류가 발생했습니다.");
+
+      return false;
     }
-    catch {toast.error("태스크 보류 중 오류가 발생했습니다.",);}
   };
 
   const handleRestore = async (task: TaskResponse,) => {
@@ -244,6 +249,11 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
             onEdit={() => {
               setSelectedTask(detailTask);
               setDetailTask(null);
+            }}
+            onArchive={async () => {
+              const archived = await handleArchive(detailTask);
+
+              if (archived) {setDetailTask(null);}
             }}
           />
         )}
