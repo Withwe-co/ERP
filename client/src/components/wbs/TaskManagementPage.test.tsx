@@ -21,7 +21,7 @@ import {
 
 import TaskCreateForm from "./task/TaskCreateForm";
 import TaskDetail from "./task/TaskDetail";
-import TaskSearchFilter from "./task/TaskSearchFilter";
+import TaskSearchFilter, {getFilterDisplayName,} from "./task/TaskSearchFilter";
 
 import {
   TASK_ACTION_BUTTON_WIDTH,
@@ -94,104 +94,58 @@ describe("TaskManagementPage 통합 테스트", () => {
   // 태스크 등록 폼 순서대로 필수값과 프로젝트 기간을 검증
   it("태스크 등록 데이터의 필수값과 날짜를 검증한다", () => {
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        task_name: "",
-      }),
+      validateTaskCreateData({...validTaskData, task_name: "",}),
     ).toBe("태스크명을 입력해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        wbs_code: "",
-      }),
+      validateTaskCreateData({...validTaskData, wbs_code: "",}),
     ).toBe("WBS명을 선택해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        department: "",
-      }),
+      validateTaskCreateData({...validTaskData, department: "",}),
     ).toBe("담당 부서명을 선택해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        assignee_name: "",
-      }),
+      validateTaskCreateData({...validTaskData, assignee_name: "",}),
     ).toBe("담당자명을 입력해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        priority: "" as TaskCreateData["priority"],
-      }),
+      validateTaskCreateData({...validTaskData, priority: "" as TaskCreateData["priority"],}),
     ).toBe("우선순위를 선택해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        status: "" as TaskCreateData["status"],
-      }),
+      validateTaskCreateData({...validTaskData, status: "" as TaskCreateData["status"],}),
     ).toBe("상태를 선택해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        planned_start_date: "",
-      }),
+      validateTaskCreateData({...validTaskData, planned_start_date: "",}),
     ).toBe("시작예정일을 선택해주세요.");
 
-    expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        planned_end_date: "",
-      }),
+    expect(validateTaskCreateData({...validTaskData, planned_end_date: "",}),
     ).toBe("완료예정일을 선택해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        planned_end_date: "2026-08-19",
-      }),
-    ).toBe(
-      "완료 예정일은 시작 예정일보다 빠를 수 없습니다.",
-    );
+      validateTaskCreateData({...validTaskData, planned_end_date: "2026-08-19",}),
+    ).toBe("완료 예정일은 시작 예정일보다 빠를 수 없습니다.",);
 
     expect(
       validateTaskCreateData(
-        {
-          ...validTaskData,
-          planned_start_date: "2026-07-31",
-        },
+        {...validTaskData, planned_start_date: "2026-07-31",},
         "2026-08-01",
         "2026-09-30",
       ),
     ).toBe(
-      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-        "벗어난 날짜는 선택할 수 없습니다.",
-    );
+      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 벗어난 날짜는 선택할 수 없습니다.",);
 
     expect(
-      validateTaskCreateData(
-        validTaskData,
-        "2026-08-01",
-        "2026-09-30",
-      ),
+      validateTaskCreateData(validTaskData, "2026-08-01", "2026-09-30",),
     ).toBeNull();
 
     expect(
       validateTaskCreateData(
-        {
-          ...validTaskData,
-          planned_start_date: "2026-10-01",
-        },
-        "2026-08-01",
-        "2026-09-30",
-      ),
+        {...validTaskData, planned_start_date: "2026-10-01",}, "2026-08-01", "2026-09-30",),
     ).toBe(
-      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-        "벗어난 날짜는 선택할 수 없습니다.",
+      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 벗어난 날짜는 선택할 수 없습니다.",
     );
 
     expect(
@@ -507,6 +461,7 @@ describe("TaskManagementPage 통합 테스트", () => {
           onEdit={() => {}}
           onClose={() => {}}
           onArchive={() => {}}
+          onRestore={() => {}}
         />
       </ThemeProvider>,
     );
@@ -536,6 +491,7 @@ describe("TaskManagementPage 통합 테스트", () => {
           onEdit={() => {}}
           onClose={() => {}}
           onArchive={() => {}}
+          onRestore={() => {}}
         />
       </ThemeProvider>,
     );
@@ -648,4 +604,26 @@ it("WBS 필터에 WBS명을 표시하고 실제 값은 WBS 코드를 사용한�
   expect(html).toContain("태스크 페이지 UI 개선");
   expect(html).toContain('value="2.1"');
   expect(html).toContain('value="2.2"');
+});
+
+// 선택된 WBS 필터에는 WBS 코드 대신 WBS명을 표시
+it("선택된 WBS 필터에 WBS명을 표시한다", () => {
+  const wbsOptions = [
+    {
+      value: "2.1",
+      label: "태스크 페이지 기능 추가",
+    },
+    {
+      value: "2.2",
+      label: "태스크 페이지 UI 개선",
+    },
+  ];
+
+  expect(
+    getFilterDisplayName(
+      "wbs_code",
+      "2.1",
+      wbsOptions,
+    ),
+  ).toBe("WBS: 태스크 페이지 기능 추가");
 });

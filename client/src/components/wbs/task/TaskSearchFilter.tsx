@@ -16,13 +16,57 @@ import {
   TASK_WBS_FILTER_WIDTH,
 } from "./taskControlStyles";
 
+import type { SelectableWbsOption } from "./wbsOptions";
 
 // 부모 컴포넌트에 현재 검색/필터 조건을 전달하기 위한 Props
 interface TaskSearchFilterProps {
   onFilter: (filters: TaskFilter) => void;
-  wbsOptions: {value: string; label: string;}[];
+  wbsOptions: SelectableWbsOption[];
 }
 
+// 활성 필터 태그에 사용자용 한글 이름 표시
+export const getFilterDisplayName = (key: string, value: string, wbsOptions: SelectableWbsOption[],) => {
+  const names: Record<string, string> = {
+    search: "태스크명",
+    wbs_code: "WBS",
+    status: "상태",
+    priority: "우선순위",
+    assignee_name: "담당자",
+    department: "부서",
+  };
+
+  // WBS 코드는 화면에서 WBS명으로 표시
+  if (key === "wbs_code") {
+    const selectedWbs = wbsOptions.find((option) => option.value === value,);
+
+    return `WBS: ${selectedWbs?.label || value}`;
+  }
+
+  // 상태값 한글 표시
+  if (key === "status") {
+    const labels: Record<string, string> = {
+      TODO: "대기",
+      IN_PROGRESS: "진행 중",
+      DONE: "완료",
+    };
+
+    return `${names[key]}: ${labels[value] || value}`;
+  }
+
+  // 우선순위 한글 표시
+  if (key === "priority") {
+    const labels: Record<string, string> = {
+      LOW: "낮음",
+      NORMAL: "보통",
+      HIGH: "높음",
+      URGENT: "긴급",
+    };
+
+    return `${names[key]}: ${labels[value] || value}`;
+  }
+
+  return `${names[key] || key}: ${value}`;
+};
 
 // 태스크 검색 및 필터 영역
 function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
@@ -72,52 +116,6 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
   // 하나라도 적용된 검색/필터가 있는지 확인
   const hasActiveFilters = Object.keys(filters).length > 0;
 
-
-  // 활성 필터 태그에 사용자용 한글 이름 표시
-  const getFilterDisplayName = (key: string, value: string,) => {
-    const names: Record<string, string> = {
-      search: "태스크명",
-      wbs_code: "WBS",
-      status: "상태",
-      priority: "우선순위",
-      assignee_name: "담당자",
-      department: "부서",
-    };
-
-    // WBS 코드는 화면에서 WBS명으로 표시
-    if (key === "wbs_code") {
-      const selectedWbs = wbsOptions.find((option) => option.value === value,);
-
-      return `WBS: ${selectedWbs?.label || value}`;
-    }
-
-    // 상태값 한글 표시
-    if (key === "status") {
-      const labels: Record<string, string> = {
-        TODO: "대기",
-        IN_PROGRESS: "진행 중",
-        DONE: "완료",
-      };
-
-      return `${names[key]}: ${labels[value] || value}`;
-    }
-
-    // 우선순위 한글 표시
-    if (key === "priority") {
-      const labels: Record<string, string> = {
-        LOW: "낮음",
-        NORMAL: "보통",
-        HIGH: "높음",
-        URGENT: "긴급",
-      };
-
-      return `${names[key]}: ${labels[value] || value}`;
-    }
-
-    return `${names[key] || key}: ${value}`;
-  };
-
-
   return (
     <SearchCard>
       {/* 1행: 태스크 검색과 각 필터 입력 영역 */}
@@ -130,12 +128,7 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
             type="text"
             placeholder="태스크명으로 검색"
             value={filters.search || ""}
-            onChange={(event) =>
-              handleFilterChange(
-                "search",
-                event.target.value,
-              )
-            }
+            onChange={(event) => handleFilterChange("search", event.target.value,)}
           />
         </SearchGroup>
 
@@ -147,10 +140,7 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
           <option value="">전체 WBS</option>
 
           {wbsOptions.map((option) => (
-            <option
-              key={option.value}
-              value={option.value}
-            >
+            <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
@@ -159,12 +149,7 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
         {/* 태스크 상태 필터 */}
         <FilterSelect
           value={filters.status || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "status",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("status", event.target.value,)}
         >
           <option value="">전체 상태</option>
           <option value="TODO">대기</option>
@@ -175,12 +160,7 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
         {/* 태스크 우선순위 필터 */}
         <FilterSelect
           value={filters.priority || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "priority",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("priority", event.target.value,)}
         >
           <option value="">전체 우선순위</option>
           <option value="LOW">낮음</option>
@@ -194,12 +174,7 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
           type="text"
           placeholder="담당자"
           value={filters.assignee_name || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "assignee_name",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("assignee_name",  event.target.value,)}
         />
 
         {/* 담당부서 검색 */}
@@ -207,12 +182,7 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
           type="text"
           placeholder="부서"
           value={filters.department || ""}
-          onChange={(event) =>
-            handleFilterChange(
-              "department",
-              event.target.value,
-            )
-          }
+          onChange={(event) => handleFilterChange("department", event.target.value,)}
         />
       </FilterRow>
 
@@ -225,10 +195,7 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
           disabled={!hasActiveFilters}
         >
           <Filter size={TASK_CONTROL_ICON_SIZE} />
-
-          {hasActiveFilters
-            ? "필터 초기화"
-            : "필터"}
+          {hasActiveFilters ? "필터 초기화" : "필터"}
         </FilterButton>
 
         {/* 현재 선택되어 있는 검색어와 필터를 태그 형태로 표시 */}
@@ -238,21 +205,14 @@ function TaskSearchFilter({onFilter, wbsOptions = [],}: TaskSearchFilterProps) {
               ([key, value]) => (
                 <FilterTag key={key}>
                   <span>
-                    {getFilterDisplayName(
-                      key,
-                      String(value),
-                    )}
+                    {getFilterDisplayName(key, String(value), wbsOptions,)}
                   </span>
 
                   {/* 개별 검색/필터 조건만 제거 */}
                   <X
                     size={12}
                     className="remove-filter"
-                    onClick={() =>
-                      removeFilter(
-                        key as keyof TaskFilter,
-                      )
-                    }
+                    onClick={() =>removeFilter(key as keyof TaskFilter,)}
                   />
                 </FilterTag>
               ),

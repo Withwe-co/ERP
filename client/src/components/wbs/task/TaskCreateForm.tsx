@@ -10,10 +10,10 @@ import { toast } from "react-toastify";
 import { hasTaskChanges, validateTaskCreateData } from "./taskValidation";
 import {getNewImageTotalSize, hasTaskImageChanges,} from "./taskImageUtils";
 import { taskApi } from "../../../services/api";
+import type { SelectableWbsOption } from "./wbsOptions";
 
 // 태스크 신규 첨부 이미지 전체 최대 용량
-const MAX_TASK_IMAGE_SIZE =
-  10 * 1024 * 1024;
+const MAX_TASK_IMAGE_SIZE = 10 * 1024 * 1024;
 
 // 태스크 등록/수정 시 사용할 담당부서 목록
 // 화면에서는 아래 순서를 오름차순 기준으로 고정하여 표시
@@ -29,26 +29,19 @@ const TASK_DEPARTMENTS = [
 interface TaskCreateFormProps {
   // 현재 보고 있는 프로젝트의 ID
   projectId: number;
-
   // 현재 보고 있는 프로젝트의 이름
   projectName: string;
-
   // 등록 / 수정 모드
   mode?: "create" | "edit";
-
   // 수정할 기존 태스크 데이터
   initialData?: TaskResponse;
-
   // 태스크에서 선택 가능한 WBS 목록
-  wbsOptions: { value: string; label: string;}[];
-
+  wbsOptions: SelectableWbsOption[];
   // 프로젝트 기간
   projectStartDate: string;
   projectDueDate: string;
-
   // 등록 또는 수정 성공 시 실행
   onSuccess: () => void;
-
   // 취소 시 실행
   onCancel: () => void;
 }
@@ -136,23 +129,15 @@ function TaskCreateForm({
             );
 
             if (invalidFile) {
-                toast.error(
-                "이미지 파일만 첨부할 수 있습니다.",
-                );
+                toast.error("이미지 파일만 첨부할 수 있습니다.",);
                 event.target.value = "";
                 return;
             }
 
             const nextImages = [...newImages, ...selectedFiles,];
 
-            if (
-                getNewImageTotalSize(nextImages) >
-                MAX_TASK_IMAGE_SIZE
-            ) {
-                toast.error(
-                "새로 첨부하는 이미지의 전체 용량은 " +
-                "10MB를 초과할 수 없습니다.",
-                );
+            if (getNewImageTotalSize(nextImages) > MAX_TASK_IMAGE_SIZE) {
+                toast.error("새로 첨부하는 이미지의 전체 용량은 10MB를 초과할 수 없습니다.",);
                 event.target.value = "";
                 return;
             }
@@ -160,7 +145,6 @@ function TaskCreateForm({
             const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file),);
 
             setNewImages(nextImages);
-
             setNewImagePreviewUrls((current) => [...current, ...previewUrls,]);
 
             // 같은 파일을 다시 선택할 수 있도록 초기화
@@ -169,33 +153,17 @@ function TaskCreateForm({
 
         // 기존 이미지 제거 예약
         const handleRemoveExistingImage = (imageUrl: string,) => {
-            setKeptImageUrls((current) =>
-                current.filter((url) => url !== imageUrl,),
-            );
+            setKeptImageUrls((current) => current.filter((url) => url !== imageUrl,),);
         };
 
         // 새로 선택한 이미지 취소
         const handleRemoveNewImage = (index: number,) => {
-            const previewUrl =
-                newImagePreviewUrls[index];
+            const previewUrl = newImagePreviewUrls[index];
 
-            if (previewUrl) {
-                URL.revokeObjectURL(previewUrl);
-            }
+            if (previewUrl) {URL.revokeObjectURL(previewUrl);}
 
-            setNewImages((current) =>
-                current.filter(
-                (_, imageIndex) =>
-                    imageIndex !== index,
-                ),
-            );
-
-            setNewImagePreviewUrls((current) =>
-                current.filter(
-                (_, imageIndex) =>
-                    imageIndex !== index,
-                ),
-            );
+            setNewImages((current) => current.filter((_, imageIndex) => imageIndex !== index,),);
+            setNewImagePreviewUrls((current) => current.filter((_, imageIndex) => imageIndex !== index,),);
         };
 
         // 등록 버튼 클릭 시 실행
@@ -215,10 +183,7 @@ function TaskCreateForm({
             // 일반 태스크 정보가 변경되었는지 확인
             const hasDataChanges =
             mode === "edit" && initialData
-                ? hasTaskChanges(
-                    initialData,
-                    formData,
-                )
+                ? hasTaskChanges(initialData, formData,)
                 : true;
 
             // 기존 이미지 삭제 또는 신규 이미지 추가 여부 확인
@@ -232,13 +197,9 @@ function TaskCreateForm({
                 : newImages.length > 0;
 
             // 일반 정보와 이미지 모두 변경되지 않은 경우에만 수정 중단
-            if (
-            mode === "edit" &&
-            !hasDataChanges &&
-            !hasImageChanges
-            ) {
-            toast.info("수정사항이 없습니다.");
-            return;
+            if (mode === "edit" && !hasDataChanges && !hasImageChanges) {
+                toast.info("수정사항이 없습니다.");
+                return;
             }
 
             // 이미 요청이 진행 중이면 중복 제출 방지
@@ -254,18 +215,11 @@ function TaskCreateForm({
 
                 if (mode === "edit" && initialData) {
                     if (hasDataChanges) {
-                        await taskApi.updateTask(
-                        initialData.id,
-                        formData,
-                        );
+                        await taskApi.updateTask(initialData.id, formData,);
                     }
 
                     if (hasImageChanges) {
-                        await taskApi.updateTaskImages(
-                        initialData.id,
-                        keptImageUrls,
-                        newImages,
-                        );
+                        await taskApi.updateTaskImages(initialData.id, keptImageUrls, newImages,);
                     }
 
                     toast.success("태스크가 성공적으로 수정되었습니다.",);
@@ -332,10 +286,7 @@ function TaskCreateForm({
                 placeholder="WBS명을 선택하세요"
                 options={wbsOptions}
                 onChange={(value) =>
-                setFormData({
-                    ...formData,
-                    wbs_code: String(value),
-                })
+                    setFormData({...formData, wbs_code: String(value),})
                 }
             />
 
@@ -351,10 +302,7 @@ function TaskCreateForm({
                     label: department,
                 }))}
                 onChange={(value) =>
-                    setFormData({
-                    ...formData,
-                    department: String(value),
-                    })
+                    setFormData({...formData,department: String(value),})
                 }
                 />
 
@@ -364,10 +312,7 @@ function TaskCreateForm({
                 required
                 placeholder="담당자명을 입력하세요."
                 onChange={(event) =>
-                    setFormData({
-                    ...formData,
-                    assignee_name: event.target.value,
-                    })
+                    setFormData({...formData, assignee_name: event.target.value,})
                 }
                 />
             </FormGrid>
@@ -384,7 +329,8 @@ function TaskCreateForm({
                     { value: "HIGH", label: "높음" },
                     { value: "URGENT", label: "긴급" },
                 ]}
-                onChange={(value) =>setFormData({...formData, priority: value as TaskPriority,})}
+                onChange={(value) =>
+                    setFormData({...formData, priority: value as TaskPriority,})}
                 />
 
                 <TaskSelect
@@ -396,7 +342,8 @@ function TaskCreateForm({
                     { value: "IN_PROGRESS", label: "진행 중" },
                     { value: "DONE", label: "완료" },
                     ]}
-                    onChange={(value) => setFormData({...formData, status: value as TaskStatus,})}
+                    onChange={(value) =>
+                        setFormData({...formData, status: value as TaskStatus,})}
                 />
 
             </FormGrid>
@@ -410,7 +357,8 @@ function TaskCreateForm({
                     value={formData.planned_start_date}
                     max={formData.planned_end_date || undefined}
                     required
-                    onChange={(event) =>setFormData({...formData, planned_start_date: event.target.value,})}
+                    onChange={(event) =>
+                        setFormData({...formData, planned_start_date: event.target.value,})}
                 />
 
                 <Input
@@ -419,7 +367,8 @@ function TaskCreateForm({
                     value={formData.planned_end_date}
                     min={formData.planned_start_date || undefined}
                     required
-                    onChange={(event) =>setFormData({...formData, planned_end_date: event.target.value,})}
+                    onChange={(event) =>
+                        setFormData({...formData, planned_end_date: event.target.value,})}
                 />
             </FormGrid>
             {isOutsideProjectPeriod && (
@@ -437,7 +386,8 @@ function TaskCreateForm({
                 <TextArea
                 value={formData.description || ""}
                 placeholder="태스크에 대한 설명을 입력하세요."
-                onChange={(event) =>setFormData({...formData, description: event.target.value,})}
+                onChange={(event) =>
+                    setFormData({...formData, description: event.target.value,})}
                 />
             </TextAreaGroup>
 
@@ -463,21 +413,12 @@ function TaskCreateForm({
                 newImages.length > 0) && (
                 <ImagePreviewGrid>
                 {keptImageUrls.map((imageUrl) => (
-                    <ImagePreviewItem
-                    key={imageUrl}
-                    >
-                    <PreviewImage
-                        src={imageUrl}
-                        alt="기존 태스크 첨부 이미지"
-                    />
+                    <ImagePreviewItem key={imageUrl}>
+                    <PreviewImage src={imageUrl} alt="기존 태스크 첨부 이미지"/>
 
                     <RemoveImageButton
                         type="button"
-                        onClick={() =>
-                        handleRemoveExistingImage(
-                            imageUrl,
-                        )
-                        }
+                        onClick={() => handleRemoveExistingImage(imageUrl,)}
                     >
                         ×
                     </RemoveImageButton>
@@ -486,23 +427,15 @@ function TaskCreateForm({
 
                 {newImagePreviewUrls.map(
                     (previewUrl, index) => (
-                    <ImagePreviewItem
-                        key={previewUrl}
-                    >
+                    <ImagePreviewItem key={previewUrl}>
                         <PreviewImage
                         src={previewUrl}
-                        alt={`신규 첨부 이미지 ${
-                            index + 1
-                        }`}
+                        alt={`신규 첨부 이미지 ${index + 1}`}
                         />
 
                         <RemoveImageButton
                         type="button"
-                        onClick={() =>
-                            handleRemoveNewImage(
-                            index,
-                            )
-                        }
+                        onClick={() => handleRemoveNewImage(index,)}
                         >
                         ×
                         </RemoveImageButton>
