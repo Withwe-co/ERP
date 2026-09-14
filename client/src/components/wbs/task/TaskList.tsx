@@ -34,19 +34,20 @@ interface TaskListProps {
 // 태스크 목록 컴포넌트
 function TaskList({tasks, loading = false, onEdit, onDetail,  onArchive, onRestore, archivedView = false,}: TaskListProps) {
 
-  // 목록 보기에서는 태스크를 등록 시점 기준 최신순으로 표시
+  // 전체 태스크는 등록 시점, 보류 태스크는 보류 시점 기준 최신순으로 표시
   // 원본 tasks 배열은 변경하지 않고 복사본만 정렬
   const sortedTasks = [...tasks].sort((a, b) => {
-    const createdAtDiff =
+    if (archivedView) {
+      return (
+        new Date(b.archived_at ?? 0).getTime() -
+        new Date(a.archived_at ?? 0).getTime()
+      );
+    }
+
+    return (
       new Date(b.created_at).getTime() -
-      new Date(a.created_at).getTime();
-
-    // created_at이 다르면 더 최근에 등록된 태스크를 먼저 표시
-    if (createdAtDiff !== 0) {return createdAtDiff;}
-
-    // created_at이 같은 경우 ID가 큰 태스크를 먼저 표시
-    // 같은 시각에 생성된 데이터의 순서를 안정적으로 유지하기 위한 보조 기준
-    return b.id - a.id;
+      new Date(a.created_at).getTime()
+    );
   });
 
   // 태스크 목록 테이블의 열(Column) 구성
@@ -115,9 +116,7 @@ function TaskList({tasks, loading = false, onEdit, onDetail,  onArchive, onResto
           URGENT: "긴급",
         };
 
-        return priorityLabel[
-          value as keyof typeof priorityLabel
-        ];
+        return priorityLabel[value as keyof typeof priorityLabel];
       },
     },
 
@@ -180,7 +179,7 @@ function TaskList({tasks, loading = false, onEdit, onDetail,  onArchive, onResto
         // 태스크 목록 테이블 열 구성
         columns={columns}
 
-        // created_at 기준 최신 등록순으로 정렬된 데이터
+        // 현재 화면에 맞는 기준으로 최신순 정렬된 데이터
         data={sortedTasks}
 
         // API 조회 중에는 공통 Table 로딩 화면 표시

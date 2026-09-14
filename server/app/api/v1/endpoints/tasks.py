@@ -393,7 +393,11 @@ def get_tasks(
     if department:
         query = query.filter(Task.department.ilike(f"%{department}%"))
 
-    # 저장된 칸반 순서대로 태스크 조회
+    # 보류 태스크는 최근 보류된 순서대로 조회
+    if is_archived:
+        return query.order_by(Task.archived_at.desc(), Task.id.desc(),).all()
+
+    # 일반 태스크는 저장된 칸반 순서대로 조회
     return query.order_by(Task.kanban_order.asc(), Task.id.asc(),).all()
 
 # 칸반 카드 순서 저장
