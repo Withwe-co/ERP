@@ -731,6 +731,9 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
             {detailTask && (
                 <TaskDetail
                     task={detailTask}
+                    wbsName={
+                        selectableWbsOptions.find((option) => option.value === detailTask.wbs_code,)?.label
+                    }
                     onClose={() => setDetailTask(null)}
                     onEdit={() => {openEditTaskModal(detailTask); setDetailTask(null);}}
                     onDelete={async () => {

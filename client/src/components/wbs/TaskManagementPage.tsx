@@ -262,6 +262,9 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
         {detailTask && (
           <TaskDetail
             task={detailTask}
+            wbsName={
+              selectableWbsOptions.find((option) => option.value === detailTask.wbs_code,)?.label
+            }
             onClose={() => setDetailTask(null)}
             onEdit={() => {setSelectedTask(detailTask); setDetailTask(null);}}
             onDelete={async () => {

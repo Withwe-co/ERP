@@ -6,6 +6,7 @@ import { TaskResponse } from "../../../types/task";
 
 interface TaskDetailProps {
   task: TaskResponse;
+  wbsName?: string;
   onEdit: () => void;
   onClose: () => void;
   onArchive: () => void;
@@ -13,7 +14,7 @@ interface TaskDetailProps {
   onDelete: () => void;
 }
 
-function TaskDetail({task,onEdit,onClose,onArchive,onRestore,onDelete}: TaskDetailProps) {
+function TaskDetail({task,wbsName,onEdit,onClose,onArchive,onRestore,onDelete}: TaskDetailProps) {
 
   // 이미지 상태 
   const [
@@ -58,8 +59,8 @@ function TaskDetail({task,onEdit,onClose,onArchive,onRestore,onDelete}: TaskDeta
         </DetailItem>
 
         <DetailItem>
-          <Label>WBS 코드</Label>
-          <Value>{task.wbs_code}</Value>
+          <Label>WBS명</Label>
+          <Value>{wbsName ?? task.wbs_code}</Value>
         </DetailItem>
 
         <DetailItem>
