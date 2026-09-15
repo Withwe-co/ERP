@@ -8,10 +8,11 @@ interface TaskDetailProps {
   task: TaskResponse;
   onEdit: () => void;
   onClose: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
 }
 
-
-function TaskDetail({task,onEdit,onClose,}: TaskDetailProps) {
+function TaskDetail({task,onEdit,onClose,onArchive,onRestore}: TaskDetailProps) {
 
   // 이미지 상태 
   const [
@@ -20,29 +21,15 @@ function TaskDetail({task,onEdit,onClose,}: TaskDetailProps) {
   ] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedImageUrl) {
-      return;
-    }
+    if (!selectedImageUrl) {return;}
 
-    const handleKeyDown = (
-      event: KeyboardEvent,
-    ) => {
-      if (event.key === "Escape") {
-        setSelectedImageUrl(null);
-      }
+    const handleKeyDown = (event: KeyboardEvent,) => {
+      if (event.key === "Escape") {setSelectedImageUrl(null);}
     };
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
+    window.addEventListener("keydown", handleKeyDown,);
 
-    return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
-    };
+    return () => {window.removeEventListener("keydown", handleKeyDown,);};
   }, [selectedImageUrl]);
 
   const priorityLabel = {
@@ -155,20 +142,51 @@ function TaskDetail({task,onEdit,onClose,}: TaskDetailProps) {
 
       {/* 하단 버튼 */}
       <ButtonArea>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-        >
-          닫기
-        </Button>
+        <LeftButtonGroup>
+          {task.is_archived ? (
+            <Button
+              type="button"
+              style={detailActionButtonStyle}
+              onClick={onRestore}
+            >
+              진행
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              style={detailActionButtonStyle}
+              onClick={onArchive}
+            >
+              보류
+            </Button>
+          )}
+          <Button
+            type="button"
+            style={detailActionButtonStyle}
+            variant="danger"
+          >
+            삭제
+          </Button>
+        </LeftButtonGroup>
 
-        <Button
-          type="button"
-          onClick={onEdit}
-        >
-          수정
-        </Button>
+        <RightButtonGroup>
+          <Button
+            type="button"
+            style={detailActionButtonStyle}
+            variant="outline"
+            onClick={onClose}
+          >
+            닫기
+          </Button>
+
+          <Button
+            type="button"
+            style={detailActionButtonStyle}
+            onClick={onEdit}
+          >
+            수정
+          </Button>
+        </RightButtonGroup>
       </ButtonArea>
     </Container>
 
@@ -204,6 +222,10 @@ function TaskDetail({task,onEdit,onClose,}: TaskDetailProps) {
 
 export default TaskDetail;
 
+const detailActionButtonStyle = {
+  width: "63.45px",
+  height: "42px",
+};
 
 const Container = styled.div`
   display: flex;
@@ -264,9 +286,20 @@ const Description = styled.div`
 
 const ButtonArea = styled.div`
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-top: 4px;
+`;
+
+const LeftButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+`;
+
+const RightButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
 `;
 
 const ImageGrid = styled.div`

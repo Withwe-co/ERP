@@ -8,25 +8,29 @@ export function validateTaskCreateData(
   projectDueDate?: string,
 ): string | null {
 
-    // WBS 코드는 반드시 선택해야 하며, 빈 문자열이나 공백만 있는 값은 허용하지 않음
-    if (!task.wbs_code.trim()) {return "WBS 코드를 선택해주세요.";}
-
     // 태스크명은 필수이며 공백만 입력하는 것도 허용하지 않음
     if (!task.task_name.trim()) {return "태스크명을 입력해주세요.";}
 
-    // 담당자명은 필수 입력값
-    // trim()을 사용하여 공백만 입력한 경우도 빈 값으로 처리
+    // WBS명은 반드시 선택해야 함
+    if (!task.wbs_code.trim()) {return "WBS명을 선택해주세요.";}
+
+    // 담당 부서는 반드시 선택해야 함
+    if (!task.department.trim()) {return "담당 부서명을 선택해주세요.";}
+
+    // 담당자명은 필수이며 공백만 입력하는 것도 허용하지 않음
     if (!task.assignee_name.trim()) {return "담당자명을 입력해주세요.";}
 
-    // 담당 부서는 필수 입력값
-    // trim()을 사용하여 공백만 입력한 경우도 빈 값으로 처리
-    if (!task.department.trim()) {return "담당 부서를 입력해주세요.";}
+    // 우선순위는 반드시 선택해야 함
+    if (!task.priority) {return "우선순위를 선택해주세요.";}
 
-    // 시작 예정일은 필수 입력값
-    if (!task.planned_start_date) {return "시작 예정일을 입력해주세요.";}
+    // 상태는 반드시 선택해야 함
+    if (!task.status) {return "상태를 선택해주세요.";}
 
-    // 완료 예정일은 필수 입력값
-    if (!task.planned_end_date) {return "완료 예정일을 입력해주세요.";}
+    // 시작예정일은 반드시 선택해야 함
+    if (!task.planned_start_date) {return "시작예정일을 선택해주세요.";}
+
+    // 완료예정일은 반드시 선택해야 함
+    if (!task.planned_end_date) {return "완료예정일을 선택해주세요.";}
 
     // 프로젝트 기간이 전달된 경우 기간 밖 날짜는 허용하지 않음
     if (
@@ -47,21 +51,6 @@ export function validateTaskCreateData(
 
     // 완료 예정일은 시작 예정일보다 빠를 수 없음
     if (task.planned_start_date > task.planned_end_date) {return "완료 예정일은 시작 예정일보다 빠를 수 없습니다.";}
-
-    // 프로젝트 기간이 전달된 경우 기간 밖 날짜는 허용하지 않음
-    if (
-      projectStartDate &&
-      projectDueDate &&
-      (
-        task.planned_start_date < projectStartDate ||
-        task.planned_end_date > projectDueDate
-      )
-    ) {
-      return (
-        `프로젝트 기간(${projectStartDate} ~ ${projectDueDate})을 ` +
-        "벗어난 날짜는 선택할 수 없습니다."
-      );
-    }
 
     // 검증을 모두 통과하면 오류 없음
     return null;

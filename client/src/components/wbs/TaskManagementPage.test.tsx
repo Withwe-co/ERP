@@ -10,22 +10,25 @@ import TaskManagementPage from "./TaskManagementPage";
 import {shouldSaveKanbanOrder,} from "./task/TaskKanbanBoard";
 import {validateTaskCreateData,} from "./task/taskValidation";
 import {getTaskContentView,} from "./task/taskViewMode";
-import {getSelectableWbsCodes,} from "./task/wbsOptions";
+import {getSelectableWbsOptions,} from "./task/wbsOptions";
 
 import {
   createTaskImageFormData,
   getNewImageTotalSize,
   hasTaskImageChanges,
+  createTaskCreateFormData,
 } from "./task/taskImageUtils";
 
 import TaskCreateForm from "./task/TaskCreateForm";
 import TaskDetail from "./task/TaskDetail";
+import TaskSearchFilter, {getFilterDisplayName,} from "./task/TaskSearchFilter";
 
 import {
   TASK_ACTION_BUTTON_WIDTH,
   TASK_CONTROL_GAP,
   TASK_CONTROL_HEIGHT,
   TASK_CONTROL_FIELD_WIDTH,
+  TASK_WBS_FILTER_WIDTH,
 } from "./task/taskControlStyles";
 
 const validTaskData: TaskCreateData = {
@@ -88,58 +91,61 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(html).toContain("태스크 등록");
   });
 
-  // 태스크 등록에 필요한 필수값과 프로젝트 기간 검증 확인
+  // 태스크 등록 폼 순서대로 필수값과 프로젝트 기간을 검증
   it("태스크 등록 데이터의 필수값과 날짜를 검증한다", () => {
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        wbs_code: "",
-      }),
-    ).toBe("WBS 코드를 선택해주세요.");
+      validateTaskCreateData({...validTaskData, task_name: "",}),
+    ).toBe("태스크명을 입력해주세요.");
 
     expect(
-      validateTaskCreateData({
-        ...validTaskData,
-        planned_end_date: "2026-08-19",
-      }),
-    ).toBe(
-      "완료 예정일은 시작 예정일보다 빠를 수 없습니다.",
-    );
+      validateTaskCreateData({...validTaskData, wbs_code: "",}),
+    ).toBe("WBS명을 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({...validTaskData, department: "",}),
+    ).toBe("담당 부서명을 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({...validTaskData, assignee_name: "",}),
+    ).toBe("담당자명을 입력해주세요.");
+
+    expect(
+      validateTaskCreateData({...validTaskData, priority: "" as TaskCreateData["priority"],}),
+    ).toBe("우선순위를 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({...validTaskData, status: "" as TaskCreateData["status"],}),
+    ).toBe("상태를 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({...validTaskData, planned_start_date: "",}),
+    ).toBe("시작예정일을 선택해주세요.");
+
+    expect(validateTaskCreateData({...validTaskData, planned_end_date: "",}),
+    ).toBe("완료예정일을 선택해주세요.");
+
+    expect(
+      validateTaskCreateData({...validTaskData, planned_end_date: "2026-08-19",}),
+    ).toBe("완료 예정일은 시작 예정일보다 빠를 수 없습니다.",);
 
     expect(
       validateTaskCreateData(
-        {
-          ...validTaskData,
-          planned_start_date: "2026-07-31",
-        },
+        {...validTaskData, planned_start_date: "2026-07-31",},
         "2026-08-01",
         "2026-09-30",
       ),
     ).toBe(
-      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-      "벗어난 날짜는 선택할 수 없습니다.",
-    );
+      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 벗어난 날짜는 선택할 수 없습니다.",);
 
     expect(
-      validateTaskCreateData(
-        validTaskData,
-        "2026-08-01",
-        "2026-09-30",
-      ),
+      validateTaskCreateData(validTaskData, "2026-08-01", "2026-09-30",),
     ).toBeNull();
 
     expect(
       validateTaskCreateData(
-        {
-          ...validTaskData,
-          planned_start_date: "2026-10-01",
-        },
-        "2026-08-01",
-        "2026-09-30",
-      ),
+        {...validTaskData, planned_start_date: "2026-10-01",}, "2026-08-01", "2026-09-30",),
     ).toBe(
-      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-      "벗어난 날짜는 선택할 수 없습니다.",
+      "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 벗어난 날짜는 선택할 수 없습니다.",
     );
 
     expect(
@@ -153,7 +159,7 @@ describe("TaskManagementPage 통합 테스트", () => {
       ),
     ).toBe(
       "프로젝트 기간(2026-08-01 ~ 2026-09-30)을 " +
-      "벗어난 날짜는 선택할 수 없습니다.",
+        "벗어난 날짜는 선택할 수 없습니다.",
     );
   });
 
@@ -173,24 +179,68 @@ describe("TaskManagementPage 통합 테스트", () => {
     ).toBe("list");
   });
 
-  // 부모 WBS를 제외하고 실제 태스크를 연결할 최하위 WBS만 반환
-  it("태스크 등록에 사용할 최하위 WBS를 계층 순서로 반환한다", () => {
-    const result = getSelectableWbsCodes([
-      { wbs_code: "3.2" },
-      { wbs_code: "1" },
-      { wbs_code: "2" },
-      { wbs_code: "1.2" },
-      { wbs_code: "3" },
-      { wbs_code: "3.1" },
-      { wbs_code: "1.1" },
+  // 부모 WBS를 제외하고 최하위 WBS를 선택지로 반환하며,
+  // 하위 WBS는 "상위 WBS명 + 하위 WBS명" 형태로 표시
+  it("태스크 등록에 사용할 WBS명 선택지를 계층 순서로 반환한다", () => {
+    const result = getSelectableWbsOptions([
+      {
+        wbs_code: "3.2",
+        wbs_name: "상세 조회",
+        parent_wbs: "3",
+      },
+      {
+        wbs_code: "1",
+        wbs_name: "프로젝트 관리",
+        parent_wbs: null,
+      },
+      {
+        wbs_code: "2",
+        wbs_name: "단독 WBS",
+        parent_wbs: null,
+      },
+      {
+        wbs_code: "1.2",
+        wbs_name: "UI 개선",
+        parent_wbs: "1",
+      },
+      {
+        wbs_code: "3",
+        wbs_name: "태스크 페이지",
+        parent_wbs: null,
+      },
+      {
+        wbs_code: "3.1",
+        wbs_name: "기능 추가",
+        parent_wbs: "3",
+      },
+      {
+        wbs_code: "1.1",
+        wbs_name: "기능 추가",
+        parent_wbs: "1",
+      },
     ]);
 
     expect(result).toEqual([
-      "1.1",
-      "1.2",
-      "2",
-      "3.1",
-      "3.2",
+      {
+        value: "1.1",
+        label: "프로젝트 관리 기능 추가",
+      },
+      {
+        value: "1.2",
+        label: "프로젝트 관리 UI 개선",
+      },
+      {
+        value: "2",
+        label: "단독 WBS",
+      },
+      {
+        value: "3.1",
+        label: "태스크 페이지 기능 추가",
+      },
+      {
+        value: "3.2",
+        label: "태스크 페이지 상세 조회",
+      },
     ]);
   });
 
@@ -285,13 +335,57 @@ describe("TaskManagementPage 통합 테스트", () => {
     ).toHaveLength(1);
   });
 
+  // 시나리오: 신규 태스크와 이미지를 하나의 FormData로 만든다.
+  // 검증: task_data와 images가 함께 포함된다.
+  it("신규 태스크와 이미지를 FormData로 만든다", () => {
+    const taskData = {
+      project_id: 1,
+      wbs_code: "1.1",
+      task_name: "테스트 태스크",
+      assignee_name: "홍길동",
+      department: "개발팀",
+      priority: "NORMAL",
+      status: "TODO",
+      planned_start_date: "2026-09-10",
+      planned_end_date: "2026-09-11",
+    };
+
+    const image = new File(
+      ["image-data"],
+      "task.jpg",
+      { type: "image/jpeg" },
+    );
+
+    const formData = createTaskCreateFormData(
+      taskData,
+      [image],
+    );
+
+    expect(
+      JSON.parse(formData.get("task_data") as string),
+    ).toEqual(taskData);
+
+    expect(
+      formData.getAll("images"),
+    ).toHaveLength(1);
+  });
+
   it("태스크 등록 폼의 설명 아래에 이미지 첨부 영역을 표시한다", () => {
     const html = renderToStaticMarkup(
       <ThemeProvider theme={theme}>
         <TaskCreateForm
           projectId={1}
           projectName="테스트 프로젝트"
-          wbsCodes={["1.1"]}
+          wbsOptions={[
+            {
+              value: "1.1",
+              label: "태스크 페이지 기능 추가",
+            },
+            {
+              value: "1.2",
+              label: "태스크 페이지 UI 개선",
+            },
+          ]}
           projectStartDate="2026-08-01"
           projectDueDate="2026-09-30"
           onSuccess={() => {}}
@@ -325,7 +419,12 @@ describe("TaskManagementPage 통합 테스트", () => {
         <TaskCreateForm
           projectId={1}
           projectName="테스트 프로젝트"
-          wbsCodes={["1.1"]}
+          wbsOptions={[
+          {
+            value: "1.1",
+            label: "태스크 페이지 기능 추가",
+          },
+        ]}
           projectStartDate="2026-08-01"
           projectDueDate="2026-09-30"
           mode="edit"
@@ -361,6 +460,8 @@ describe("TaskManagementPage 통합 테스트", () => {
           task={task}
           onEdit={() => {}}
           onClose={() => {}}
+          onArchive={() => {}}
+          onRestore={() => {}}
         />
       </ThemeProvider>,
     );
@@ -370,12 +471,159 @@ describe("TaskManagementPage 통합 테스트", () => {
     expect(html).toContain('aria-label="첨부 이미지 크게 보기"',);
   });
 
+  // 태스크 상세 하단 액션 버튼의 표시 순서를 확인
+  it("태스크 상세 하단에 보류, 삭제, 닫기, 수정 버튼을 순서대로 표시한다", () => {
+    const task: TaskResponse = {
+      ...validTaskData,
+      id: 1,
+      kanban_order: 0,
+      image_urls: [],
+      is_archived: false,
+      archived_at: null,
+      created_at: "2026-09-04T09:00:00",
+      updated_at: "2026-09-04T09:00:00",
+    };
+
+    const html = renderToStaticMarkup(
+      <ThemeProvider theme={theme}>
+        <TaskDetail
+          task={task}
+          onEdit={() => {}}
+          onClose={() => {}}
+          onArchive={() => {}}
+          onRestore={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    const archiveIndex = html.indexOf("보류");
+    const deleteIndex = html.indexOf("삭제");
+    const closeIndex = html.indexOf("닫기");
+    const editIndex = html.indexOf("수정");
+
+    expect(archiveIndex).toBeGreaterThan(-1);
+    expect(deleteIndex).toBeGreaterThan(archiveIndex);
+    expect(closeIndex).toBeGreaterThan(deleteIndex);
+    expect(editIndex).toBeGreaterThan(closeIndex);
+  });
+
+  it("보류 태스크 상세에서는 보류 대신 진행 버튼을 표시한다", () => {
+  const task: TaskResponse = {
+    ...validTaskData,
+    id: 1,
+    kanban_order: 0,
+    image_urls: [],
+    is_archived: true,
+    archived_at: "2026-09-14T09:00:00",
+    created_at: "2026-09-04T09:00:00",
+    updated_at: "2026-09-14T09:00:00",
+  };
+
+  const html = renderToStaticMarkup(
+    <ThemeProvider theme={theme}>
+      <TaskDetail
+        task={task}
+        onEdit={() => {}}
+        onClose={() => {}}
+        onArchive={() => {}}
+        onRestore={() => {}}
+      />
+    </ThemeProvider>,
+  );
+
+  expect(html).toContain("진행");
+  expect(html).not.toContain(">보류<");
+});
+
   it("태스크 관리 상단 컨트롤 규격을 통일한다", () => {
     expect(TASK_CONTROL_HEIGHT).toBe("40.8px");
     expect(TASK_CONTROL_GAP).toBe("16px");
     expect(TASK_ACTION_BUTTON_WIDTH).toBe("112px");
     expect(TASK_CONTROL_FIELD_WIDTH).toBe("180px");
+    expect(TASK_WBS_FILTER_WIDTH).toBe("260px");
 
   });
 
+});
+
+// 태스크 등록/수정 폼의 주요 입력 항목 배치 순서를 확인
+it("태스크 폼의 주요 입력 항목을 지정된 순서로 표시한다", () => {
+  const html = renderToStaticMarkup(
+    <ThemeProvider theme={theme}>
+      <TaskCreateForm
+        projectId={1}
+        projectName="테스트 프로젝트"
+        wbsOptions={[
+          {
+            value: "1.1",
+            label: "태스크 페이지 기능 추가",
+          },
+        ]}
+        projectStartDate="2026-08-01"
+        projectDueDate="2026-09-30"
+        onSuccess={() => {}}
+        onCancel={() => {}}
+      />
+    </ThemeProvider>,
+  );
+
+  const projectIndex = html.indexOf("프로젝트");
+  const taskNameIndex = html.indexOf("태스크명");
+  const wbsNameIndex = html.indexOf("WBS명");
+  const departmentIndex = html.indexOf("담당 부서");
+  const assigneeIndex = html.indexOf("담당자");
+
+  expect(projectIndex).toBeGreaterThan(-1);
+  expect(taskNameIndex).toBeGreaterThan(projectIndex);
+  expect(wbsNameIndex).toBeGreaterThan(taskNameIndex);
+  expect(departmentIndex).toBeGreaterThan(wbsNameIndex);
+  expect(assigneeIndex).toBeGreaterThan(departmentIndex);
+});
+
+// WBS 검색 필터에 코드 대신 상위 WBS명 + 하위 WBS명을 표시
+it("WBS 필터에 WBS명을 표시하고 실제 값은 WBS 코드를 사용한다", () => {
+  const html = renderToStaticMarkup(
+    <ThemeProvider theme={theme}>
+      <TaskSearchFilter
+        onFilter={() => {}}
+        wbsOptions={[
+          {
+            value: "2.1",
+            label: "태스크 페이지 기능 추가",
+          },
+          {
+            value: "2.2",
+            label: "태스크 페이지 UI 개선",
+          },
+        ]}
+      />
+    </ThemeProvider>,
+  );
+
+  expect(html).toContain("태스크 페이지 기능 추가");
+  expect(html).toContain("태스크 페이지 UI 개선");
+  expect(html).toContain('value="2.1"');
+  expect(html).toContain('value="2.2"');
+});
+
+// 선택된 WBS 필터에는 WBS 코드 대신 WBS명을 표시
+it("선택된 WBS 필터에 WBS명을 표시한다", () => {
+  const wbsOptions = [
+    {
+      value: "2.1",
+      label: "태스크 페이지 기능 추가",
+    },
+    {
+      value: "2.2",
+      label: "태스크 페이지 UI 개선",
+    },
+  ];
+
+  expect(
+    getFilterDisplayName(
+      "wbs_code",
+      "2.1",
+      wbsOptions,
+    ),
+  ).toBe("WBS: 태스크 페이지 기능 추가");
 });

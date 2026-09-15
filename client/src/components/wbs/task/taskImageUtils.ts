@@ -50,3 +50,21 @@ export function createTaskImageFormData(
 
   return formData;
 }
+
+export function createTaskCreateFormData(
+  taskData: unknown,
+  newImages: File[],
+): FormData {
+  const formData = new FormData();
+
+  formData.append(
+    "task_data",
+    JSON.stringify(taskData),
+  );
+
+  newImages.forEach((image) => {
+    formData.append("images", image);
+  });
+
+  return formData;
+}

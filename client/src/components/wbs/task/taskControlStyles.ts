@@ -5,6 +5,7 @@ export const TASK_CONTROL_GAP = "16px";
 
 export const TASK_ACTION_BUTTON_WIDTH = "112px";
 export const TASK_CONTROL_FIELD_WIDTH = "180px";
+export const TASK_WBS_FILTER_WIDTH = "260px";
 
 export const TASK_CONTROL_FONT_SIZE = "14px";
 export const TASK_CONTROL_ICON_SIZE = 16;
