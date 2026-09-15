@@ -1691,52 +1691,6 @@ def check_table_structure(db: Session = Depends(get_db)):
         }
     except Exception as e:
         return {"error": str(e)}
-
-@router.get("/debug/test-create")
-def test_create_endpoint(db: Session = Depends(get_db)):
-    """구매 요청 생성 테스트 - 수정된 버전"""
-    try:
-        # 테스트 데이터 (NOT NULL 제약조건 고려)
-        test_data = {
-            'request_number': f"TEST{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            'item_name': '테스트 품목',
-            'quantity': 1,
-            'unit': '개',
-            'estimated_unit_price': 1000.0,  # 🔥 기본값 설정
-            'total_budget': 1000.0,  # 🔥 기본값 설정 (quantity * estimated_unit_price)
-            'currency': 'KRW',
-            'category': 'OFFICE_SUPPLIES',
-            'urgency': 'NORMAL',
-            'purchase_method': 'DIRECT',  # 🔥 기본값 설정
-            'requester_name': '테스트 사용자',
-            'requester_email': 'test@test.com',
-            'department': 'S/W 개발팀',
-            'justification': '테스트용',
-            'status': 'SUBMITTED',
-            'request_date': datetime.now()
-        }
-        
-        # DB 객체 생성
-        test_request = DBPurchaseRequest(**test_data)
-        db.add(test_request)
-        db.commit()
-        db.refresh(test_request)
-        
-        return {
-            "success": True,
-            "message": "테스트 구매 요청 생성 성공",
-            "id": test_request.id,
-            "request_number": test_request.request_number,
-            "total_budget": test_request.total_budget
-        }
-        
-    except Exception as e:
-        db.rollback()
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "테스트 구매 요청 생성 실패"
-        }
         
 @router.get("/debug/routes-info")
 def get_routes_info():

@@ -25,6 +25,26 @@ const api = axios.create({
   },
 });
 
+// API 호출 횟수 제한을 위한 브라우저 ID
+const CLIENT_ID_STORAGE_KEY = 'client_id';
+
+const getClientId = () => {
+  let clientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+
+  if (!clientId) {
+    clientId = crypto.randomUUID();
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
+  }
+
+  return clientId;
+};
+
+api.interceptors.request.use((config) => {
+  config.headers['X-Client-Id'] = getClientId();
+
+  return config;
+});
+
 // 응답 인터셉터 추가
 api.interceptors.response.use(
   (response) => response,
@@ -422,16 +442,16 @@ export interface Leaves{
   id: number;
   employee_id: number;
   leave_type: string;
-  start_date: Date;
-  end_date: Date;
+  start_date: string;
+  end_date: string;
   total_days: number;
 }
 
 export interface LeavesUploadFormData {
     employee_id: number;
     leave_type: string;
-    start_date: Date;
-    end_date: Date;
+    start_date: string;
+    end_date: string;
     total_days: number;
 }
 
@@ -541,6 +561,16 @@ export const taskApi = {
     );
   },
 
+  //태스크 삭제
+  deleteTask: async (taskId:number): Promise<any> => {
+    try{
+      const response = await apiRequest.delete(`/tasks/${taskId}`);
+      return response;
+    }catch(error){
+      console.error('태스크 삭제 실패: ',error);
+      throw error;
+    }
+  },
 };
 
 

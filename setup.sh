@@ -103,7 +103,7 @@ EOF
     if [ ! -f "client/.env" ]; then
         cat > client/.env << EOF
 # API URL - NAS IP로 변경하세요
-VITE_API_URL=http://http://211.197.16.248:8000/api/v1
+VITE_API_URL=http://211.197.16.248:8000/api/v1
 VITE_APP_TITLE=Inventory Management System
 VITE_APP_VERSION=1.0.0
 
@@ -198,7 +198,7 @@ start_services() {
         log_info ""
         log_info "접속 정보:"
         log_info "- 메인 애플리케이션: http://http://211.197.16.248/"
-        log_info "- API 문서: http://http://211.197.16.248:8000/docs"
+        log_info "- API 문서: http://211.197.16.248:8000/docs"
         log_info "- pgAdmin (관리도구): http://http://211.197.16.248:5050"
         log_info ""
         log_info "유용한 명령어:"

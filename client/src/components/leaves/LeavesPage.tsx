@@ -19,7 +19,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import koLocale from '@fullcalendar/core/locales/ko';
-import queryClient from '@/hooks/queryClient';
+import type { EventDropArg } from '@fullcalendar/core';
 
 interface Leave {
   id: number;
@@ -140,6 +140,42 @@ const LeavesPage: React.FC = () => {
         setIsFormModalOpen(true);
     };
 
+    // DnD를 이용하여 휴가 일정을 변경
+    const handleEventDrop = async (info: EventDropArg) => {
+        const startDate = info.event.start;
+
+        if (!startDate) {
+            info.revert();
+            return;
+        }
+
+        // FullCalendar의 end는 제외 날짜이므로 실제 종료일로 변환
+        const exclusiveEndDate = info.event.end ?? startDate;
+        const endDate = new Date(exclusiveEndDate);
+        endDate.setDate(endDate.getDate() - 1);
+
+        const leaveId = Number(info.event.id);
+
+        try {
+            await LeavesApi.updateLeave(leaveId, {
+                leave_type: String(info.event.extendedProps.leaveType),
+                start_date: formatDateInput(startDate),
+                end_date: formatDateInput(endDate),
+
+                // 일정 이동만 허용하므로 기존 사용 일수 유지
+                total_days: Number(info.event.extendedProps.totalDays),
+            });
+
+            await queryClient.invalidateQueries({ queryKey: ['leaves'] });
+            toast.success('휴가 일정이 변경되었습니다.');
+
+        } catch (error) {
+            console.error('휴가 일정 이동 실패:', error);
+            info.revert(); // API 실패 시 캘린더 위치 원복
+            toast.error('휴가 일정 변경에 실패했습니다.');
+        }
+    };
+
     const handleRefresh = async () => {
       try {
         await queryClient.invalidateQueries({ queryKey: ['leaves'] });
@@ -216,6 +252,10 @@ const LeavesPage: React.FC = () => {
                         events={leaveEvents}
                         //dateClick={handleDateClick}
                         eventClick={handleEventClick}
+                        editable={true}
+                        eventStartEditable={true}
+                        eventDurationEditable={false}
+                        eventDrop={handleEventDrop}
                         headerToolbar={{
                             left: 'prev,next today',
                             center: 'title',

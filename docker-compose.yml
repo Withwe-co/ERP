@@ -59,7 +59,8 @@ services:
       - WATCHFILES_FORCE_POLLING=true  # 파일 변경 감지 강제
       # 데이터베이스 설정
       - DATABASE_URL=postgresql://inventory_user:inventory_password@postgres:5432/inventory_db
-
+      - ERP_PUBLIC_BASE_URL=${ERP_PUBLIC_BASE_URL}
+      
       # 슬랙 연동
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
       - SLACK_TASK_CHANNEL_ID=${SLACK_TASK_CHANNEL_ID}
@@ -112,7 +113,7 @@ services:
       - ./logs/nginx:/var/log/nginx
       # - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro  # 커스텀 nginx 설정
     environment:
-       - VITE_API_URL=http://localhost:8000/api/v1
+      # - VITE_API_URL=http://localhost:8000/api/v1
       # - VITE_API_URL=http://211.44.183.165:8000/api/v1
       # - VITE_API_URL=http://211.197.16.248:8000/api/v1
       # - VITE_API_URL=http://192.168.0.16:8000/api/v1
