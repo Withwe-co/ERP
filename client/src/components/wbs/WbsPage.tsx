@@ -101,6 +101,7 @@ const StatusBadge = styled.span<{ $status: string }>`
   border-radius: 16px;
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 
@@ -254,13 +255,21 @@ const WbsPage: React.FC = () => {
     },
     {
       key: 'manager_name',
-      label:'담당자',
-      width:'100px',
-      render: (value,item) =>(
-        <div>
-          <div style={{fontWeight:'500'}}>{value}</div>
-          <div style={{ fontSize: '12px',color: '#6b7280'}}>{item.department}</div>      </div>
-      ),
+      label: '담당자',
+      width: '100px',
+      render: (value, item) => {
+        const managerNames = String(value || '')
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean);
+
+        return (
+          <div>
+            {managerNames.length > 0 ? (managerNames.map((name, index) => (<div key={`${name}-${index}`} style={{fontWeight: '500', whiteSpace: 'nowrap',}}> {name} </div>))) : (<div>-</div>)}
+            <div style={{fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap',}}> {item.department || '-'}</div>
+          </div>
+        );
+      },
     },
     {
       key: 'project_name',

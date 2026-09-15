@@ -10,7 +10,7 @@ import TaskList from "./task/TaskList";
 import TaskDetail from "./task/TaskDetail";
 import { TaskFilter, TaskResponse, } from "../../types/task";
 import TaskKanbanBoard from "./task/TaskKanbanBoard";
-import { getSelectableWbsCodes } from "./task/wbsOptions";
+import { getSelectableWbsOptions } from "./task/wbsOptions";
 import { getTaskContentView } from "./task/taskViewMode";
 import { toast } from "react-toastify";
 
@@ -62,7 +62,7 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
     });
     
   // 하위 WBS가 없는 최하위 WBS만 태스크 등록 대상으로 사용
-  const selectableWbsCodes = getSelectableWbsCodes(wbsList);
+  const selectableWbsOptions = getSelectableWbsOptions(wbsList);
 
   // 현재 프로젝트의 태스크 목록 조회
   const {data: tasks = [], isLoading, error, refetch,} = useQuery({
@@ -80,22 +80,32 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
   });
 
   // 보류/진행 함수 추가
-  const handleArchive = async (task: TaskResponse,) => {
+  const handleArchive = async (task: TaskResponse,): Promise<boolean> => {
     try {
       const response = await taskApi.archiveTask(task.id);
       toast.success(response.message);
       await queryClient.invalidateQueries({queryKey: ["tasks", projectId],});
+
+      return true;
+    } catch {
+      toast.error("태스크 보류 중 오류가 발생했습니다.");
+
+      return false;
     }
-    catch {toast.error("태스크 보류 중 오류가 발생했습니다.",);}
   };
 
-  const handleRestore = async (task: TaskResponse,) => {
+  const handleRestore = async (task: TaskResponse,): Promise<boolean> => {
     try {
       const response = await taskApi.restoreTask(task.id);
       toast.success(response.message);
       await queryClient.invalidateQueries({queryKey: ["tasks", projectId],});
-    } 
-    catch {toast.error("태스크 진행 처리 중 오류가 발생했습니다.",);}
+
+      return true;
+    } catch {
+      toast.error("태스크 진행 처리 중 오류가 발생했습니다.");
+
+      return false;
+    }
   };
 
   // 칸반에 표시된 상태와 카드 순서를 서버에 저장
@@ -144,7 +154,7 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
           {/* 검색 및 필터 조건을 설정하는 영역 */}
           <TaskSearchFilter
             onFilter={handleSearch}
-            wbsCodes={selectableWbsCodes}
+            wbsOptions={selectableWbsOptions}
           />
 
           {/* 보기 방식과 전체/보류 태스크, 태스크 등록을 제어하는 영역 */}
@@ -192,11 +202,11 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
       >
         {/* 실제 태스크 등록 Form */}
         <TaskCreateForm
-            projectId={projectId}
-            projectName={projectName}
-            wbsCodes={selectableWbsCodes}
-            projectStartDate={projectStartDate}
-            projectDueDate={projectDueDate}
+          projectId={projectId}
+          projectName={projectName}
+          wbsOptions={selectableWbsOptions}
+          projectStartDate={projectStartDate}
+          projectDueDate={projectDueDate}
             // 태스크 등록 성공 시 Modal은 닫고 태스크 목록을 다시 조회
             onSuccess={() => {setIsCreateModalOpen(false); refetch();}}
             // 사용자가 취소한 경우에는 Modal만 닫음
@@ -218,7 +228,7 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
             projectName={projectName}
             projectStartDate={projectStartDate}
             projectDueDate={projectDueDate}
-            wbsCodes={selectableWbsCodes}
+            wbsOptions={selectableWbsOptions}
             mode="edit"
             initialData={selectedTask}
             onSuccess={() => {setSelectedTask(null); refetch();}}
@@ -241,6 +251,14 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
             onEdit={() => {
               setSelectedTask(detailTask);
               setDetailTask(null);
+            }}
+            onArchive={async () => {
+              const archived = await handleArchive(detailTask);
+              if (archived) {setDetailTask(null);}
+            }}
+            onRestore={async () => {
+              const restored = await handleRestore(detailTask);
+              if (restored) {setDetailTask(null);}
             }}
           />
         )}

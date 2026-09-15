@@ -781,6 +781,37 @@ def test_get_archived_tasks():
     assert archived_tasks[0]["task_name"] == "보류 태스크"
     assert archived_tasks[0]["is_archived"] is True
 
+def test_get_archived_tasks_orders_by_archived_at_desc():
+    """보류 태스크는 최근 보류된 순서대로 조회한다."""
+
+    task1 = valid_task_data()
+    task1["task_name"] = "먼저 보류한 태스크"
+
+    task2 = valid_task_data()
+    task2["task_name"] = "나중에 보류한 태스크"
+
+    response1 = create_task_request(task1)
+    response2 = create_task_request(task2)
+
+    task1_id = response1.json()["data"]["id"]
+    task2_id = response2.json()["data"]["id"]
+
+    client.patch(f"/tasks/{task1_id}/archive")
+    client.patch(f"/tasks/{task2_id}/archive")
+
+    response = client.get(
+        "/tasks/",
+        params={"is_archived": True},
+    )
+
+    assert response.status_code == 200
+
+    archived_tasks = response.json()
+
+    assert len(archived_tasks) == 2
+    assert archived_tasks[0]["task_name"] == "나중에 보류한 태스크"
+    assert archived_tasks[1]["task_name"] == "먼저 보류한 태스크"
+
 # PATCH /tasks/kanban/order
 def test_update_kanban_order():
     """칸반 카드 순서와 상태를 저장한다."""
