@@ -109,21 +109,23 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
   };
 
   // 삭제 함수 추가
-  const handleDelete = async (task: TaskResponse,) =>{
-    try{
-      if(window.confirm('정말로 이 태스크를 삭제하시겠습니까?')){
-        const response = await taskApi.deleteTask(task.id);
-        toast.success(response.message);
-        await queryClient.invalidateQueries({queryKey: ['tasks']});
-      }
+  const handleDelete = async (task: TaskResponse) => {
+    try {
+      if (!window.confirm("정말로 이 태스크를 삭제하시겠습니까?")) {return false;}
+      const response = await taskApi.deleteTask(task.id);
+      toast.success(response.message);
+
+      await queryClient.invalidateQueries({queryKey: ["tasks"],});
+
+      return true;
+    } catch {
+      toast.error("태스크 삭제 중 오류가 발생했습니다.");
+      return false;
     }
-    catch {toast.error("태스크 삭제 중 오류가 발생했습니다.",);}
-  }
+  };
 
   // 칸반에 표시된 상태와 카드 순서를 서버에 저장
-  const handleKanbanOrderChange = async (
-    kanbanTasks: TaskResponse[],
-  ) => {
+  const handleKanbanOrderChange = async (kanbanTasks: TaskResponse[],) => {
     const order = {
       TODO: kanbanTasks
         .filter((task) => task.status === "TODO")
@@ -261,9 +263,10 @@ function TaskManagementPage({projectId,projectName, projectStartDate, projectDue
           <TaskDetail
             task={detailTask}
             onClose={() => setDetailTask(null)}
-            onEdit={() => {
-              setSelectedTask(detailTask);
-              setDetailTask(null);
+            onEdit={() => {setSelectedTask(detailTask); setDetailTask(null);}}
+            onDelete={async () => {
+              const deleted = await handleDelete(detailTask);
+              if (deleted) {setDetailTask(null);}
             }}
             onArchive={async () => {
               const archived = await handleArchive(detailTask);
