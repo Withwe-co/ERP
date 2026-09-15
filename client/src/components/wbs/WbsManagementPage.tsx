@@ -11,6 +11,9 @@ import Modal from '../common/Modal';
 import WbsUploadForm from './WbsUploadForm';
 import TaskCreateForm from "./task/TaskCreateForm";
 import {TaskResponse,} from "../../types/task";
+import TaskDetail from "./task/TaskDetail";
+import { getSelectableWbsOptions } from "./task/wbsOptions";
+
 // Api
 import {WbsApi, taskApi, holidayApi, type Wbs} from '../../services/api'
 
@@ -114,6 +117,9 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
     // 태스크 수정
     const [editingTask, setEditingTask] = useState<TaskResponse | null>(null);
 
+    // 태스크 상세
+    const [detailTask, setDetailTask] = useState<TaskResponse | null>(null);
+
     const queryClient = useQueryClient();
 
     // 차트 일정 보기 조절
@@ -136,6 +142,47 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
         setEditingTask(Task);
         setIsTaskFormModalOpen(true);
     }
+
+    // 태스크 보류
+    const handleArchive = async (task: TaskResponse) => {
+        try {
+            const response = await taskApi.archiveTask(task.id);
+            toast.success(response.message);
+            await queryClient.invalidateQueries({queryKey: ['tasks', projectId],});
+            return true;
+        } catch {
+            toast.error("태스크 보류 중 오류가 발생했습니다.");
+            return false;
+        }
+    };
+
+    // 태스크 진행
+    const handleRestore = async (task: TaskResponse) => {
+        try {
+            const response = await taskApi.restoreTask(task.id);
+            toast.success(response.message);
+            await queryClient.invalidateQueries({queryKey: ['tasks', projectId],});
+            return true;
+        } catch {
+            toast.error("태스크 진행 처리 중 오류가 발생했습니다.");
+            return false;
+        }
+    };
+
+    // 태스크 삭제
+    const handleDelete = async (task: TaskResponse) => {
+        try {
+            if (!window.confirm("정말로 이 태스크를 삭제하시겠습니까?")) {return false;}
+
+            const response = await taskApi.deleteTask(task.id);
+            toast.success(response.message);
+            await queryClient.invalidateQueries({queryKey: ['tasks', projectId],});
+            return true;
+        } catch {
+            toast.error("태스크 삭제 중 오류가 발생했습니다.");
+            return false;
+        }
+    };
 
     // wbs 목록 불러오기
     const {
@@ -163,6 +210,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
             numeric: true,
         });
     });
+
+    const selectableWbsOptions = getSelectableWbsOptions(sortedWbs);
 
     // Task 이름 + 일정 불러오기
     const { data: taskList = [] } = useQuery({
@@ -534,7 +583,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         )}
 
                                         <td
-                                            onClick={() => openEditTaskModal(linkedTask)}
+                                            onClick={() => {if (linkedTask) {setDetailTask(linkedTask);}}}
                                             style={{
                                             textAlign: 'center',
                                             fontWeight: '500',
@@ -655,7 +704,7 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                 key={editingTask?.id ?? 'create'}
                 projectId={projectId}
                 projectName={projectName}
-                wbsCodes={sortedWbs.map((wbs) => wbs.wbs_code)}
+                wbsOptions={selectableWbsOptions}
                 projectStartDate={projectStartDate}
                 projectDueDate={projectDueDate}
                 mode={editingTask ? 'edit' : 'create'}
@@ -670,6 +719,37 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                     setEditingTask(null);
                 }}
             />
+        </Modal>
+
+        {/* 태스크 상세 Modal */}
+        <Modal
+            isOpen={detailTask !== null}
+            onClose={() => setDetailTask(null)}
+            title="태스크 상세"
+            size="lg"
+        >
+            {detailTask && (
+                <TaskDetail
+                    task={detailTask}
+                    wbsName={
+                        selectableWbsOptions.find((option) => option.value === detailTask.wbs_code,)?.label
+                    }
+                    onClose={() => setDetailTask(null)}
+                    onEdit={() => {openEditTaskModal(detailTask); setDetailTask(null);}}
+                    onDelete={async () => {
+                        const deleted = await handleDelete(detailTask);
+                        if (deleted) {setDetailTask(null);}
+                    }}
+                    onArchive={async () => {
+                        const archived = await handleArchive(detailTask);
+                        if (archived) {setDetailTask(null);}
+                    }}
+                    onRestore={async () => {
+                        const restored = await handleRestore(detailTask);
+                        if (restored) {setDetailTask(null);}
+                    }}
+                />
+            )}
         </Modal>
         </>
     )

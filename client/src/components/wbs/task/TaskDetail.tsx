@@ -6,13 +6,15 @@ import { TaskResponse } from "../../../types/task";
 
 interface TaskDetailProps {
   task: TaskResponse;
+  wbsName?: string;
   onEdit: () => void;
   onClose: () => void;
   onArchive: () => void;
   onRestore: () => void;
+  onDelete: () => void;
 }
 
-function TaskDetail({task,onEdit,onClose,onArchive,onRestore}: TaskDetailProps) {
+function TaskDetail({task,wbsName,onEdit,onClose,onArchive,onRestore,onDelete}: TaskDetailProps) {
 
   // 이미지 상태 
   const [
@@ -57,8 +59,8 @@ function TaskDetail({task,onEdit,onClose,onArchive,onRestore}: TaskDetailProps) 
         </DetailItem>
 
         <DetailItem>
-          <Label>WBS 코드</Label>
-          <Value>{task.wbs_code}</Value>
+          <Label>WBS명</Label>
+          <Value>{wbsName ?? task.wbs_code}</Value>
         </DetailItem>
 
         <DetailItem>
@@ -164,6 +166,7 @@ function TaskDetail({task,onEdit,onClose,onArchive,onRestore}: TaskDetailProps) 
             type="button"
             style={detailActionButtonStyle}
             variant="danger"
+            onClick={onDelete}
           >
             삭제
           </Button>
