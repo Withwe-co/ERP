@@ -74,6 +74,14 @@ interface ReceiptHistory {
   image_urls?: string[];
 }
 
+type DisplayInventoryItem = InventoryItem & {
+  hasReceipts: boolean;
+};
+
+const hasReceipts = (item: InventoryItem): boolean => {
+  return Boolean( item.receipt_history?.length || item.last_received_date || item.last_received_by || item.total_received > 0);
+};
+
 const Container = styled.div`
   padding: 20px;
   
@@ -635,26 +643,6 @@ const InventoryPage: React.FC = () => {
     },
   });
 
-  // 🔥 수정: 수령 상태 판단 함수
-  const hasReceipts = (item: InventoryItem): boolean => {
-    // 1. receipt_history 배열 확인
-    const hasReceiptHistory = item.receipt_history && item.receipt_history.length > 0;
-    
-    // 2. last_received_date 확인
-    const hasLastReceived = Boolean(item.last_received_date);
-    
-    // 3. last_received_by 확인
-    const hasReceivedBy = Boolean(item.last_received_by);
-    
-    // 4. 총 수령량 확인
-    const hasTotalReceived = item.total_received && item.total_received > 0;
-    
-    // 어느 하나라도 있으면 수령 완료로 판단
-    const result = hasReceiptHistory || hasLastReceived || hasReceivedBy || hasTotalReceived;
-    
-    return result;
-  };
-
   // 재고 수준 계산
   const getStockLevel = (current: number, minimum: number): 'high' | 'medium' | 'low' | 'out' => {
     const currentNum = Number(current) || 0;
@@ -823,7 +811,7 @@ const InventoryPage: React.FC = () => {
 
   // 🔥 수정: 테이블 컬럼 정의 - 상태 표시 로직 변경
   // const columns: TableColumn<InventoryItem>[] = useMemo(() => [
-  const columns: TableColumn<UnifiedInventoryItem>[] = useMemo(() => [
+  const columns: TableColumn<DisplayInventoryItem>[] = useMemo(() => [
     {
       key: 'item_code',
       label: '품목코드',
@@ -1040,11 +1028,11 @@ const InventoryPage: React.FC = () => {
       label: '수령 상태',
       width: '120px',
       style: { verticalAlign: 'middle' },
-      render: (_, item) => (
-        <ReceiptStatusBadge hasReceipts={hasReceipts(item)}>
-          {hasReceipts(item) ? '수령 완료' : '수령 대기'}
-        </ReceiptStatusBadge>
-      ),
+      render: (_, item) => {
+          <ReceiptStatusBadge hasReceipts={item.hasReceipts}>
+            {item.hasReceipts ? '수령 완료' : '수령 대기'}
+          </ReceiptStatusBadge>
+      }
     },
     {
       key: 'actions',
@@ -1052,7 +1040,7 @@ const InventoryPage: React.FC = () => {
       width: '180px',
       style: { verticalAlign: 'middle' },
       render: (_, item) => {
-        const itemHasReceipts = hasReceipts(item);
+        const itemHasReceipts = item.hasReceipts;
         
         return (
           <ActionButtonGroup>
@@ -1224,9 +1212,12 @@ const InventoryPage: React.FC = () => {
   
   
   // 데이터 추출
-  const items = inventoryData?.data?.items || [];
+  const rawItems = inventoryData?.data?.items || [];
   const totalPages = inventoryData?.data?.pages || 0;
   const stats = statsData?.data || {};
+  const items = useMemo<DisplayInventoryItem[]>( () => (rawItems ?? []).map((item) => ({
+    ...item,hasReceipts: hasReceipts(item),
+  })),[rawItems]);
 
   if (isLoading) {
     return <LoadingSpinner text="재고 데이터를 불러오는 중..." />;
@@ -1258,7 +1249,7 @@ const InventoryPage: React.FC = () => {
           <p>전체 품목</p>
         </StatCard>
         <StatCard color="#10B981">
-          <h3>{items.filter(item => hasReceipts(item)).length}</h3>
+          <h3>{items.filter(item => item.hasReceipts).length}</h3>
           <p>수령 완료</p>
         </StatCard>
         <StatCard color="#F59E0B">

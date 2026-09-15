@@ -389,7 +389,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             <Tooltip show={!isOpen} className="tooltip">
               {item.label}
               {showBadge && ` (${badgeCount})`}
-              {/*item.path === '/purchase-requests' && !apiConnected && ' [샘플]'*/}
             </Tooltip>
           )}
         </NavItemWithTooltip>
