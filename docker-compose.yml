@@ -40,7 +40,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: inventory-api
+    container_name: api-server
     restart: unless-stopped
     user: "0:0"
     ports:
