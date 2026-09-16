@@ -31,7 +31,9 @@ interface Leave {
 }
 
 const Container = styled.div`
-  padding: 20px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
 `;
 
 // 페이지 제목
@@ -66,6 +68,8 @@ const ActionButtons = styled.div`
 
 // 달력 스타일
 const CalendarContainer = styled.div`
+    width: 1200px;
+    margin: 0 auto;
 
     .fc .fc-daygrid-day {
         background-color: #ffffff;
@@ -94,7 +98,7 @@ const CalendarContainer = styled.div`
     }
 
     .fc .fc-daygrid-body tbody tr {
-        height: 100px;
+        height: 120px;
     }
 
 `;
@@ -267,7 +271,6 @@ const LeavesPage: React.FC = () => {
                             center: 'title',
                             right: 'dayGridMonth',
                         }}
-                        
                         height="auto"
 
                         datesSet={(info) => {
