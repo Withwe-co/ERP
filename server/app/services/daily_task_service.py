@@ -10,10 +10,7 @@ from app.models.tasks import Task
 from app.services.slack_service import send_slack_message
 
 
-def get_daily_tasks(
-    db: Session,
-    target_date: date,
-) -> list[Task]:
+def get_daily_tasks(db: Session, target_date: date,) -> list[Task]:
     """지정한 날짜에 진행 대상인 S/W 개발팀 태스크를 조회한다."""
 
     rows = (
@@ -45,10 +42,7 @@ def get_daily_tasks(
     return tasks
 
 
-def build_daily_task_message(
-    tasks: list[Task],
-    target_date: date,
-) -> str:
+def build_daily_task_message(tasks: list[Task], target_date: date,) -> str:
     """태스크를 상태 > 담당자 > Due Date 순으로 Slack 메시지로 변환한다."""
 
     status_groups = {
@@ -61,14 +55,13 @@ def build_daily_task_message(
             status_groups[task.status].append(task)
 
     lines = [
-        f"📋 오늘의 태스크 ({target_date.strftime('%Y.%m.%d')})",
-        "",
+        f"*오늘의 태스크 ({target_date.strftime('%Y.%m.%d')})*",
         "",
     ]
 
     status_labels = {
-        "TODO": "🟡 대기 태스크",
-        "IN_PROGRESS": "🔵 진행중인 태스크",
+        "TODO": "대기 태스크",
+        "IN_PROGRESS": "진행중인 태스크",
     }
 
     # 진행중 태스크를 먼저 표시하고 대기 태스크를 뒤에 표시
@@ -76,13 +69,22 @@ def build_daily_task_message(
         title = status_labels[status]
         status_tasks = status_groups[status]
 
-        lines.append(f"{title} ({len(status_tasks)}건)")
+        lines.append("────────────────────")
+        lines.append(f"*{title} ({len(status_tasks)}건)*")
+        lines.append("────────────────────")
         lines.append("")
 
         assignee_groups = defaultdict(list)
 
         for task in status_tasks:
-            assignee_groups[task.assignee_name].append(task)
+            assignees = [
+                name.strip()
+                for name in task.assignee_name.split(",")
+                if name.strip()
+            ]
+
+            for assignee_name in assignees:
+                assignee_groups[assignee_name].append(task)
 
         for assignee_name in sorted(assignee_groups):
             assignee_tasks = sorted(
@@ -90,23 +92,19 @@ def build_daily_task_message(
                 key=lambda task: task.planned_end_date,
             )
 
-            lines.append(
-                f"👤 {assignee_name} ({len(assignee_tasks)}건)"
-            )
+            lines.append(f"*{assignee_name} ({len(assignee_tasks)}건)*")
             lines.append("")
 
             for task in assignee_tasks:
                 description = format_description(task.description)
 
                 lines.append(f"• {task.task_name}")
-                lines.append(f"프로젝트: {task.project_name}")
-                lines.append(
-                    f"Due Date: "
-                    f"{task.planned_end_date.strftime('%Y.%m.%d')}"
-                )
-                lines.append(f"설명: {description}")
+                lines.append(f"프로젝트 | {task.project_name}")
+                lines.append(f"마감일 | {task.planned_end_date.strftime('%Y.%m.%d')}")
+                lines.append(f"설명 | {description}")
                 lines.append("")
-                lines.append("")
+
+            lines.append("")
 
     return "\n".join(lines).strip()
 
@@ -134,10 +132,7 @@ def send_daily_tasks_to_slack(
         channel_id=channel_id,
     )
 
-def format_description(
-    description: str | None,
-    max_length: int = 100,
-) -> str:
+def format_description(description: str | None, max_length: int = 100,) -> str:
     """Slack에 표시할 태스크 설명을 최대 길이에 맞게 변환한다."""
 
     if not description:
