@@ -33,6 +33,7 @@ interface Leave {
 const Container = styled.div`
   padding: 24px;
   max-width: 1400px;
+  max-height: 1000px;
   margin: 0 auto;
 `;
 
@@ -71,6 +72,11 @@ const CalendarContainer = styled.div`
     width: 1200px;
     margin: 0 auto;
 
+    .fc .fc-scrollgrid {
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
     .fc .fc-daygrid-day {
         background-color: #ffffff;
     }
@@ -99,6 +105,15 @@ const CalendarContainer = styled.div`
 
     .fc .fc-daygrid-body tbody tr {
         height: 120px;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 24px;     /* 글자 크기 */
+        font-weight: 700;
+        color: #111827;
+
+        position: relative;
+        bottom: 10px;            /* 아래로 4px 이동 */
     }
 
 `;
@@ -243,17 +258,6 @@ const LeavesPage: React.FC = () => {
           <PageTitle>휴가 관리</PageTitle>
           <PageSubtitle>휴가 일정을 등록하고 관리하세요.</PageSubtitle>
           <Card>
-            <FilterContainer>
-                <ActionButtons>
-                    <Button
-                    onClick={() => setIsFormModalOpen(true)}
-                    title="휴가 추가"
-                    >
-                    <Plus size={16}/>
-                    휴가 등록
-                    </Button>
-                </ActionButtons>
-            </FilterContainer>
                 <CalendarContainer>
                     <FullCalendar
                         plugins={[dayGridPlugin, interactionPlugin]}
@@ -269,10 +273,10 @@ const LeavesPage: React.FC = () => {
                         headerToolbar={{
                             left: 'prev,next today',
                             center: 'title',
-                            right: 'dayGridMonth',
+                            right: 'leave_create',
                         }}
                         height="auto"
-
+                        customButtons={{leave_create: {text: '휴가 등록',click: () => {setIsFormModalOpen(true);}}}}
                         datesSet={(info) => {
                             const years = [info.start.getFullYear(),info.end.getFullYear()];
                             setVisibleYears([...new Set(years)]);
