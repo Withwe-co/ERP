@@ -190,7 +190,7 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
             total_leave: formData.total_leave,
             used_leave: formData.used_leave,
         };
-        console.log('submitData:', JSON.stringify(submitData, null, 2));
+        console.log('팀원 등록 성공');
         
         // 수정 모드면 업데이트, 아니면 생성
         if (isEdit && initialData?.id) {
