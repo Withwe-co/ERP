@@ -345,6 +345,7 @@ const EndDate = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 
   font-size: 0.8rem;
   line-height: 1.4;
