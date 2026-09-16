@@ -28,11 +28,21 @@ const api = axios.create({
 // API 호출 횟수 제한을 위한 브라우저 ID
 const CLIENT_ID_STORAGE_KEY = 'client_id';
 
+const createClientId = () => {
+  // HTTPS 또는 localhost처럼 randomUUID를 지원하는 환경
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  // HTTP NAS 접속 및 구형 브라우저용 대체 ID
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+};
+
 const getClientId = () => {
   let clientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
 
   if (!clientId) {
-    clientId = crypto.randomUUID();
+    clientId = createClientId();
     localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
   }
 
