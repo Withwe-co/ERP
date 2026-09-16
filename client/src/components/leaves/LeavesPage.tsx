@@ -107,6 +107,10 @@ const CalendarContainer = styled.div`
         height: 120px;
     }
 
+    .fc .fc-col-header-cell.fc-day{
+        background-color: #f8fafc;
+    }
+
     .fc .fc-toolbar-title {
         font-size: 24px;     /* 글자 크기 */
         font-weight: 700;
