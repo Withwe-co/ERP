@@ -306,15 +306,19 @@ function TaskCreateForm({
                 }
                 />
 
-                <Input
-                label={'\u00A0\u00A0담당자\u00A0'}
-                value={formData.assignee_name}
-                required
-                placeholder="담당자명을 입력하세요."
-                onChange={(event) =>
-                    setFormData({...formData, assignee_name: event.target.value,})
-                }
-                />
+                <ManagerField>
+                    <Input
+                        label={'\u00A0\u00A0담당자\u00A0'}
+                        value={formData.assignee_name}
+                        required
+                        placeholder="예: 홍길동, 김철수, 이영희"
+                        onChange={(event) =>
+                            setFormData({...formData, assignee_name: event.target.value,})
+                        }
+                    />
+                    <ManagerHelpText>여러 명 입력 시 쉼표(,)로 구분해주세요.</ManagerHelpText>
+                </ManagerField>
+                
             </FormGrid>
 
             {/* 우선순위와 상태 */}
@@ -649,4 +653,17 @@ const TaskSelect = styled(Select)`
     background-position: right 12px center;
     background-size: 16px;
   }
+`;
+
+// 입력 설명
+const ManagerField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+// 입력 안내
+const ManagerHelpText = styled.div`
+  padding-left: 4px;
+  font-size: 12px;
+  color: #6b7280;
 `;
