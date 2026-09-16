@@ -66,6 +66,7 @@ const ActionButtons = styled.div`
 
 // 달력 스타일
 const CalendarContainer = styled.div`
+
     .fc .fc-daygrid-day {
         background-color: #ffffff;
     }
@@ -91,6 +92,11 @@ const CalendarContainer = styled.div`
     .fc .fc-daygrid-day.fc-holiday {
         background-color: #fff5f5;
     }
+
+    .fc .fc-daygrid-body tbody tr {
+        height: 100px;
+    }
+
 `;
 
 const LeavesPage: React.FC = () => {
@@ -261,7 +267,8 @@ const LeavesPage: React.FC = () => {
                             center: 'title',
                             right: 'dayGridMonth',
                         }}
-                        height="800px"
+                        
+                        height="auto"
 
                         datesSet={(info) => {
                             const years = [info.start.getFullYear(),info.end.getFullYear()];

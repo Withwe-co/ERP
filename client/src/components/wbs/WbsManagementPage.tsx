@@ -548,10 +548,11 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 rowSpan={parentRowSpan}
                                                 onClick={() => openEditModal(parent)}
                                                 style={{
-                                                fontWeight: '500',
-                                                background: '#fafafa',
-                                                textAlign: 'center',
-                                                verticalAlign: 'middle',
+                                                    cursor: 'pointer',
+                                                    fontWeight: '500',
+                                                    background: '#fafafa',
+                                                    textAlign: 'center',
+                                                    verticalAlign: 'middle',
                                                 }}
                                             >
                                                 {parent.wbs_name}
@@ -564,10 +565,11 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 rowSpan={childRowSpan}
                                                 onClick={() => openEditModal(child)}
                                                 style={{
-                                                textAlign: 'center',
-                                                fontWeight: '500',
-                                                paddingLeft: '12px',
-                                                verticalAlign: 'middle',
+                                                    cursor: 'pointer',
+                                                    textAlign: 'center',
+                                                    fontWeight: '500',
+                                                    paddingLeft: '12px',
+                                                    verticalAlign: 'middle',
                                                 }}
                                             >
                                                 {child.wbs_name}
@@ -576,8 +578,8 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         ) : (
                                             <td
                                                 style={{
-                                                textAlign: 'center',
-                                                background: '#fff',
+                                                    textAlign: 'center',
+                                                    background: '#fff',
                                                 }}
                                             />
                                         )}
@@ -585,11 +587,12 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                         <td
                                             onClick={() => {if (linkedTask) {setDetailTask(linkedTask);}}}
                                             style={{
-                                            textAlign: 'center',
-                                            fontWeight: '500',
-                                            paddingLeft: '12px',
-                                            textDecoration: linkedTask?.status === 'DONE' ? 'line-through' : 'none',
-                                            color: linkedTask?.status === 'DONE' ? '#9ca3af' : 'inherit',
+                                                cursor: 'pointer',
+                                                textAlign: 'center',
+                                                fontWeight: '500',
+                                                paddingLeft: '12px',
+                                                textDecoration: linkedTask?.status === 'DONE' ? 'line-through' : 'none',
+                                                color: linkedTask?.status === 'DONE' ? '#9ca3af' : 'inherit',
                                             }}
                                         >
                                            {linkedTask?.task_name ?? ''}
@@ -612,20 +615,22 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                     key={column.key}
                                                     colSpan={ganttColumnCount}
                                                     style={{
-                                                    position: 'relative',
-                                                    backgroundColor: '#fff',
-                                                    backgroundOrigin: 'border-box',
-                                                    backgroundClip: 'border-box',
-                                                    backgroundImage: isTodayInMergedCell ? `linear-gradient(to right,transparent ${todayLeft}px,#FFF3CD ${todayLeft}px,#FFF3CD ${todayRight}px,transparent ${todayRight}px)`: undefined,
+                                                        position: 'relative',
+                                                        backgroundColor: '#fff',
+                                                        backgroundOrigin: 'border-box',
+                                                        backgroundClip: 'border-box',
+                                                        backgroundImage: isTodayInMergedCell ? `linear-gradient(to right,transparent ${todayLeft}px,#FFF3CD ${todayLeft}px,#FFF3CD ${todayRight}px,transparent ${todayRight}px)`: undefined,
                                                     }}
                                                 >
                                                 {/* 이미 지난 일정 구간 */}
                                                 {pastColumnCount > 0 && (
                                                 <GanttBar
                                                     color="#9CA3AF"
+                                                    onClick={() => {setDetailTask(linkedTask);}}
                                                     style={{
-                                                    left: '2px',
-                                                    width: `${pastColumnCount * cellWidth -2}px`,
+                                                        cursor: 'pointer',
+                                                        left: '2px',
+                                                        width: `${pastColumnCount * cellWidth -2}px`,
                                                     }}
                                                 />
                                                 )}
@@ -634,9 +639,11 @@ const WbsManagementPage: React.FC<WbsManagementPageProps> = ({
                                                 {remainingColumnCount > 0 && (
                                                 <GanttBar
                                                     color="#3B82F6"
+                                                    onClick={() => {setDetailTask(linkedTask);}}
                                                     style={{
-                                                    left: `${pastColumnCount * cellWidth }px`,
-                                                    width: `${remainingColumnCount * cellWidth -2}px`,
+                                                        cursor: 'pointer',
+                                                        left: `${pastColumnCount * cellWidth }px`,
+                                                        width: `${remainingColumnCount * cellWidth -2}px`,
                                                     }}
                                                 />
                                                 )}
