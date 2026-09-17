@@ -81,6 +81,10 @@ const CalendarContainer = styled.div`
         background-color: #ffffff;
     }
 
+    .fc .fc-daygrid-day.fc-day-today {
+        background-color: #eff6ff; /* 오늘 칸 배경 */
+    }
+
     .fc .fc-daygrid-day-number,
     .fc .fc-col-header-cell-cushion {
         color: #111827;
