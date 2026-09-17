@@ -8,7 +8,9 @@ from app.schemas.employees import (UpdateEmployee,EmployeesList,EmployeeInDB)
 
 from app.models.employees import Employees as DBEmployee
 
+import logging
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -107,18 +109,19 @@ def create_employee(*,request: Request,db:Session=Depends(get_db),background_tas
         db.commit()
         db.refresh(employee)
 
-        print(f"팀원 생성 완료: ID={employee.id}")
-                
+        # 팀원 등록 완료 출력 (디버깅용)
+        print(f'''
+            팀원 등록 완료:
+            employee_id : {employee.id}
+            employee_name : {employee.name}
+            employee_position : {employee.position}
+            employee_total_leave : {employee.total_leave}
+            employee_used_leave : {employee.used_leave}
+        ''')
+        
         return {
             "success": 201,
             "message": "팀원이 성공적으로 등록되었습니다.",
-            "data": {
-                "id": employee.id,
-                "name": employee.name,
-                "position": employee.position,
-                "total_leave": employee.total_leave,
-                "used_leave": employee.used_leave
-            }
         }
 
     except HTTPException:

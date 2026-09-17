@@ -1261,7 +1261,6 @@ const handleBulkReset = async () => {
         console.log('⚠️ 이미 처리 중입니다.');
         return;
       }
-      
       setIsCheckingSimilarItems(true);
       const response = await inventoryApi.getItems(1, 1000, {}, {
         sort_by: 'item_name',
@@ -1282,14 +1281,12 @@ const handleBulkReset = async () => {
         }
         return byCode;
       }, new Map<string, UnifiedInventoryItem>()).values());
-
       if (candidates.length > 0) {
         setPendingCompletionRequest(confirmingItem);
         setSimilarInventoryItems(candidates);
         setConfirmingItem(null);
         return;
       }
-
       await completePurchaseMutation.mutateAsync({
         requestId: confirmingItem.id,
         requestData: confirmingItem,

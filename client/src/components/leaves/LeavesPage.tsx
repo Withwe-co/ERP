@@ -31,7 +31,10 @@ interface Leave {
 }
 
 const Container = styled.div`
-  padding: 20px;
+  padding: 24px;
+  max-width: 1400px;
+  max-height: 1000px;
+  margin: 0 auto;
 `;
 
 // 페이지 제목
@@ -66,8 +69,20 @@ const ActionButtons = styled.div`
 
 // 달력 스타일
 const CalendarContainer = styled.div`
+    width: 1200px;
+    margin: 0 auto;
+
+    .fc .fc-scrollgrid {
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
     .fc .fc-daygrid-day {
         background-color: #ffffff;
+    }
+
+    .fc .fc-daygrid-day.fc-day-today {
+        background-color: #eff6ff; /* 오늘 칸 배경 */
     }
 
     .fc .fc-daygrid-day-number,
@@ -91,6 +106,24 @@ const CalendarContainer = styled.div`
     .fc .fc-daygrid-day.fc-holiday {
         background-color: #fff5f5;
     }
+
+    .fc .fc-daygrid-body tbody tr {
+        height: 120px;
+    }
+
+    .fc .fc-col-header-cell.fc-day{
+        background-color: #f8fafc;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 24px;     /* 글자 크기 */
+        font-weight: 700;
+        color: #111827;
+
+        position: relative;
+        bottom: 10px;            /* 아래로 4px 이동 */
+    }
+
 `;
 
 const LeavesPage: React.FC = () => {
@@ -233,17 +266,6 @@ const LeavesPage: React.FC = () => {
           <PageTitle>휴가 관리</PageTitle>
           <PageSubtitle>휴가 일정을 등록하고 관리하세요.</PageSubtitle>
           <Card>
-            <FilterContainer>
-                <ActionButtons>
-                    <Button
-                    onClick={() => setIsFormModalOpen(true)}
-                    title="휴가 추가"
-                    >
-                    <Plus size={16}/>
-                    휴가 등록
-                    </Button>
-                </ActionButtons>
-            </FilterContainer>
                 <CalendarContainer>
                     <FullCalendar
                         plugins={[dayGridPlugin, interactionPlugin]}
@@ -259,10 +281,10 @@ const LeavesPage: React.FC = () => {
                         headerToolbar={{
                             left: 'prev,next today',
                             center: 'title',
-                            right: 'dayGridMonth',
+                            right: 'leave_create',
                         }}
-                        height="800px"
-
+                        height="auto"
+                        customButtons={{leave_create: {text: '휴가 등록',click: () => {setIsFormModalOpen(true);}}}}
                         datesSet={(info) => {
                             const years = [info.start.getFullYear(),info.end.getFullYear()];
                             setVisibleYears([...new Set(years)]);

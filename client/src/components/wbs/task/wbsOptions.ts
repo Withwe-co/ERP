@@ -70,7 +70,7 @@ export function getSelectableWbsOptions(
       return {
         value: wbs.wbs_code,
         label: parentWbs
-          ? `${parentWbs.wbs_name} ${wbs.wbs_name}`
+          ? `${parentWbs.wbs_name} - ${wbs.wbs_name}`
           : wbs.wbs_name,
       };
     });

@@ -14,7 +14,7 @@ import {
 // const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
 
 //const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
- const API_BASE_URL = '/api/v1';
+ const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 
 const api = axios.create({
@@ -28,11 +28,21 @@ const api = axios.create({
 // API 호출 횟수 제한을 위한 브라우저 ID
 const CLIENT_ID_STORAGE_KEY = 'client_id';
 
+const createClientId = () => {
+  // HTTPS 또는 localhost처럼 randomUUID를 지원하는 환경
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  // HTTP NAS 접속 및 구형 브라우저용 대체 ID
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+};
+
 const getClientId = () => {
   let clientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
 
   if (!clientId) {
-    clientId = crypto.randomUUID();
+    clientId = createClientId();
     localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
   }
 
@@ -1046,7 +1056,7 @@ export const inventoryApi = {
   // 품목 생성
   createItem: async (data: UnifiedInventoryFormData): Promise<UnifiedInventoryItem> => {
     try {
-      const response = await apiRequest.post('/inventory', data);
+      const response = await apiRequest.post('/inventory/', data);
       return response;
     } catch (error) {
       console.error('품목 생성 실패:', error);
