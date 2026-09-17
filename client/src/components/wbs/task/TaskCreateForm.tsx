@@ -11,6 +11,7 @@ import { hasTaskChanges, validateTaskCreateData } from "./taskValidation";
 import {getNewImageTotalSize, hasTaskImageChanges,} from "./taskImageUtils";
 import { taskApi } from "../../../services/api";
 import type { SelectableWbsOption } from "./wbsOptions";
+import TaskDateRangePicker from "./TaskDateRangePicker";
 
 // 태스크 신규 첨부 이미지 전체 최대 용량
 const MAX_TASK_IMAGE_SIZE = 10 * 1024 * 1024;
@@ -350,31 +351,22 @@ function TaskCreateForm({
 
 
             {/* 태스크 일정 */}
-            <FormGrid>
-                <Input
-                    label={'\u00A0\u00A0시작 예정일\u00A0'}
-                    type="date"
-                    value={formData.planned_start_date}
-                    max={formData.planned_end_date || undefined}
-                    required
-                    onChange={(event) =>
-                        setFormData({...formData, planned_start_date: event.target.value,})}
-                />
-
-                <Input
-                    label={'\u00A0\u00A0완료 예정일\u00A0'}
-                    type="date"
-                    value={formData.planned_end_date}
-                    min={formData.planned_start_date || undefined}
-                    required
-                    onChange={(event) =>
-                        setFormData({...formData, planned_end_date: event.target.value,})}
-                />
-            </FormGrid>
+            <TaskDateRangePicker
+                startDate={formData.planned_start_date}
+                endDate={formData.planned_end_date}
+                projectStartDate={projectStart}
+                projectDueDate={projectDue}
+                onChange={(startDate, endDate) =>
+                    setFormData({
+                        ...formData,
+                        planned_start_date: startDate,
+                        planned_end_date: endDate,
+                    })
+                }
+            />
             {isOutsideProjectPeriod && (
                 <DateWarning>
-                    프로젝트 기간({projectStart} ~ {projectDue})을 벗어난 날짜는
-                    선택할 수 없습니다.
+                    프로젝트 기간({projectStart} ~ {projectDue})을 벗어난 날짜는 선택할 수 없습니다.
                 </DateWarning>
             )}
 
@@ -492,7 +484,7 @@ export default TaskCreateForm;
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 `;
 
 
@@ -527,7 +519,7 @@ const Label = styled.label`
 
 // 설명 및 비고 입력용 TextArea
 const TextArea = styled.textarea`
-  min-height: 100px;
+  min-height: 70px;
   padding: 8px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -570,7 +562,7 @@ const ImageGroup = styled.div`
 const ImageUploadArea = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   padding: 12px;
   border: 1px dashed #d1d5db;
   border-radius: 6px;
