@@ -14,7 +14,7 @@ import {
 // const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
 
 //const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
- const API_BASE_URL = '/api/v1';
+ const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 
 const api = axios.create({
@@ -1056,7 +1056,7 @@ export const inventoryApi = {
   // 품목 생성
   createItem: async (data: UnifiedInventoryFormData): Promise<UnifiedInventoryItem> => {
     try {
-      const response = await apiRequest.post('/inventory', data);
+      const response = await apiRequest.post('/inventory/', data);
       return response;
     } catch (error) {
       console.error('품목 생성 실패:', error);
