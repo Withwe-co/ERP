@@ -19,7 +19,8 @@ import {
   Bell,
   ChevronLeft,
   Network,
-  Plane
+  Plane,
+  FileText
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -337,6 +338,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { path: '/wbs', label: 'WBS', icon: Network},
     { path: '/employees', label: '팀원 관리', icon: Users },
     { path: '/leaves', label: '휴가 관리', icon: Plane },
+    { path: '/reports', label: '업무 보고', icon: FileText },
     { path: '/kakao', label: '이메일 발송 이력', icon: MessageSquare },
   ];
 
