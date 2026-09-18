@@ -19,3 +19,6 @@ server/.pytest_cache/
 .env
 .env.*
 !.env.example
+
+package-lock.json
+package.json
