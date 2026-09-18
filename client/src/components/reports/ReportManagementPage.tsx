@@ -8,18 +8,25 @@ import Card from '../common/Card';
 // 보고서 관리 페이지
 import DailyReportPage from './DailyReportPage';
 import WeeklyReportPage from './WeeklyReportPage';
+import Button from '../common/Button';
 
 // 컨테이너 스타일
 const Container = styled.div`
   padding: 20px;
 `;
 
-// 페이지 제목 스타일
-const PageTitle = styled.h1`
-  margin: 0 0 20px;
-  color: ${props => props.theme.colors?.text || '#333'};
-  font-size: 2rem;
-  font-weight: 600;
+// 버튼 컨데이너
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-left: 0;
+`;
+
+// 카드 사이에 여백
+const CardWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 `;
 
 // 탭 영역 스타일
@@ -60,32 +67,41 @@ const ReportManagementPage: React.FC = () => {
 
   return (
     <Container>
-      <PageTitle>업무 보고 관리</PageTitle>
-      <Card>
-        {/* 주간|일일 보고 탭 전환 */}
-        <TabArea>
-          <TabButton
-              $active={activeTab === 'weekly'}
-              onClick={() => setActiveTab('weekly')}
-            >
-              주간 보고
-            </TabButton>
-
+      <CardWrapper>
+        <ActionButtons>
+        <Button
+          variant='outline'
+          onClick={()=>history.back()}
+        >
+          뒤로 가기
+        </Button>
+        </ActionButtons>
+        <Card>
+          {/* 주간|일일 보고 탭 전환 */}
+          <TabArea>
             <TabButton
-              $active={activeTab === 'daily'}
-              onClick={() => setActiveTab('daily')}
-            >
-              일일 보고
-            </TabButton>
-        </TabArea>
+                $active={activeTab === 'weekly'}
+                onClick={() => setActiveTab('weekly')}
+              >
+                주간 보고
+              </TabButton>
 
-        {/* 선택된 탭에 따라 화면 전환 */}
-        <TabContent>
-          {activeTab === 'weekly'
-            ? <WeeklyReportPage employeeId={employeeId} />
-            : <DailyReportPage employeeId={employeeId} />}
-        </TabContent>
-      </Card>
+              <TabButton
+                $active={activeTab === 'daily'}
+                onClick={() => setActiveTab('daily')}
+              >
+                일일 보고
+              </TabButton>
+          </TabArea>
+
+          {/* 선택된 탭에 따라 화면 전환 */}
+          <TabContent>
+            {activeTab === 'weekly'
+              ? <WeeklyReportPage employeeId={employeeId} />
+              : <DailyReportPage employeeId={employeeId} />}
+          </TabContent>
+        </Card>
+      </CardWrapper>
     </Container>
   );
 };
