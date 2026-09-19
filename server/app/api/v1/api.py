@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     holidays,
     employees,
     leaves,
+    reports,
 )
 
 api_router = APIRouter()
@@ -91,4 +92,10 @@ api_router.include_router(
     leaves.router,
     prefix="/leaves",
     tags=["leaves"],
+)
+# reports 엔드포인트
+api_router.include_router(
+    reports.router,
+    prefix="/reports",
+    tags=["reports"],
 )

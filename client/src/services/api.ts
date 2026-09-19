@@ -465,6 +465,34 @@ export interface LeavesUploadFormData {
     total_days: number;
 }
 
+
+// ??? API? ???? ?? ??? ???
+export interface WeeklyReport {
+  id: number;
+  employee_id: number;
+  period_start: string;
+  report_type: 'WEEKLY';
+  content: Record<string, any>;
+  submitted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ?? ??? ??? ??? ???
+export interface CreateReportData {
+  employee_id: number;
+  period_start: string;
+  content: Record<string, any>;
+  submitted?: boolean;
+  report_type: 'WEEKLY';
+}
+
+// ?? ????? ?? ??? ???
+export interface UpdateReportData {
+  period_start?: string;
+  content?: Record<string, any>;
+  submitted?: boolean;
+}
 // 태스크 관리 API
 export const taskApi = {
   createTask: async (
@@ -2204,6 +2232,41 @@ export const LeavesApi = {
   },
 };
 
+// 업무 보고 API
+export const reportApi = {
+  // 보고서 생성
+  createReport: async (data: CreateReportData): Promise<WeeklyReport> => {
+    try {
+      const response = await apiRequest.post('/reports/weekly', data);
+      console.log('HTTP 상태 코드 : ',response.success);
+      return response;
+    } catch (error) {
+      console.error('보고서 생성 실패:', error);
+      throw error;
+    }
+  },
+
+  // 보고서 조회
+  getReport: async (employeeId: number, periodStart: string): Promise<WeeklyReport> => {
+    return apiRequest.get('/reports/weekly', {
+      employee_id: employeeId,
+      period_start: periodStart,
+    });
+  },
+
+  // 보고서 수정
+  updateReport: async (reportId: number, data: UpdateReportData): Promise<WeeklyReport> => {
+    try {
+        const response = await apiRequest.put(`/reports/weekly/${reportId}`, data);
+        return response;
+      } catch (error) {
+        console.error('보고서 수정 실패:', error.response?.data);
+        throw error;
+      }
+  },
+
+};
+
 export default {
   dashboard: dashboardApi,
   purchase: purchaseApi,
@@ -2219,4 +2282,5 @@ export default {
   holiday: holidayApi, // 공휴일 조회 API
   employee: EmployeeApi, // 팀원 관리 API
   leaves: LeavesApi, // 공휴일 조회 API
+  reports: reportApi, // 업무 보고 API
 };
