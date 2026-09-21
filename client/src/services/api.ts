@@ -485,6 +485,7 @@ export interface ReportCalendarStatus {
   id: number;
   period_start: string;
   submitted: boolean;
+}
 
 // 직원 이름이 항상 포함되는 보고서 목록 응답 타입이다.
 export interface ReportWithEmployee extends Report {

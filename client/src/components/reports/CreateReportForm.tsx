@@ -217,6 +217,10 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
     queryClient.invalidateQueries({
       queryKey: ['report', reportType, employeeId, periodStart],
     });
+    // 일일 보고 저장 후 달력의 작성 상태를 다시 조회
+    if (reportType === 'DAILY') {
+      queryClient.invalidateQueries({ queryKey: ['daily-report-calendar', String(employeeId)] });
+    }
     toast.success(successMessage);
     onSuccess();
   };
