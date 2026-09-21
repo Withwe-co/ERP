@@ -4,6 +4,7 @@ import { JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Details, { DetailsContent, DetailsSummary } from '@tiptap/extension-details';
+
 import Underline from '@tiptap/extension-underline';
 import { toast } from 'react-toastify';
 import styled from 'styled-components';
@@ -13,6 +14,13 @@ import Card from '../common/Card';
 import { reportApi, ReportType } from '../../services/api';
 
 type ReportFormMode = 'create' | 'edit';
+
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { createLowlight } from 'lowlight';
+import python from 'highlight.js/lib/languages/python';
+
+const lowlight = createLowlight();
+lowlight.register('python', python);
 
 interface CreateReportFormProps {
   employeeId: number;
@@ -77,7 +85,6 @@ const EditorArea = styled.div`
     outline: none;
     line-height: 1.7;
   }
-
   .ProseMirror h1 { font-size: 1.8rem; }
   .ProseMirror h2 { font-size: 1.5rem; }
   .ProseMirror h3 { font-size: 1.25rem; }
@@ -105,6 +112,41 @@ const EditorArea = styled.div`
     height: 0;
     pointer-events: none;
   }
+  .ProseMirror pre {
+    margin: 12px 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    border-radius: ${props => props.theme.borderRadius.md};
+    background: #f3f4f6;
+    color: #111827;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .ProseMirror pre code {
+    padding: 0;
+    background: none;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+  }
+  .ProseMirror .hljs-comment,
+  .ProseMirror .hljs-quote {color: #6b7280;}
+
+  .ProseMirror .hljs-keyword,
+  .ProseMirror .hljs-selector-tag {color: #7c3aed;}
+
+  .ProseMirror .hljs-string,
+  .ProseMirror .hljs-attribute {color: #059669;}
+
+  .ProseMirror .hljs-number,
+  .ProseMirror .hljs-literal {color: #dc2626;}
+
+  .ProseMirror .hljs-title,
+  .ProseMirror .hljs-function {color: #2563eb;}
+
+  .ProseMirror .hljs-built_in,
+  .ProseMirror .hljs-type {color: #d97706;}
 `;
 
 // 취소와 저장 버튼을 오른쪽에 배치하는 스타일
@@ -133,7 +175,13 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
 
   // 전달된 보고서 내용을 초기값으로 사용하는 Tiptap 에디터
   const editor = useEditor({
-    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent],
+    extensions: [
+      StarterKit.configure({codeBlock: false,}),
+      CodeBlockLowlight.configure({lowlight, defaultLanguage: 'python',}),
+      Details,
+      DetailsSummary,
+      DetailsContent,
+    ],
     content: initialContent ?? '',
     editorProps: {
       attributes: {
@@ -158,6 +206,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
         isBulletList: currentEditor.isActive('bulletList'),
         isOrderedList: currentEditor.isActive('orderedList'),
         isBlockquote: currentEditor.isActive('blockquote'),
+        isCodeBlock: currentEditor.isActive('codeBlock'),
         isDetails: currentEditor.isActive('details'),
       };
     },
@@ -241,10 +290,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
             <ToolbarButton type="button" $active={editorState?.isBulletList} aria-pressed={editorState?.isBulletList} onClick={() => editor.chain().focus().toggleBulletList().run()} title="글머리표 목록">• 목록</ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isOrderedList} aria-pressed={editorState?.isOrderedList} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="번호 목록">1. 목록</ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isBlockquote} aria-pressed={editorState?.isBlockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="인용문">인용</ToolbarButton>
-            <ToolbarButton type="button" $active={editorState?.isDetails} aria-pressed={editorState?.isDetails} onClick={() => {
-              const chain = editor.chain().focus();
-              editor.isActive('details') ? chain.unsetDetails().run() : chain.setDetails().run();
-            }} title="토글 블록">토글</ToolbarButton>
+            <ToolbarButton type="button" $active={editorState?.isCodeBlock}  aria-pressed={editorState?.isCodeBlock}  onClick={() =>  editor.chain().focus().toggleCodeBlock().run()} title="코드 블록">  코드</ToolbarButton>
+            <ToolbarButton type="button" $active={editorState?.isDetails} aria-pressed={editorState?.isDetails} onClick={() => {const chain = editor.chain().focus();editor.isActive('details') ? chain.unsetDetails().run() : chain.setDetails().run();}} title="토글 블록">토글</ToolbarButton>
             <ToolbarButton type="button" onClick={() => editor.chain().focus().undo().run()} title="실행 취소">↶</ToolbarButton>
             <ToolbarButton type="button" onClick={() => editor.chain().focus().redo().run()} title="다시 실행">↷</ToolbarButton>
           </EditorToolbar>

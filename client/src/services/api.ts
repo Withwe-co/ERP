@@ -480,6 +480,12 @@ export interface Report {
   updated_at: string;
 }
 
+// 보고서 등록 및 수정 API 요청 데이터 타입
+export interface ReportCalendarStatus {
+  id: number;
+  period_start: string;
+  submitted: boolean;
+
 // 직원 이름이 항상 포함되는 보고서 목록 응답 타입이다.
 export interface ReportWithEmployee extends Report {
   employee_name: string;
@@ -2265,8 +2271,17 @@ export const reportApi = {
     });
   },
 
+  // 일일 보고 달력 상태 조회
+  getDailyCalendarStatus: async (employeeId: number, startDate: string, endDate: string,): Promise<ReportCalendarStatus[]> => {
+    return apiRequest.get(
+      '/reports/daily/calendar-status',
+      {employee_id: employeeId, start_date: startDate, end_date: endDate,},
+    );
+  },
+
   // 직원 목록에 표시할 오늘 일일 보고서와 이번 주 주간 보고서를 조회
-  getReportStatuses: async (dailyPeriodStart: string, weeklyPeriodStart: string): Promise<ReportWithEmployee[]> => {
+  getReportStatuses: async (dailyPeriodStart: string, weeklyPeriodStart: string): Promise<Report[]> => {
+
     return apiRequest.get('/reports/statuses', {
       daily_period_start: dailyPeriodStart,
       weekly_period_start: weeklyPeriodStart,
