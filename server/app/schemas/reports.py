@@ -28,3 +28,8 @@ class ReportInDBBase(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# 직원 이름이 필요한 보고서 목록 응답에 사용한다.
+class ReportWithEmployee(ReportInDBBase):
+    employee_name: str

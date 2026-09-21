@@ -19,6 +19,7 @@ import EmployeesPage from './components/employees/EmployeesPage';
 import LeavessPage from './components/leaves/LeavesPage';
 import ReportEmployeesPage from './components/reports/ReportEmployeesPage';
 import ReportManagementPage from './components/reports/ReportManagementPage';
+import AdminReportPage from './components/reports/AdminReportPage';
 import ProjectPage from './components/wbs/ProjectPage';
 import StatisticsPage from './components/statistics/StatisticsPage';
 import LogsPage from './components/logs/LogsPage';
@@ -47,6 +48,7 @@ const App: React.FC = () => {
                 <Route path="/employees" element={<EmployeesPage />} />
                 <Route path="/leaves" element={<LeavessPage />} />
                 <Route path="reports" element={<ReportEmployeesPage />} />
+                <Route path="reports/admin" element={<AdminReportPage />} />
                 <Route path="reports/:employeeId" element={<ReportManagementPage />} />
                 <Route path="kakao" element={<KakaoPage />} />
                 <Route path="upload" element={<UploadPage />} />
