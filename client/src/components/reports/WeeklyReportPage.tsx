@@ -283,7 +283,6 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
       <PageHeader>
         <TitleArea>
           <h2>주간 보고</h2>
-          <p>직원 ID {employeeId}의 주간 보고 화면입니다.</p>
         </TitleArea>
         <HeaderButtons>
           <Button
