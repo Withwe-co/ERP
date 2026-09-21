@@ -16,7 +16,6 @@ class ReportUpdateBase(BaseModel):
     content: Optional[Dict[str, Any]] = Field(None, description='Tiptap JSON 형식의 보고 내용')
     submitted: Optional[bool] = Field(None, description='제출 여부')
 
-
 class ReportInDBBase(BaseModel):
     id: int
     employee_id: int
@@ -26,5 +25,12 @@ class ReportInDBBase(BaseModel):
     submitted: bool
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ReportCalendarStatus(BaseModel):
+    id: int
+    period_start: date
+    submitted: bool
 
     model_config = ConfigDict(from_attributes=True)
