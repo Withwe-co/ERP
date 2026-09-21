@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session, load_only
 
 from app.core.database import get_db
 from app.models.reports import Reports
-from app.schemas.reports import (ReportCalendarStatus, ReportCreateBase, ReportInDBBase, ReportUpdateBase,)
+from app.schemas.reports import (ReportCalendarStatus, ReportCreateBase, ReportInDBBase, ReportUpdateBase, ReportWithEmployee,)
+from app.models.employees import Employees
+
 
 router = APIRouter()
 
@@ -80,7 +82,7 @@ def create_report(report_type: Literal["daily", "weekly"],report_in: ReportCreat
     return report
 
 
-@router.get("/statuses", response_model=list[ReportInDBBase])
+@router.get("/statuses", response_model=list[ReportWithEmployee])
 def read_report_statuses(daily_period_start: date = Query(..., description="일일 보고 대상 날짜"),weekly_period_start: date = Query(..., description="주간 보고 시작일"),db: Session = Depends(get_db),):
     """
         summary : 직원별 일일/주간 보고서 제출 상태 조회 함수
@@ -101,9 +103,13 @@ def read_report_statuses(daily_period_start: date = Query(..., description="일�
         raise HTTPException(status_code=422,detail="주간 보고서의 weekly_period_start는 월요일이어야 합니다.")
 
     try:
-        # 오늘 일일 보고서와 이번 주 주간 보고서를 한 번에 조회한다.
-        reports = db.query(Reports).filter(or_(and_(Reports.report_type == "DAILY",Reports.period_start == daily_period_start,),and_(Reports.report_type == "WEEKLY",Reports.period_start == weekly_period_start,),)).all()
-        return reports
+        # 직원 테이블을 연결해 보고서와 필수 직원 이름을 함께 반환한다.
+        reports = db.query(Reports, Employees.name.label("employee_name")).join(Employees, Reports.employee_id == Employees.id).filter(or_(and_(Reports.report_type == "DAILY",Reports.period_start == daily_period_start,),and_(Reports.report_type == "WEEKLY",Reports.period_start == weekly_period_start,),)).all()
+        return [
+            {**ReportInDBBase.model_validate(report).model_dump(), "employee_name": employee_name}
+            for report, employee_name in reports
+        ]
+   
     except TimeoutError as exc:
         # 데이터베이스 연결 또는 커넥션 풀 대기 시간 초과를 처리한다.
         raise HTTPException(status_code=504,detail="보고서 상태 조회 중 데이터베이스 연결 시간이 초과되었습니다.",) from exc
@@ -148,7 +154,7 @@ def read_daily_report_calendar_status(
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="일일 보고서 달력 상태 조회 중 데이터베이스 오류가 발생했습니다.",) from exc
 
-
+        
 @router.get("/{report_type}", response_model=ReportInDBBase)
 def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query(..., description="직원 ID"),period_start: date = Query(..., description="보고 대상 날짜 또는 주 시작일"),db: Session = Depends(get_db),):
     """

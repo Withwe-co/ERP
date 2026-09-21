@@ -485,6 +485,10 @@ export interface ReportCalendarStatus {
   id: number;
   period_start: string;
   submitted: boolean;
+
+// 직원 이름이 항상 포함되는 보고서 목록 응답 타입이다.
+export interface ReportWithEmployee extends Report {
+  employee_name: string;
 }
 
 // 기존 주간 보고서 화면에서 사용하는 타입 이름을 호환한다.
@@ -2277,6 +2281,7 @@ export const reportApi = {
 
   // 직원 목록에 표시할 오늘 일일 보고서와 이번 주 주간 보고서를 조회
   getReportStatuses: async (dailyPeriodStart: string, weeklyPeriodStart: string): Promise<Report[]> => {
+
     return apiRequest.get('/reports/statuses', {
       daily_period_start: dailyPeriodStart,
       weekly_period_start: weeklyPeriodStart,

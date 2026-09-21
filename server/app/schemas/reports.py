@@ -34,3 +34,7 @@ class ReportCalendarStatus(BaseModel):
     submitted: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+# 직원 이름이 필요한 보고서 목록 응답에 사용
+class ReportWithEmployee(ReportInDBBase):
+    employee_name: str
