@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { JSONContent } from '@tiptap/core';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Details, { DetailsContent, DetailsSummary } from '@tiptap/extension-details';
+import Underline from '@tiptap/extension-underline';
 import styled from 'styled-components';
 
 // Components
@@ -9,7 +13,7 @@ import Card from '../common/Card';
 import Modal from '../common/Modal';
 
 // API
-import { holidayApi, KoreanHoliday } from '../../services/api';
+import { holidayApi, KoreanHoliday, reportApi, WeeklyReport } from '../../services/api';
 
 // Form
 import CreateReportForm from './CreateReportForm';
@@ -23,22 +27,6 @@ interface WeekDay {
   dateKey: string;
   dayLabel: string;
 }
-
-// 수정 Form의 초기값을 확인하기 위한 임시 Tiptap 문서
-const SAMPLE_WEEKLY_REPORT_CONTENT: JSONContent = {
-  type: 'doc',
-  content: [
-    {
-      type: 'heading',
-      attrs: { level: 2 },
-      content: [{ type: 'text', text: '이번 주 업무 보고' }],
-    },
-    {
-      type: 'paragraph',
-      content: [{ type: 'text', text: '수정할 주간 보고서의 임시 내용입니다.' }],
-    },
-  ],
-};
 
 // 페이지 전체 영역을 세로로 배치하는 스타일
 const Container = styled.div`
@@ -123,12 +111,14 @@ const DayCell = styled.div<{ $holiday: boolean }>`
   }
 `;
 
+// 요일 이름을 표시하는 스타일
 const DayLabel = styled.div`
   margin-bottom: 6px;
   font-size: 0.85rem;
   font-weight: 600;
 `;
 
+// 날짜 숫자를 강조해서 표시하는 스타일
 const DateLabel = styled.div`
   font-size: 1.35rem;
   font-weight: 700;
@@ -146,15 +136,44 @@ const ReportCard = styled(Card)`
   min-height: 160px;
 `;
 
+// 저장된 보고서 영역의 제목 스타일
 const ReportTitle = styled.h3`
   margin: 0 0 16px;
   color: ${props => props.theme.colors.text};
   font-size: 1.05rem;
 `;
 
+// 보고서가 없거나 조회 중인 상태의 안내 문구 스타일
 const EmptyReport = styled.p`
   margin: 0;
   color: ${props => props.theme.colors.textSecondary};
+`;
+
+// 저장된 Tiptap 문서를 읽기 전용으로 표시하는 영역 스타일
+const ReportContentArea = styled.div`
+  color: ${props => props.theme.colors.text};
+
+  .ProseMirror {
+    outline: none;
+    line-height: 1.7;
+  }
+
+  .ProseMirror h1 { font-size: 1.8rem; }
+  .ProseMirror h2 { font-size: 1.5rem; }
+  .ProseMirror h3 { font-size: 1.25rem; }
+  .ProseMirror ul, .ProseMirror ol { padding-left: 24px; }
+  .ProseMirror blockquote {
+    margin: 1rem 0;
+    padding-left: 12px;
+    border-left: 3px solid ${props => props.theme.colors.primary};
+    color: ${props => props.theme.colors.textSecondary};
+  }
+  .ProseMirror [data-type="details"] {
+    margin: 12px 0;
+    padding: 8px 12px;
+    border: 1px solid ${props => props.theme.colors.border};
+    border-radius: ${props => props.theme.borderRadius.md};
+  }
 `;
 
 // Date 객체를 공휴일 API와 동일한 YYYY-MM-DD 문자열로 변환
@@ -181,6 +200,30 @@ const getCurrentWeekDays = (): WeekDay[] => {
   });
 };
 
+interface ReportContentProps {
+  content: JSONContent;
+}
+
+// 조회된 Tiptap JSON을 수정할 수 없는 문서 형태로 렌더링
+const ReportContent: React.FC<ReportContentProps> = ({ content }) => {
+  const editor = useEditor({
+    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent],
+    content,
+    editable: false,
+  }, [content]);
+
+  if (!editor) {
+    return null;
+  }
+
+  return (
+    <ReportContentArea>
+      <EditorContent editor={editor} />
+    </ReportContentArea>
+  );
+};
+
+// 이번 주 달력과 직원의 주간 보고서를 조회하고 관리하는 페이지
 const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
   // 모달 표시 여부와 등록/수정 모드를 각각 관리
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -188,10 +231,14 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
 
   // 이번 주 월~금 날짜와 연도 목록을 한 번 계산
   const weekDays = useMemo(getCurrentWeekDays, []);
+  const periodStart = weekDays[0].dateKey;
   const holidayYears = useMemo(
     () => Array.from(new Set(weekDays.map(({ date }) => date.getFullYear()))),
     [weekDays],
   );
+
+  // 직원 ID와 이번 주 시작일로 주간 보고서 API를 호출
+  const getWeeklyReport = () => reportApi.getReport(Number(employeeId), periodStart, 'WEEKLY');
 
   // 이번 주에 포함된 연도의 공휴일 목록 조회
   const { data: holidays = [] } = useQuery<KoreanHoliday[]>({
@@ -201,6 +248,17 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
     ).flat(),
     staleTime: 1000 * 60 * 60 * 24,
     retry: 1,
+  });
+
+  // 직원과 이번 주 시작일을 기준으로 저장된 주간 보고서를 조회
+  const {
+    data: weeklyReport,
+    isLoading: isReportLoading,
+    isError: isReportError,
+  } = useQuery<WeeklyReport>({
+    queryKey: ['report', 'WEEKLY', Number(employeeId), periodStart],
+    queryFn: getWeeklyReport,
+    retry: false,
   });
 
   // 날짜별 공휴일 이름을 빠르게 찾기 위한 Map
@@ -217,12 +275,6 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
     setIsFormOpen(false);
   };
 
-  // UI 확인용 제출 처리: 입력 내용은 저장하지 않고 성공 로그만 출력
-  const handleSubmit = (_content: JSONContent) => {
-    console.log(formMode === 'create' ? '주간 보고서 입력 성공' : '주간 보고서 수정 성공');
-    closeForm();
-  };
-
   // 달력 상단에 표시할 이번 주 날짜 범위
   const weekTitle = `${weekDays[0].date.getMonth() + 1}월 ${weekDays[0].date.getDate()}일 ~ ${weekDays[4].date.getMonth() + 1}월 ${weekDays[4].date.getDate()}일`;
 
@@ -234,10 +286,19 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
           <p>직원 ID {employeeId}의 주간 보고 화면입니다.</p>
         </TitleArea>
         <HeaderButtons>
-          <Button variant="outline" onClick={() => openForm('edit')}>
+          <Button
+            variant="outline"
+            onClick={() => openForm('edit')}
+            disabled={!weeklyReport}
+            title={!weeklyReport ? '수정할 보고서가 없습니다.' : undefined}
+          >
             보고서 수정
           </Button>
-          <Button onClick={() => openForm('create')}>
+          <Button
+            onClick={() => openForm('create')}
+            disabled={isReportLoading || Boolean(weeklyReport)}
+            title={weeklyReport ? '이번 주 보고서가 이미 등록되었습니다.' : undefined}
+          >
             보고서 등록
           </Button>
         </HeaderButtons>
@@ -262,7 +323,10 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
 
       <ReportCard>
         <ReportTitle>작성된 주간 보고서</ReportTitle>
-        <EmptyReport>저장된 주간 보고서가 없습니다.</EmptyReport>
+        {isReportLoading && <EmptyReport>보고서를 불러오는 중입니다.</EmptyReport>}
+        {!isReportLoading && weeklyReport && <ReportContent content={weeklyReport.content as JSONContent} />}
+        {!isReportLoading && !weeklyReport && !isReportError && <EmptyReport>저장된 주간 보고서가 없습니다.</EmptyReport>}
+        {!isReportLoading && isReportError && <EmptyReport>저장된 주간 보고서가 없거나 조회할 수 없습니다.</EmptyReport>}
       </ReportCard>
 
       <Modal
@@ -272,10 +336,15 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
         size="xl"
       >
         <CreateReportForm
-          onSubmit={handleSubmit}
+          key={`${formMode}-${formMode === 'edit' ? weeklyReport?.id : 'new'}`}
+          employeeId={Number(employeeId)}
+          periodStart={periodStart}
+          reportType="WEEKLY"
+          mode={formMode}
+          reportId={weeklyReport?.id}
+          onSuccess={closeForm}
           onCancel={closeForm}
-          initialContent={formMode === 'edit' ? SAMPLE_WEEKLY_REPORT_CONTENT : undefined}
-          submitLabel={formMode === 'create' ? '등록' : '수정'}
+          initialContent={formMode === 'edit' ? weeklyReport?.content as JSONContent : undefined}
         />
       </Modal>
     </Container>
