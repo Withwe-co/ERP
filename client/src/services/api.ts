@@ -466,28 +466,33 @@ export interface LeavesUploadFormData {
 }
 
 
-// ??? API? ???? ?? ??? ???
-export interface WeeklyReport {
+export type ReportType = 'DAILY' | 'WEEKLY';
+
+// 일일/주간 보고서 타입 정의
+export interface Report {
   id: number;
   employee_id: number;
   period_start: string;
-  report_type: 'WEEKLY';
+  report_type: ReportType;
   content: Record<string, any>;
   submitted: boolean;
   created_at: string;
   updated_at: string;
 }
 
-// ?? ??? ??? ??? ???
+// 기존 주간 보고서 화면에서 사용하는 타입 이름을 호환한다.
+export type WeeklyReport = Report;
+
+// 보고서 등록 및 수정 API 요청 데이터 타입
 export interface CreateReportData {
   employee_id: number;
   period_start: string;
   content: Record<string, any>;
   submitted?: boolean;
-  report_type: 'WEEKLY';
+  report_type: ReportType;
 }
 
-// ?? ????? ?? ??? ???
+// 보고서 수정 API 요청 데이터 타입
 export interface UpdateReportData {
   period_start?: string;
   content?: Record<string, any>;
@@ -2235,9 +2240,10 @@ export const LeavesApi = {
 // 업무 보고 API
 export const reportApi = {
   // 보고서 생성
-  createReport: async (data: CreateReportData): Promise<WeeklyReport> => {
+  createReport: async (data: CreateReportData): Promise<Report> => {
     try {
-      const response = await apiRequest.post('/reports/weekly', data);
+      const reportType = data.report_type.toLowerCase();
+      const response = await apiRequest.post(`/reports/${reportType}`, data);
       console.log('HTTP 상태 코드 : ',response.success);
       return response;
     } catch (error) {
@@ -2247,17 +2253,25 @@ export const reportApi = {
   },
 
   // 보고서 조회
-  getReport: async (employeeId: number, periodStart: string): Promise<WeeklyReport> => {
-    return apiRequest.get('/reports/weekly', {
+  getReport: async (employeeId: number, periodStart: string, reportType: ReportType): Promise<Report> => {
+    return apiRequest.get(`/reports/${reportType.toLowerCase()}`, {
       employee_id: employeeId,
       period_start: periodStart,
     });
   },
 
+  // 직원 목록에 표시할 오늘 일일 보고서와 이번 주 주간 보고서를 조회
+  getReportStatuses: async (dailyPeriodStart: string, weeklyPeriodStart: string): Promise<Report[]> => {
+    return apiRequest.get('/reports/statuses', {
+      daily_period_start: dailyPeriodStart,
+      weekly_period_start: weeklyPeriodStart,
+    });
+  },
+
   // 보고서 수정
-  updateReport: async (reportId: number, data: UpdateReportData): Promise<WeeklyReport> => {
+  updateReport: async (reportId: number, data: UpdateReportData, reportType: ReportType): Promise<Report> => {
     try {
-        const response = await apiRequest.put(`/reports/weekly/${reportId}`, data);
+        const response = await apiRequest.put(`/reports/${reportType.toLowerCase()}/${reportId}`, data);
         return response;
       } catch (error) {
         console.error('보고서 수정 실패:', error.response?.data);
