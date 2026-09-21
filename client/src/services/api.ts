@@ -510,6 +510,12 @@ export interface UpdateReportData {
   content?: Record<string, any>;
   submitted?: boolean;
 }
+
+// 보고서 본문의 임시 노드와 실제 업로드 파일을 연결하는 데이터
+export interface ReportPendingAttachment {
+  id: string;
+  file: File;
+}
 // 태스크 관리 API
 export const taskApi = {
   createTask: async (
@@ -2252,10 +2258,19 @@ export const LeavesApi = {
 // 업무 보고 API
 export const reportApi = {
   // 보고서 생성
-  createReport: async (data: CreateReportData): Promise<Report> => {
+  createReport: async (data: CreateReportData, attachments: ReportPendingAttachment[] = []): Promise<Report> => {
     try {
       const reportType = data.report_type.toLowerCase();
-      const response = await apiRequest.post(`/reports/${reportType}`, data);
+      // 첨부물이 있으면 본문과 파일을 한 번의 등록 요청으로 전송
+      const formData = new FormData();
+      formData.append('report', JSON.stringify(data));
+      attachments.forEach(({ id, file }) => {
+        formData.append('upload_ids', id);
+        formData.append('files', file);
+      });
+      const response = attachments.length
+        ? (await api.post(`/reports/${reportType}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data
+        : await apiRequest.post(`/reports/${reportType}`, data);
       console.log('HTTP 상태 코드 : ',response.success);
       return response;
     } catch (error) {
@@ -2290,9 +2305,18 @@ export const reportApi = {
   },
 
   // 보고서 수정
-  updateReport: async (reportId: number, data: UpdateReportData, reportType: ReportType): Promise<Report> => {
+  updateReport: async (reportId: number, data: UpdateReportData, reportType: ReportType, attachments: ReportPendingAttachment[] = []): Promise<Report> => {
     try {
-        const response = await apiRequest.put(`/reports/${reportType.toLowerCase()}/${reportId}`, data);
+        // 새 첨부물이 있으면 수정 요청에 기존 본문 JSON과 파일을 함께 전송
+        const formData = new FormData();
+        formData.append('report', JSON.stringify(data));
+        attachments.forEach(({ id, file }) => {
+          formData.append('upload_ids', id);
+          formData.append('files', file);
+        });
+        const response = attachments.length
+          ? (await api.put(`/reports/${reportType.toLowerCase()}/${reportId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data
+          : await apiRequest.put(`/reports/${reportType.toLowerCase()}/${reportId}`, data);
         return response;
       } catch (error) {
         console.error('보고서 수정 실패:', error.response?.data);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
@@ -11,7 +11,8 @@ import styled from 'styled-components';
 
 import Button from '../common/Button';
 import Card from '../common/Card';
-import { reportApi, ReportType } from '../../services/api';
+import { reportApi, ReportPendingAttachment, ReportType } from '../../services/api';
+import { ReportFile, ReportImage } from './reportAttachmentNodes';
 
 type ReportFormMode = 'create' | 'edit';
 
@@ -147,6 +148,29 @@ const EditorArea = styled.div`
 
   .ProseMirror .hljs-built_in,
   .ProseMirror .hljs-type {color: #d97706;}
+
+  /* 드롭한 이미지가 에디터 너비를 넘지 않도록 표시 */
+  .ProseMirror img[data-report-image] {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 12px 0;
+  }
+
+  /* 드롭한 일반 파일을 본문 안의 첨부 링크로 표시 */
+  .ProseMirror [data-report-file] {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border: 1px solid ${props => props.theme.colors.border};
+    border-radius: ${props => props.theme.borderRadius.md};
+  }
+`;
+
+// 이미지와 파일을 에디터에 놓는 방법을 안내하는 스타일
+const DropHint = styled.p`
+  margin: 8px 0 0;
+  color: ${props => props.theme.colors.textSecondary};
+  font-size: 0.85rem;
 `;
 
 // 취소와 저장 버튼을 오른쪽에 배치하는 스타일
@@ -172,6 +196,13 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const reportLabel = reportType === 'WEEKLY' ? '주간' : '일일';
+  const pendingFiles = useRef(new Map<string, File>());
+  const previewUrls = useRef<string[]>([]);
+
+  // 폼이 닫히면 임시 이미지 미리보기 주소를 해제
+  useEffect(() => () => {
+    previewUrls.current.forEach(url => URL.revokeObjectURL(url));
+  }, []);
 
   // 전달된 보고서 내용을 초기값으로 사용하는 Tiptap 에디터
   const editor = useEditor({
@@ -181,11 +212,55 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
       Details,
       DetailsSummary,
       DetailsContent,
+      ReportImage,
+      ReportFile,
     ],
     content: initialContent ?? '',
     editorProps: {
       attributes: {
         'data-placeholder': '보고서 내용을 작성하세요.',
+      },
+      // 외부 파일을 놓은 좌표에 이미지 또는 파일 노드를 삽입
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved || !event.dataTransfer?.files.length) return false;
+        const dropPosition = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (!dropPosition) return false;
+
+        // 서버 제한에 맞지 않는 파일은 본문에 넣기 전에 안내
+        const droppedFiles = Array.from(event.dataTransfer.files);
+        const allowedExtensions = /\.(pdf|docx?|xlsx?|csv|txt|zip|pptx?|hwp|hwpx|png|jpe?g|gif|webp)$/i;
+        if (droppedFiles.some(file => file.size === 0 || file.size > 10 * 1024 * 1024 ||
+          (file.type.startsWith('image/')
+            ? !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)
+            : !allowedExtensions.test(file.name)))) {
+          event.preventDefault();
+          toast.error('10MB 이하의 이미지 또는 지원되는 문서 파일만 첨부할 수 있습니다.');
+          return true;
+        }
+        if (droppedFiles.length > 10) {
+          event.preventDefault();
+          toast.error('한 번에 최대 10개의 파일을 첨부할 수 있습니다.');
+          return true;
+        }
+
+        const nodes = droppedFiles.map(file => {
+          const uploadId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()}`;
+          pendingFiles.current.set(uploadId, file);
+
+          if (file.type.startsWith('image/')) {
+            const src = URL.createObjectURL(file);
+            previewUrls.current.push(src);
+            return { type: 'reportImage', attrs: { src, name: file.name, uploadId } };
+          }
+          return { type: 'reportFile', attrs: { href: null, name: file.name, uploadId } };
+        });
+
+        event.preventDefault();
+        view.focus();
+        editor?.chain().insertContentAt(dropPosition.pos, nodes).run();
+        return true;
       },
     },
   });
@@ -207,7 +282,6 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
         isOrderedList: currentEditor.isActive('orderedList'),
         isBlockquote: currentEditor.isActive('blockquote'),
         isCodeBlock: currentEditor.isActive('codeBlock'),
-        isDetails: currentEditor.isActive('details'),
       };
     },
   });
@@ -227,13 +301,13 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
 
   // 보고서를 새로 등록하는 Mutation
   const createMutation = useMutation({
-    mutationFn: (content: JSONContent) => reportApi.createReport({
+    mutationFn: ({ content, attachments }: { content: JSONContent; attachments: ReportPendingAttachment[] }) => reportApi.createReport({
       employee_id: employeeId,
       period_start: periodStart,
       content,
       submitted: true,
       report_type: reportType,
-    }),
+    }, attachments),
     onSuccess: () => handleMutationSuccess(`${reportLabel} 보고서가 등록되었습니다.`),
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || '보고서 등록 중 오류가 발생했습니다.');
@@ -242,8 +316,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
 
   // 기존 보고서 내용을 수정하는 Mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, content }: { id: number; content: JSONContent }) => (
-      reportApi.updateReport(id, { content }, reportType)
+    mutationFn: ({ id, content, attachments }: { id: number; content: JSONContent; attachments: ReportPendingAttachment[] }) => (
+      reportApi.updateReport(id, { content }, reportType, attachments)
     ),
     onSuccess: () => handleMutationSuccess(`${reportLabel} 보고서가 수정되었습니다.`),
     onError: (error: any) => {
@@ -261,17 +335,38 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
 
     const content = editor.getJSON();
 
+    // 최종 본문에 남아 있는 임시 노드의 파일만 저장 요청에 포함
+    const attachments: ReportPendingAttachment[] = [];
+    const stack: JSONContent[] = [content];
+    while (stack.length) {
+      const node = stack.pop()!;
+      const uploadId = node.attrs?.uploadId;
+      if (uploadId) {
+        const file = pendingFiles.current.get(uploadId);
+        if (!file) {
+          toast.error('첨부 파일을 찾을 수 없습니다. 다시 넣어 주세요.');
+          return;
+        }
+        attachments.push({ id: uploadId, file });
+      }
+      stack.push(...(node.content ?? []));
+    }
+    if (attachments.length > 10) {
+      toast.error('새 첨부 파일은 최대 10개까지 저장할 수 있습니다.');
+      return;
+    }
+
     if (mode === 'edit') {
       if (reportId === undefined) {
         toast.error('수정할 보고서를 찾을 수 없습니다.');
         return;
       }
 
-      updateMutation.mutate({ id: reportId, content });
+      updateMutation.mutate({ id: reportId, content, attachments });
       return;
     }
 
-    createMutation.mutate(content);
+    createMutation.mutate({ content, attachments });
   };
 
   const isSubmitting = createMutation.isLoading || updateMutation.isLoading;
@@ -295,13 +390,13 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
             <ToolbarButton type="button" $active={editorState?.isOrderedList} aria-pressed={editorState?.isOrderedList} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="번호 목록">1. 목록</ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isBlockquote} aria-pressed={editorState?.isBlockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="인용문">인용</ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isCodeBlock}  aria-pressed={editorState?.isCodeBlock}  onClick={() =>  editor.chain().focus().toggleCodeBlock().run()} title="코드 블록">  코드</ToolbarButton>
-            <ToolbarButton type="button" $active={editorState?.isDetails} aria-pressed={editorState?.isDetails} onClick={() => {const chain = editor.chain().focus();editor.isActive('details') ? chain.unsetDetails().run() : chain.setDetails().run();}} title="토글 블록">토글</ToolbarButton>
             <ToolbarButton type="button" onClick={() => editor.chain().focus().undo().run()} title="실행 취소">↶</ToolbarButton>
             <ToolbarButton type="button" onClick={() => editor.chain().focus().redo().run()} title="다시 실행">↷</ToolbarButton>
           </EditorToolbar>
           <EditorArea>
             <EditorContent editor={editor} />
           </EditorArea>
+          <DropHint>이미지 또는 파일을 본문의 원하는 위치에 끌어다 놓으세요. 파일은 각각 10MB 이하, 최대 10개까지 첨부할 수 있습니다.</DropHint>
           <ButtonGroup>
             <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>닫기</Button>
             <Button type="submit" loading={isSubmitting}>{mode === 'create' ? '등록' : '수정'}</Button>

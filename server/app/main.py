@@ -109,8 +109,9 @@ if hasattr(settings, 'TRUSTED_HOSTS') and settings.TRUSTED_HOSTS:
 # 정적 파일 마운트
 
 uploads_dir = os.path.join(os.getcwd(), "uploads")
-if os.path.exists(uploads_dir):
-    app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+# 보고서 첨부 파일도 서버 첫 실행부터 조회할 수 있도록 업로드 경로를 준비
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
     
 
 # API 라우터 등록

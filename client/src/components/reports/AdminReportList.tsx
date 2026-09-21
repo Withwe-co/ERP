@@ -7,6 +7,7 @@ import styled from 'styled-components';
 
 import Card from '../common/Card';
 import { ReportWithEmployee } from '../../services/api';
+import { ReportFile, ReportImage } from './reportAttachmentNodes';
 
 interface AdminReportListProps {
   reports: ReportWithEmployee[];
@@ -85,6 +86,10 @@ const ReportBody = styled.div`
     border: 1px solid ${props => props.theme.colors.border};
     border-radius: ${props => props.theme.borderRadius.md};
   }
+
+  /* 업로드한 이미지와 파일 링크를 관리자 보고서에 표시 */
+  .ProseMirror img[data-report-image] { max-width: 100%; height: auto; }
+  .ProseMirror [data-report-file] { margin: 12px 0; }
 `;
 
 // 조회 중·오류·빈 목록을 안내하는 스타일
@@ -96,7 +101,7 @@ const Message = styled.p`
 // 보고서 내용을 편집할 수 없는 Tiptap 문서로 렌더링
 const ReadOnlyReport: React.FC<{ content: JSONContent }> = ({ content }) => {
   const editor = useEditor({
-    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent],
+    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent, ReportImage, ReportFile],
     content,
     editable: false,
   }, [content]);
