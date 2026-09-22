@@ -151,13 +151,21 @@ const ButtonArea = styled.div`
   border-top: 1px solid ${props => props.theme.colors.border};
 `;
 
-const formatDate = (date: string) =>
-  new Date(`${date}T00:00:00`).toLocaleDateString('ko-KR', {
+const formatDate = (date: string) => {
+  const targetDate = new Date(`${date.slice(0, 10)}T00:00:00`);
+
+  const dateText = targetDate.toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+  });
+
+  const weekday = targetDate.toLocaleDateString('ko-KR', {
     weekday: 'short',
   });
+
+  return `${dateText}(${weekday})`;
+};
 
 const DailyReportDetail = ({report, onClose, onEdit}: DailyReportDetailProps) => {
   const editor = useEditor(
