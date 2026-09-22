@@ -11,9 +11,7 @@ import Card from '../common/Card';
 import Modal from '../common/Modal';
 
 import CreateReportForm from './CreateReportForm';
-import DailyReportDetail, {
-  DailyReportDetailData,
-} from './DailyReportDetail';
+import DailyReportDetail, {DailyReportDetailData,} from './DailyReportDetail';
 
 import {
   holidayApi,
@@ -70,10 +68,19 @@ const PageHeader = styled.div`
 
 const CalendarCard = styled(Card)`
   padding: 16px;
+  min-width: 0;
+`;
+
+const CalendarScroll = styled.div`
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 `;
 
 const CalendarContainer = styled.div`
   width: 100%;
+  min-width: 900px; /* 최소 너비를 설정하여 가로 스크롤이 생기도록 함 */
 
   .fc .fc-scrollgrid {
     overflow: hidden;
@@ -136,17 +143,37 @@ const CalendarContainer = styled.div`
     font-weight: 700;
   }
 
+  .fc .fc-prev-button {
+    position: relative;
+  }
+
+  .fc .fc-prev-button::after {
+    content: '';
+    position: absolute;
+    top: 20%;
+    right: 0;
+    width: 1px;
+    height: 60%;
+    background: #cbd5e1;
+    pointer-events: none;
+  }
+
   .fc .fc-daygrid-day-frame {
-    min-height: 90px;
+    min-height: 100px;
   }
 `;
 
 const DayCellContent = styled.div`
   display: flex;
-  min-height: 78px;
+  width: 100%;
+  min-width: 0;
+  min-height: 88px;
+
   flex-direction: column;
   gap: 8px;
+
   padding: 5px 7px;
+  box-sizing: border-box;
 `;
 
 const DayNumber = styled.div`
@@ -157,19 +184,35 @@ const DayNumber = styled.div`
 
 const StatusBadge = styled.span<{ $status: DayStatus }>`
   display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
   align-items: center;
   justify-content: center;
 
-  padding: 6px 11px;
+  box-sizing: border-box;
+  padding: 6px 10px;
   border-radius: 7px;
 
   font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
+  text-align: center;
 
-  white-space: nowrap;
+  ${props =>
+    props.$status === 'HOLIDAY'
+      ? `
+        width: 100%;
+        max-width: 100%;
+
+        white-space: normal;
+        word-break: keep-all; // 글자 중간에서 막 쪼개지 않고, 단어 단위/괄호 앞과 같은 부분에서 줄바꿈
+        overflow-wrap: break-word;
+      `
+      : `
+        width: 76px;
+        height: 28px;
+
+        white-space: nowrap;
+      `
+  }
 
   ${props => {
     switch (props.$status) {
@@ -377,92 +420,94 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
       </PageHeader>
 
       <CalendarCard>
-        <CalendarContainer>
-          <FullCalendar
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            locale={koLocale}
-            height="auto"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: '',
-            }}
-            datesSet={info => {
-              const years = [
-                info.start.getFullYear(),
-                info.end.getFullYear(),
-              ];
+        <CalendarScroll>
+          <CalendarContainer>
+            <FullCalendar
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              locale={koLocale}
+              height="auto"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: '',
+              }}
+              datesSet={info => {
+                const years = [
+                  info.start.getFullYear(),
+                  info.end.getFullYear(),
+                ];
 
-              setVisibleYears([...new Set(years)]);
+                setVisibleYears([...new Set(years)]);
 
-              const endDate = new Date(info.end);
-              endDate.setDate(endDate.getDate() - 1);
+                const endDate = new Date(info.end);
+                endDate.setDate(endDate.getDate() - 1);
 
-              setCalendarRange({
-                start: formatDateKey(info.start),
-                end: formatDateKey(endDate),
-              });
-            }}
-            dateClick={info => handleDateClick(info.dateStr)}
+                setCalendarRange({
+                  start: formatDateKey(info.start),
+                  end: formatDateKey(endDate),
+                });
+              }}
+              dateClick={info => handleDateClick(info.dateStr)}
 
-            dayCellClassNames={info => {
-              const dateKey = formatDateKey(info.date);
-              const day = info.date.getDay();
+              dayCellClassNames={info => {
+                const dateKey = formatDateKey(info.date);
+                const day = info.date.getDay();
 
-              if (holidaysByDate.has(dateKey)) {
-                return ['fc-holiday'];
-              }
+                if (holidaysByDate.has(dateKey)) {
+                  return ['fc-holiday'];
+                }
 
-              if (day === 0 || day === 6) {
-                return ['fc-weekend'];
-              }
+                if (day === 0 || day === 6) {
+                  return ['fc-weekend'];
+                }
 
-              return [];
-            }}
+                return [];
+              }}
 
-            dayCellContent={info => {
-              const dateKey = formatDateKey(info.date);
-              const holidayName = holidaysByDate.get(dateKey);
-              const day = info.date.getDay();
-              const isWeekend = day === 0 || day === 6;
+              dayCellContent={info => {
+                const dateKey = formatDateKey(info.date);
+                const holidayName = holidaysByDate.get(dateKey);
+                const day = info.date.getDay();
+                const isWeekend = day === 0 || day === 6;
 
-              // 공휴일은 주말 여부와 관계없이 공휴일명 표시
-              if (holidayName) {
+                // 공휴일은 주말 여부와 관계없이 공휴일명 표시
+                if (holidayName) {
+                  return (
+                    <DayCellContent>
+                      <DayNumber>{info.date.getDate()}</DayNumber>
+
+                      <StatusBadge $status="HOLIDAY">
+                        {holidayName}
+                      </StatusBadge>
+                    </DayCellContent>
+                  );
+                }
+
+                // 일반 주말은 날짜만 표시
+                if (isWeekend) {
+                  return (
+                    <DayCellContent>
+                      <DayNumber>{info.date.getDate()}</DayNumber>
+                    </DayCellContent>
+                  );
+                }
+
+                const dayStatus = getDayStatus(dateKey);
+
                 return (
                   <DayCellContent>
                     <DayNumber>{info.date.getDate()}</DayNumber>
 
-                    <StatusBadge $status="HOLIDAY">
-                      {holidayName}
+                    <StatusBadge $status={dayStatus.status}>
+                      {dayStatus.label}
                     </StatusBadge>
                   </DayCellContent>
                 );
-              }
-
-              // 일반 주말은 날짜만 표시
-              if (isWeekend) {
-                return (
-                  <DayCellContent>
-                    <DayNumber>{info.date.getDate()}</DayNumber>
-                  </DayCellContent>
-                );
-              }
-
-              const dayStatus = getDayStatus(dateKey);
-
-              return (
-                <DayCellContent>
-                  <DayNumber>{info.date.getDate()}</DayNumber>
-
-                  <StatusBadge $status={dayStatus.status}>
-                    {dayStatus.label}
-                  </StatusBadge>
-                </DayCellContent>
-              );
-            }}
-          />
-        </CalendarContainer>
+              }}
+            />
+          </CalendarContainer>
+        </CalendarScroll>
       </CalendarCard>
 
       <Modal
