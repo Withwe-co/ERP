@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient,} from '@tanstack/react-query';
-import { JSONContent } from '@tiptap/core';
+import { useQuery } from '@tanstack/react-query';
 import styled from 'styled-components';
 
 import FullCalendar from '@fullcalendar/react';
@@ -214,8 +213,6 @@ const formatDateKey = (date: Date) => {
 
 const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
 
-  const queryClient = useQueryClient();
-
   const [selectedDate, setSelectedDate] = useState<string | null>(null,);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -372,33 +369,6 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     setSelectedDate(null);
   };
 
-  const handleCreateSubmit = async (content: JSONContent) => {
-    if (!selectedDate) {return;}
-
-    try {
-      await reportApi.createReport({
-        employee_id: Number(employeeId),
-        period_start: selectedDate,
-        content,
-        report_type: 'DAILY',
-      });
-
-      await queryClient.invalidateQueries({queryKey: ['daily-report-calendar', employeeId],});
-
-      closeCreateModal();
-    } catch (error) {console.error('일일 보고 등록 실패:', error);}
-  };
-
-  const handleEditSubmit = async (content: JSONContent) => {
-    if (!selectedReport) {return;}
-
-    try {
-      await reportApi.updateReport(selectedReport.id, {content,},'DAILY',);
-      await queryClient.invalidateQueries({queryKey: ['daily-report-calendar', employeeId],});
-      closeEditModal();
-    } catch (error) {console.error('일일 보고 수정 실패:', error);}
-  };
-
   return (
     <Container>
       <PageHeader>
@@ -505,10 +475,16 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
         }
         size="xl"
       >
-        <CreateReportForm
-          onSubmit={handleCreateSubmit}
-          onCancel={closeCreateModal}
-        />
+        {selectedDate && (
+          <CreateReportForm
+            employeeId={Number(employeeId)}
+            periodStart={selectedDate}
+            reportType="DAILY"
+            mode="create"
+            onSuccess={closeCreateModal}
+            onCancel={closeCreateModal}
+          />
+        )}
       </Modal>
 
       <Modal
@@ -538,10 +514,14 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
       >
         {selectedReport && (
           <CreateReportForm
+            employeeId={Number(employeeId)}
+            periodStart={selectedReport.period_start.slice(0, 10)}
+            reportType="DAILY"
+            mode="edit"
+            reportId={selectedReport.id}
             initialContent={selectedReport.content}
-            onSubmit={handleEditSubmit}
+            onSuccess={closeEditModal}
             onCancel={closeEditModal}
-            submitLabel="수정"
           />
         )}
       </Modal>

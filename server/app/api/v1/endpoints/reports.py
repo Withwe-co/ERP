@@ -1,9 +1,14 @@
 """보고서 API"""
 
 from datetime import date
+from io import BytesIO
+import json
+from pathlib import Path
 from typing import Literal
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
+from PIL import Image
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError, TimeoutError
 from sqlalchemy.orm import Session, load_only
@@ -18,13 +23,13 @@ router = APIRouter()
 
 
 @router.post("/{report_type}", response_model=ReportInDBBase)
-def create_report(report_type: Literal["daily", "weekly"],report_in: ReportCreateBase,db: Session = Depends(get_db),):
+async def create_report(report_type: Literal["daily", "weekly"],request: Request,db: Session = Depends(get_db),):
     """
         summary : 일일/주간 보고서 생성 함수
 
         arg :
             - report_type (Literal["daily", "weekly"]) : 보고 유형
-            - report_in (ReportCreateBase) : 보고서 생성 요청 데이터
+            - request (Request) : 보고서 JSON 또는 첨부 파일이 포함된 FormData
             - db (Session) : DB 세션
 
         desc :
@@ -34,8 +39,72 @@ def create_report(report_type: Literal["daily", "weekly"],report_in: ReportCreat
             - 경로와 요청 데이터의 report_type이 일치하지 않는 경우에는 422 에러를 반환
             - 데이터베이스 연결 또는 커넥션 풀 대기 시간 초과 시에는 504 에러를 반환
             - 그 밖의 SQLAlchemy 데이터베이스 오류 발생 시에는 500 에러를 반환
+            - 드롭한 첨부 파일을 본문의 해당 위치에 연결한 뒤 저장
 
     """
+    # JSON 요청과 파일이 포함된 FormData 요청을 같은 생성 모델로 검증한다.
+    files: list[UploadFile] = []
+    upload_ids: list[str] = []
+    if request.headers.get('content-type', '').startswith('multipart/form-data'):
+        form = await request.form()
+        try:
+            payload = json.loads(str(form.get('report')))
+            report_in = ReportCreateBase.model_validate(payload)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail='보고서 요청 형식이 올바르지 않습니다.') from exc
+        files = form.getlist('files')
+        upload_ids = [str(value) for value in form.getlist('upload_ids')]
+    else:
+        try:
+            report_in = ReportCreateBase.model_validate(await request.json())
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail='보고서 요청 형식이 올바르지 않습니다.') from exc
+
+    # 첨부 ID와 본문 노드의 대응을 확인하고 저장할 파일을 준비한다.
+    if len(files) != len(upload_ids) or len(set(upload_ids)) != len(upload_ids) or len(files) > 10:
+        raise HTTPException(status_code=422, detail='첨부 파일 목록이 올바르지 않습니다.')
+    pending_nodes = {}
+    stack = [report_in.content]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            attrs = node.get('attrs') or {}
+            if attrs.get('uploadId'):
+                if attrs['uploadId'] in pending_nodes:
+                    raise HTTPException(status_code=422, detail='첨부 파일 ID가 중복되었습니다.')
+                pending_nodes[attrs['uploadId']] = node
+            stack.extend(node.get('content') or [])
+    if set(pending_nodes) != set(upload_ids):
+        raise HTTPException(status_code=422, detail='본문과 첨부 파일 목록이 일치하지 않습니다.')
+
+    attachments = []
+    allowed_file_extensions = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.zip', '.ppt', '.pptx', '.hwp', '.hwpx', '.png', '.jpg', '.jpeg', '.gif', '.webp'}
+    for file, upload_id in zip(files, upload_ids):
+        content = await file.read(10 * 1024 * 1024 + 1)
+        if not content or len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail='첨부 파일은 각각 10MB 이하만 허용됩니다.')
+        node = pending_nodes[upload_id]
+        if node.get('type') == 'reportImage':
+            try:
+                image = Image.open(BytesIO(content))
+                image.verify()
+                image_format = image.format
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail='이미지 파일 형식이 올바르지 않습니다.') from exc
+            extension = { 'PNG': '.png', 'JPEG': '.jpg', 'GIF': '.gif', 'WEBP': '.webp' }.get(image_format)
+            if extension is None:
+                raise HTTPException(status_code=400, detail='PNG, JPEG, GIF, WebP 이미지만 허용됩니다.')
+            target_attr = 'src'
+        elif node.get('type') == 'reportFile':
+            extension = Path((file.filename or '').replace('\\', '/')).suffix.lower()
+            if extension not in allowed_file_extensions:
+                raise HTTPException(status_code=400, detail='지원하지 않는 첨부 파일 형식입니다.')
+            target_attr = 'href'
+        else:
+            raise HTTPException(status_code=422, detail='본문 첨부 노드가 올바르지 않습니다.')
+        file_path = Path('uploads/report_attachments') / f'{uuid4()}{extension}'
+        attachments.append((file_path, content, node, target_attr))
+
     # 경로의 보고 유형을 데이터베이스에 저장하는 대문자 형식으로 변환한다.
     normalized_report_type = report_type.upper()
     report_name = "주간" if normalized_report_type == "WEEKLY" else "일일"
@@ -55,7 +124,21 @@ def create_report(report_type: Literal["daily", "weekly"],report_in: ReportCreat
     if existing_report is not None:
         raise HTTPException(status_code=409,detail=f"해당 직원과 날짜의 {report_name} 보고서가 이미 존재합니다.")
 
-    # 요청 데이터를 사용해 제출 완료 상태의 일일 또는 주간 보고서 모델을 생성한다.
+    # 파일 주소를 드롭 위치의 노드에 넣고 제출 완료 보고서를 생성한다.
+    saved_paths = []
+    try:
+        if attachments:
+            Path('uploads/report_attachments').mkdir(parents=True, exist_ok=True)
+        for file_path, content, node, target_attr in attachments:
+            saved_paths.append(file_path)
+            file_path.write_bytes(content)
+            node['attrs'][target_attr] = f'/uploads/report_attachments/{file_path.name}'
+            node['attrs'].pop('uploadId', None)
+    except OSError as exc:
+        for file_path in saved_paths:
+            file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail='보고서 첨부 파일 저장에 실패했습니다.') from exc
+
     report = Reports(
         employee_id=report_in.employee_id,
         report_type=normalized_report_type,
@@ -72,10 +155,14 @@ def create_report(report_type: Literal["daily", "weekly"],report_in: ReportCreat
     except TimeoutError as exc:
         # 데이터베이스 연결 또는 커넥션 풀 대기 시간 초과를 처리한다.
         db.rollback()
+        for file_path in saved_paths:
+            file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=504,detail=f"{report_name} 보고서 생성 중 데이터베이스 연결 시간이 초과되었습니다.",) from exc
     except SQLAlchemyError as exc:
         # 그 밖의 SQLAlchemy 데이터베이스 오류를 처리한다.
         db.rollback()
+        for file_path in saved_paths:
+            file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500,detail=f"{report_name} 보고서 생성 중 데이터베이스 오류가 발생했습니다.",) from exc
 
     # 저장이 완료된 보고서 데이터를 반환한다.
@@ -202,14 +289,14 @@ def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query
 
 
 @router.put("/{report_type}/{report_id}", response_model=ReportInDBBase)
-def update_report(report_type: Literal["daily", "weekly"],report_id: int,report_in: ReportUpdateBase,db: Session = Depends(get_db),):
+async def update_report(report_type: Literal["daily", "weekly"],report_id: int,request: Request,db: Session = Depends(get_db),):
     """
         summary : 일일/주간 보고서 수정 함수
 
         arg :
             - report_type (Literal["daily", "weekly"]) : 보고 유형
             - report_id (int) : 수정할 보고서 ID
-            - report_in (ReportUpdateBase) : 보고서 수정 요청 데이터
+            - request (Request) : 보고서 JSON 또는 첨부 파일이 포함된 FormData
             - db (Session) : DB 세션
 
         desc :
@@ -218,7 +305,71 @@ def update_report(report_type: Literal["daily", "weekly"],report_id: int,report_
             - 요청한 보고 유형과 ID에 해당하는 보고서가 존재하지 않는 경우에는 404 에러를 반환
             - 데이터베이스 연결 또는 커넥션 풀 대기 시간 초과 시에는 504 에러를 반환
             - 그 밖의 SQLAlchemy 데이터베이스 오류 발생 시에는 500 에러를 반환
+            - 새 첨부 파일을 드롭 위치에 연결하고 기존 본문 첨부는 유지
     """
+    # JSON 요청과 파일이 포함된 FormData 요청을 같은 수정 모델로 검증한다.
+    files: list[UploadFile] = []
+    upload_ids: list[str] = []
+    if request.headers.get('content-type', '').startswith('multipart/form-data'):
+        form = await request.form()
+        try:
+            payload = json.loads(str(form.get('report')))
+            report_in = ReportUpdateBase.model_validate(payload)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail='보고서 요청 형식이 올바르지 않습니다.') from exc
+        files = form.getlist('files')
+        upload_ids = [str(value) for value in form.getlist('upload_ids')]
+    else:
+        try:
+            report_in = ReportUpdateBase.model_validate(await request.json())
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail='보고서 요청 형식이 올바르지 않습니다.') from exc
+
+    # 새 첨부 ID가 본문 노드와 일치하는지 확인하고 파일을 준비한다.
+    if len(files) != len(upload_ids) or len(set(upload_ids)) != len(upload_ids) or len(files) > 10:
+        raise HTTPException(status_code=422, detail='첨부 파일 목록이 올바르지 않습니다.')
+    pending_nodes = {}
+    stack = [report_in.content] if report_in.content else []
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            attrs = node.get('attrs') or {}
+            if attrs.get('uploadId'):
+                if attrs['uploadId'] in pending_nodes:
+                    raise HTTPException(status_code=422, detail='첨부 파일 ID가 중복되었습니다.')
+                pending_nodes[attrs['uploadId']] = node
+            stack.extend(node.get('content') or [])
+    if set(pending_nodes) != set(upload_ids):
+        raise HTTPException(status_code=422, detail='본문과 첨부 파일 목록이 일치하지 않습니다.')
+
+    attachments = []
+    allowed_file_extensions = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.zip', '.ppt', '.pptx', '.hwp', '.hwpx', '.png', '.jpg', '.jpeg', '.gif', '.webp'}
+    for file, upload_id in zip(files, upload_ids):
+        content = await file.read(10 * 1024 * 1024 + 1)
+        if not content or len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail='첨부 파일은 각각 10MB 이하만 허용됩니다.')
+        node = pending_nodes[upload_id]
+        if node.get('type') == 'reportImage':
+            try:
+                image = Image.open(BytesIO(content))
+                image.verify()
+                image_format = image.format
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail='이미지 파일 형식이 올바르지 않습니다.') from exc
+            extension = { 'PNG': '.png', 'JPEG': '.jpg', 'GIF': '.gif', 'WEBP': '.webp' }.get(image_format)
+            if extension is None:
+                raise HTTPException(status_code=400, detail='PNG, JPEG, GIF, WebP 이미지만 허용됩니다.')
+            target_attr = 'src'
+        elif node.get('type') == 'reportFile':
+            extension = Path((file.filename or '').replace('\\', '/')).suffix.lower()
+            if extension not in allowed_file_extensions:
+                raise HTTPException(status_code=400, detail='지원하지 않는 첨부 파일 형식입니다.')
+            target_attr = 'href'
+        else:
+            raise HTTPException(status_code=422, detail='본문 첨부 노드가 올바르지 않습니다.')
+        file_path = Path('uploads/report_attachments') / f'{uuid4()}{extension}'
+        attachments.append((file_path, content, node, target_attr))
+
     # 경로의 보고 유형을 데이터베이스 조회에 사용하는 대문자 형식으로 변환한다.
     normalized_report_type = report_type.upper()
     report_name = "주간" if normalized_report_type == "WEEKLY" else "일일"
@@ -234,7 +385,21 @@ def update_report(report_type: Literal["daily", "weekly"],report_id: int,report_
     if report is None:
         raise HTTPException(status_code=404,detail=f"해당 ID의 {report_name} 보고서를 찾을 수 없습니다.")
 
-    # 요청 데이터를 사용해 보고서의 필드를 업데이트한다.
+    # 새 파일 주소를 드롭 위치의 노드에 넣고 보고서 필드를 업데이트한다.
+    saved_paths = []
+    try:
+        if attachments:
+            Path('uploads/report_attachments').mkdir(parents=True, exist_ok=True)
+        for file_path, content, node, target_attr in attachments:
+            saved_paths.append(file_path)
+            file_path.write_bytes(content)
+            node['attrs'][target_attr] = f'/uploads/report_attachments/{file_path.name}'
+            node['attrs'].pop('uploadId', None)
+    except OSError as exc:
+        for file_path in saved_paths:
+            file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail='보고서 첨부 파일 저장에 실패했습니다.') from exc
+
     for field, value in report_in.model_dump(exclude_unset=True).items():
         setattr(report, field, value)
 
@@ -244,14 +409,20 @@ def update_report(report_type: Literal["daily", "weekly"],report_id: int,report_
     except TimeoutError as exc:
         # 데이터베이스 연결 또는 커넥션 풀 대기 시간 초과를 처리한다.
         db.rollback()
+        for file_path in saved_paths:
+            file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=504,detail=f"{report_name} 보고서 수정 중 데이터베이스 연결 시간이 초과되었습니다.",) from exc
     except IntegrityError as exc:
         # 데이터베이스 무결성 제약 조건 위반을 처리한다.
         db.rollback()
+        for file_path in saved_paths:
+            file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=409,detail="데이터베이스 무결성 제약 조건 위반.") from exc
     except SQLAlchemyError as exc:
         # 그 밖의 SQLAlchemy 데이터베이스 오류를 처리한다.
         db.rollback()
+        for file_path in saved_paths:
+            file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500,detail=f"{report_name} 보고서 수정 중 데이터베이스 오류가 발생했습니다.",) from exc
 
     # 업데이트된 보고서를 다시 불러온다.

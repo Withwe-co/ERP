@@ -8,6 +8,7 @@ import Details, {
 import styled from 'styled-components';
 
 import Button from '../common/Button';
+import { ReportFile, ReportImage } from './reportAttachmentNodes';
 
 export interface DailyReportDetailData {
   id: number;
@@ -136,6 +137,10 @@ const ContentArea = styled.div`
 
   .ProseMirror .hljs-built_in,
   .ProseMirror .hljs-type {color: #d97706;}
+
+  /* 업로드한 이미지와 파일 링크를 본문 안에 표시 */
+  .ProseMirror img[data-report-image] { max-width: 100%; height: auto; }
+  .ProseMirror [data-report-file] { margin: 12px 0; }
 `;
 
 const ButtonArea = styled.div`
@@ -162,6 +167,8 @@ const DailyReportDetail = ({report, onClose, onEdit}: DailyReportDetailProps) =>
         Details,
         DetailsSummary,
         DetailsContent,
+        ReportImage,
+        ReportFile,
       ],
       content: report.content,
       editable: false,

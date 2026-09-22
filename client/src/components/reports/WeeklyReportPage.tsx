@@ -17,6 +17,7 @@ import { holidayApi, KoreanHoliday, reportApi, WeeklyReport } from '../../servic
 
 // Form
 import CreateReportForm from './CreateReportForm';
+import { ReportFile, ReportImage } from './reportAttachmentNodes';
 
 interface WeeklyReportPageProps {
   employeeId: string;
@@ -174,6 +175,10 @@ const ReportContentArea = styled.div`
     border: 1px solid ${props => props.theme.colors.border};
     border-radius: ${props => props.theme.borderRadius.md};
   }
+
+  /* 업로드한 이미지와 파일 링크를 본문 안에 표시 */
+  .ProseMirror img[data-report-image] { max-width: 100%; height: auto; }
+  .ProseMirror [data-report-file] { margin: 12px 0; }
 `;
 
 // Date 객체를 공휴일 API와 동일한 YYYY-MM-DD 문자열로 변환
@@ -207,7 +212,7 @@ interface ReportContentProps {
 // 조회된 Tiptap JSON을 수정할 수 없는 문서 형태로 렌더링
 const ReportContent: React.FC<ReportContentProps> = ({ content }) => {
   const editor = useEditor({
-    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent],
+    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent, ReportImage, ReportFile],
     content,
     editable: false,
   }, [content]);

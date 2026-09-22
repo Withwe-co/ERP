@@ -59,12 +59,7 @@ const getReportPeriodStarts = () => {
 };
 
 // 직원과 제출된 보고서를 보고서 페이지에서 사용할 행 데이터로 변환하는 함수
-export const createReportEmployeeRows = (
-    employees: Employee[],
-    reports: Report[],
-    dailyPeriodStart: string,
-    weeklyPeriodStart: string,
-): ReportEmployeeRow[] => {
+export const createReportEmployeeRows = (employees: Employee[], reports: Report[], dailyPeriodStart: string, weeklyPeriodStart: string): ReportEmployeeRow[] => {
     const submittedReportKeys = new Set(reports.filter(report => report.submitted).map(report => `${report.employee_id}-${report.report_type}-${report.period_start.slice(0, 10)}`),);
 
     return employees.map(({ id, name }) => ({
