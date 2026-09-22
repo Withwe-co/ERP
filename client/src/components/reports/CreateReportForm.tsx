@@ -14,14 +14,15 @@ import Card from '../common/Card';
 import { reportApi, ReportPendingAttachment, ReportType } from '../../services/api';
 import { ReportFile, ReportImage } from './reportAttachmentNodes';
 
-type ReportFormMode = 'create' | 'edit';
-
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { createLowlight } from 'lowlight';
 import python from 'highlight.js/lib/languages/python';
 
+
 const lowlight = createLowlight();
 lowlight.register('python', python);
+
+type ReportFormMode = 'create' | 'edit';
 
 interface CreateReportFormProps {
   employeeId: number;
@@ -200,9 +201,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
   const previewUrls = useRef<string[]>([]);
 
   // 폼이 닫히면 임시 이미지 미리보기 주소를 해제
-  useEffect(() => () => {
-    previewUrls.current.forEach(url => URL.revokeObjectURL(url));
-  }, []);
+  useEffect(() => () => {previewUrls.current.forEach(url => URL.revokeObjectURL(url));}, []);
 
   // 전달된 보고서 내용을 초기값으로 사용하는 Tiptap 에디터
   const editor = useEditor({
@@ -217,9 +216,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
     ],
     content: initialContent ?? '',
     editorProps: {
-      attributes: {
-        'data-placeholder': '보고서 내용을 작성하세요.',
-      },
+      attributes: {'data-placeholder': '보고서 내용을 작성하세요.'},
       // 외부 파일을 놓은 좌표에 이미지 또는 파일 노드를 삽입
       handleDrop: (view, event, _slice, moved) => {
         if (moved || !event.dataTransfer?.files.length) return false;
@@ -229,10 +226,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
         // 서버 제한에 맞지 않는 파일은 본문에 넣기 전에 안내
         const droppedFiles = Array.from(event.dataTransfer.files);
         const allowedExtensions = /\.(pdf|docx?|xlsx?|csv|txt|zip|pptx?|hwp|hwpx|png|jpe?g|gif|webp)$/i;
-        if (droppedFiles.some(file => file.size === 0 || file.size > 10 * 1024 * 1024 ||
-          (file.type.startsWith('image/')
-            ? !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)
-            : !allowedExtensions.test(file.name)))) {
+        if (droppedFiles.some(file => file.size === 0 || file.size > 10 * 1024 * 1024 || (file.type.startsWith('image/') ? !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type): !allowedExtensions.test(file.name)))){
           event.preventDefault();
           toast.error('10MB 이하의 이미지 또는 지원되는 문서 파일만 첨부할 수 있습니다.');
           return true;
@@ -244,9 +238,7 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
         }
 
         const nodes = droppedFiles.map(file => {
-          const uploadId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random()}`;
+          const uploadId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
           pendingFiles.current.set(uploadId, file);
 
           if (file.type.startsWith('image/')) {

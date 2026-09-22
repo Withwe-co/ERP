@@ -22,3 +22,5 @@ server/.pytest_cache/
 
 package-lock.json
 package.json
+
+uploads/report_attachments

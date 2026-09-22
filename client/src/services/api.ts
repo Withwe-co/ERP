@@ -2268,9 +2268,8 @@ export const reportApi = {
         formData.append('upload_ids', id);
         formData.append('files', file);
       });
-      const response = attachments.length
-        ? (await api.post(`/reports/${reportType}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data
-        : await apiRequest.post(`/reports/${reportType}`, data);
+      // 첨부물이 있으면 multipart/form-data로 전송, 없으면 JSON으로 전송
+      const response = attachments.length? (await api.post(`/reports/${reportType}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data : await apiRequest.post(`/reports/${reportType}`, data);
       console.log('HTTP 상태 코드 : ',response.success);
       return response;
     } catch (error) {
@@ -2296,7 +2295,7 @@ export const reportApi = {
   },
 
   // 직원 목록에 표시할 오늘 일일 보고서와 이번 주 주간 보고서를 조회
-  getReportStatuses: async (dailyPeriodStart: string, weeklyPeriodStart: string): Promise<Report[]> => {
+  getReportStatuses: async (dailyPeriodStart: string, weeklyPeriodStart: string): Promise<ReportWithEmployee[]> => {
 
     return apiRequest.get('/reports/statuses', {
       daily_period_start: dailyPeriodStart,
