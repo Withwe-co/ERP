@@ -29,6 +29,8 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   gap: 24px;
+  font-family: 'Pretendard', sans-serif;
+  button {font-family: inherit;}
 `;
 
 const InfoArea = styled.div`
@@ -81,15 +83,19 @@ const ContentArea = styled.div`
   .ProseMirror h1 {font-size: 1.8rem;}
   .ProseMirror h2 {font-size: 1.5rem;}
   .ProseMirror h3 {font-size: 1.25rem;}
-  .ProseMirror ul,
-  .ProseMirror ol {padding-left: 24px;}
-
-  .ProseMirror blockquote {
-    margin: 1rem 0;
-    padding-left: 12px;
-    border-left: 3px solid ${props => props.theme.colors.primary};
-    color: ${props => props.theme.colors.textSecondary};
+  
+  /* 글머리표와 번호 목록의 들여쓰기와 번호 스타일을 조정 */
+  .ProseMirror ul {padding-left: 24px;}
+  .ProseMirror ol {padding-left: 32px; list-style: none; counter-reset: item;}
+  .ProseMirror ol > li {position: relative; counter-increment: item;}
+  .ProseMirror ol > li::before {
+    content: counters(item, '-') '. ';
+    position: absolute;
+    right: 100%;
+    margin-right: 6px;
+    white-space: nowrap;
   }
+  .ProseMirror ol ol {padding-left: 40px; margin-top: 4px;}
 
   .ProseMirror [data-type='details'] {
     margin: 12px 0;
@@ -122,19 +128,14 @@ const ContentArea = styled.div`
   }
   .ProseMirror .hljs-comment,
   .ProseMirror .hljs-quote {color: #6b7280;}
-
   .ProseMirror .hljs-keyword,
   .ProseMirror .hljs-selector-tag {color: #7c3aed;}
-
   .ProseMirror .hljs-string,
   .ProseMirror .hljs-attribute {color: #059669;}
-
   .ProseMirror .hljs-number,
   .ProseMirror .hljs-literal {color: #dc2626;}
-
   .ProseMirror .hljs-title,
   .ProseMirror .hljs-function {color: #2563eb;}
-
   .ProseMirror .hljs-built_in,
   .ProseMirror .hljs-type {color: #d97706;}
 
@@ -171,7 +172,7 @@ const DailyReportDetail = ({report, onClose, onEdit}: DailyReportDetailProps) =>
   const editor = useEditor(
     {
       extensions: [
-        StarterKit,
+        StarterKit.configure({blockquote: false,}),
         Details,
         DetailsSummary,
         DetailsContent,

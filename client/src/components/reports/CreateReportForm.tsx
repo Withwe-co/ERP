@@ -22,6 +22,31 @@ import python from 'highlight.js/lib/languages/python';
 const lowlight = createLowlight();
 lowlight.register('python', python);
 
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+const MAX_ATTACHMENT_COUNT = 10;
+
+const IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+];
+
+const FILE_EXTENSION_PATTERN =
+  /\.(pdf|docx?|xlsx?|csv|txt|pptx?|hwp|hwpx)$/i;
+
+// 에디터 본문에 포함된 이미지와 파일 첨부 개수를 계산
+const countAttachments = (content: JSONContent): number => {
+  const currentCount =
+    content.type === 'reportImage' || content.type === 'reportFile'
+      ? 1
+      : 0;
+
+  return (
+    currentCount + (content.content ?? []).reduce((count, node) => count + countAttachments(node), 0,)
+  );
+};
+
 type ReportFormMode = 'create' | 'edit';
 
 interface CreateReportFormProps {
@@ -35,15 +60,23 @@ interface CreateReportFormProps {
   initialContent?: JSONContent;
 }
 
-// 보고서 작성 폼의 최대 너비와 가운데 정렬을 지정하는 스타일
+// 보고서 작성 폼을 감싸는 컨테이너 스타일
 const FormContainer = styled.div`
-  max-width: 800px;
-  margin: 0 auto;
+  width: 100%;
+  font-family: 'Pretendard', sans-serif;
+
+  button,
+  input,
+  textarea {
+    font-family: inherit;
+  }
 `;
 
-// 에디터를 카드 형태로 감싸고 하단 여백을 지정하는 스타일
+// 보고서 작성 폼을 감싸는 카드 스타일
 const FormSection = styled(Card)`
-  margin-bottom: 24px;
+  width: 100%;
+  margin-bottom: 0;
+  padding: 16px;
 `;
 
 // 에디터 서식 버튼을 여러 줄로 배치하는 도구 모음 스타일
@@ -81,32 +114,36 @@ const EditorArea = styled.div`
   border-radius: 0 0 ${props => props.theme.borderRadius.md} ${props => props.theme.borderRadius.md};
   background: ${props => props.theme.colors.surface};
 
-  .ProseMirror {
-    min-height: 280px;
-    padding: 16px;
-    outline: none;
-    line-height: 1.7;
-  }
+  /* Tiptap 내부 ProseMirror 문서 영역 스타일 */
+  .ProseMirror {min-height: 280px; padding: 16px; outline: none; line-height: 1.5;}
+  .ProseMirror p {margin: 0;}
   .ProseMirror h1 { font-size: 1.8rem; }
   .ProseMirror h2 { font-size: 1.5rem; }
   .ProseMirror h3 { font-size: 1.25rem; }
-  .ProseMirror ul, .ProseMirror ol { padding-left: 24px; }
-  .ProseMirror blockquote {
-    margin: 1rem 0;
-    padding-left: 12px;
-    border-left: 3px solid ${props => props.theme.colors.primary};
-    color: ${props => props.theme.colors.textSecondary};
+
+  /* 글머리표와 번호 목록의 들여쓰기와 번호 스타일을 조정 */
+  .ProseMirror ul {padding-left: 24px;}
+  .ProseMirror ol {padding-left: 32px; list-style: none; counter-reset: item;}
+  .ProseMirror ol > li {position: relative; counter-increment: item;}
+  .ProseMirror ol > li::before {
+    content: counters(item, '-') '. ';
+    position: absolute;
+    right: 100%;
+    margin-right: 6px;
+    white-space: nowrap;
   }
+  .ProseMirror ol ol {padding-left: 40px; margin-top: 4px;}
+
+  /* details, summary, pre, code, img, [data-report-file] 등 에디터 내부 요소의 스타일 */
   .ProseMirror [data-type="details"] {
     margin: 12px 0;
     border: 1px solid ${props => props.theme.colors.border};
     border-radius: ${props => props.theme.borderRadius.md};
     padding: 8px 12px;
   }
-  .ProseMirror [data-type="detailsSummary"] {
-    min-height: 24px;
-    font-weight: 600;
-  }
+
+  .ProseMirror [data-type="detailsSummary"] {min-height: 24px; font-weight: 600;}
+
   .ProseMirror p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     color: ${props => props.theme.colors.textSecondary};
@@ -114,6 +151,7 @@ const EditorArea = styled.div`
     height: 0;
     pointer-events: none;
   }
+
   .ProseMirror pre {
     margin: 12px 0;
     padding: 14px 16px;
@@ -132,21 +170,17 @@ const EditorArea = styled.div`
     font-family: inherit;
     font-size: inherit;
   }
+
   .ProseMirror .hljs-comment,
   .ProseMirror .hljs-quote {color: #6b7280;}
-
   .ProseMirror .hljs-keyword,
   .ProseMirror .hljs-selector-tag {color: #7c3aed;}
-
   .ProseMirror .hljs-string,
   .ProseMirror .hljs-attribute {color: #059669;}
-
   .ProseMirror .hljs-number,
   .ProseMirror .hljs-literal {color: #dc2626;}
-
   .ProseMirror .hljs-title,
   .ProseMirror .hljs-function {color: #2563eb;}
-
   .ProseMirror .hljs-built_in,
   .ProseMirror .hljs-type {color: #d97706;}
 
@@ -200,13 +234,18 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
   const pendingFiles = useRef(new Map<string, File>());
   const previewUrls = useRef<string[]>([]);
 
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const attachmentPositionRef = useRef<number | null>(null);
+
   // 폼이 닫히면 임시 이미지 미리보기 주소를 해제
   useEffect(() => () => {previewUrls.current.forEach(url => URL.revokeObjectURL(url));}, []);
 
   // 전달된 보고서 내용을 초기값으로 사용하는 Tiptap 에디터
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({codeBlock: false,}),
+      StarterKit.configure({codeBlock: false, blockquote: false,}),
       CodeBlockLowlight.configure({lowlight, defaultLanguage: 'python',}),
       Details,
       DetailsSummary,
@@ -225,15 +264,22 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
 
         // 서버 제한에 맞지 않는 파일은 본문에 넣기 전에 안내
         const droppedFiles = Array.from(event.dataTransfer.files);
-        const allowedExtensions = /\.(pdf|docx?|xlsx?|csv|txt|zip|pptx?|hwp|hwpx|png|jpe?g|gif|webp)$/i;
-        if (droppedFiles.some(file => file.size === 0 || file.size > 10 * 1024 * 1024 || (file.type.startsWith('image/') ? !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type): !allowedExtensions.test(file.name)))){
+        const currentAttachmentCount = countAttachments(view.state.doc.toJSON(),);
+
+        if (currentAttachmentCount + droppedFiles.length > MAX_ATTACHMENT_COUNT) {
           event.preventDefault();
-          toast.error('10MB 이하의 이미지 또는 지원되는 문서 파일만 첨부할 수 있습니다.');
+          toast.error(`이미지·파일은 합산 최대 ${MAX_ATTACHMENT_COUNT}개까지 첨부할 수 있습니다.`,);
           return true;
         }
-        if (droppedFiles.length > 10) {
+        if (
+          droppedFiles.some(file => {
+            if (file.size === 0 || file.size > MAX_ATTACHMENT_SIZE) {return true;}
+            if (file.type.startsWith('image/')) {return !IMAGE_MIME_TYPES.includes(file.type);}
+            return !FILE_EXTENSION_PATTERN.test(file.name);
+          })
+        ) {
           event.preventDefault();
-          toast.error('한 번에 최대 10개의 파일을 첨부할 수 있습니다.');
+          toast.error('지원되는 형식의 10MB 이하 이미지·파일만 첨부할 수 있습니다.',);
           return true;
         }
 
@@ -257,6 +303,68 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
     },
   });
 
+  const insertSelectedFiles = (files: File[], position: number,) => {
+    if (!editor || files.length === 0) {return;}
+
+    const currentAttachmentCount = countAttachments(editor.getJSON());
+
+    if (currentAttachmentCount + files.length > MAX_ATTACHMENT_COUNT) {
+      toast.error(`이미지·파일은 합산 최대 ${MAX_ATTACHMENT_COUNT}개까지 첨부할 수 있습니다.`,);
+      return;
+    }
+
+    const hasInvalidFile = files.some(file => {
+      if (file.size === 0 || file.size > MAX_ATTACHMENT_SIZE) {
+        return true;
+      }
+      if (file.type.startsWith('image/')) {return !IMAGE_MIME_TYPES.includes(file.type);}
+
+      return !FILE_EXTENSION_PATTERN.test(file.name);
+    });
+
+    if (hasInvalidFile) {
+      toast.error('지원되는 형식의 10MB 이하 이미지·파일만 첨부할 수 있습니다.',);
+      return;
+    }
+
+    const nodes = files.map(file => {
+      const uploadId =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random()}`;
+
+      pendingFiles.current.set(uploadId, file);
+
+      if (file.type.startsWith('image/')) {
+        const src = URL.createObjectURL(file);
+        previewUrls.current.push(src);
+
+        return {type: 'reportImage', attrs: {src, name: file.name, uploadId,},};
+      }
+
+      return {type: 'reportFile', attrs: {href: null, name: file.name, uploadId,},};
+    });
+
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(position, nodes)
+      .run();
+  };
+
+  const handleAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>,) => {
+    const files = Array.from(event.target.files ?? []);
+
+    const position =attachmentPositionRef.current ?? editor?.state.selection.from;
+
+    if (files.length > 0 && position !== undefined) {
+      insertSelectedFiles(files, position);
+    }
+
+    event.target.value = '';
+    attachmentPositionRef.current = null;
+  };
+
   // 도구 버튼의 활성 상태를 현재 에디터 선택 영역과 동기화
   const editorState = useEditorState({
     editor,
@@ -272,7 +380,6 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
         isHeading3: currentEditor.isActive('heading', { level: 3 }),
         isBulletList: currentEditor.isActive('bulletList'),
         isOrderedList: currentEditor.isActive('orderedList'),
-        isBlockquote: currentEditor.isActive('blockquote'),
         isCodeBlock: currentEditor.isActive('codeBlock'),
       };
     },
@@ -343,8 +450,8 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
       }
       stack.push(...(node.content ?? []));
     }
-    if (attachments.length > 10) {
-      toast.error('새 첨부 파일은 최대 10개까지 저장할 수 있습니다.');
+    if (attachments.length > MAX_ATTACHMENT_COUNT) {
+      toast.error(`새 첨부 파일은 최대 ${MAX_ATTACHMENT_COUNT}개까지 저장할 수 있습니다.`,);
       return;
     }
 
@@ -371,6 +478,23 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
     <FormContainer>
       <FormSection>
         <form onSubmit={handleSubmit}>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept=".png,.jpg,.jpeg,.gif,.webp"
+            multiple
+            hidden
+            onChange={handleAttachmentChange}
+          />
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.hwp,.hwpx"
+            multiple
+            hidden
+            onChange={handleAttachmentChange}
+          />
           <EditorToolbar aria-label="보고서 서식 도구">
             <ToolbarButton type="button" $active={editorState?.isBold} aria-pressed={editorState?.isBold} onClick={() => editor.chain().focus().toggleBold().run()} title="굵게"><strong>B</strong></ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isItalic} aria-pressed={editorState?.isItalic} onClick={() => editor.chain().focus().toggleItalic().run()} title="기울임"><em>I</em></ToolbarButton>
@@ -380,15 +504,25 @@ const CreateReportForm: React.FC<CreateReportFormProps> = ({
             <ToolbarButton type="button" $active={editorState?.isHeading3} aria-pressed={editorState?.isHeading3} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} title="제목 3">H3</ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isBulletList} aria-pressed={editorState?.isBulletList} onClick={() => editor.chain().focus().toggleBulletList().run()} title="글머리표 목록">• 목록</ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isOrderedList} aria-pressed={editorState?.isOrderedList} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="번호 목록">1. 목록</ToolbarButton>
-            <ToolbarButton type="button" $active={editorState?.isBlockquote} aria-pressed={editorState?.isBlockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="인용문">인용</ToolbarButton>
             <ToolbarButton type="button" $active={editorState?.isCodeBlock}  aria-pressed={editorState?.isCodeBlock}  onClick={() =>  editor.chain().focus().toggleCodeBlock().run()} title="코드 블록">  코드</ToolbarButton>
+            <ToolbarButton type="button" title="이미지 추가" onMouseDown={event => {event.preventDefault(); attachmentPositionRef.current = editor.state.selection.from; imageInputRef.current?.click();}}> 이미지 추가</ToolbarButton>
+            <ToolbarButton type="button" title="파일 추가" onMouseDown={event => {event.preventDefault(); attachmentPositionRef.current = editor.state.selection.from; fileInputRef.current?.click();}}>파일 추가</ToolbarButton>
             <ToolbarButton type="button" onClick={() => editor.chain().focus().undo().run()} title="실행 취소">↶</ToolbarButton>
             <ToolbarButton type="button" onClick={() => editor.chain().focus().redo().run()} title="다시 실행">↷</ToolbarButton>
           </EditorToolbar>
           <EditorArea>
             <EditorContent editor={editor} />
           </EditorArea>
-          <DropHint>이미지 또는 파일을 본문의 원하는 위치에 끌어다 놓으세요. 파일은 각각 10MB 이하, 최대 10개까지 첨부할 수 있습니다.</DropHint>
+          <DropHint>
+            드래그 앤 드롭 또는 이미지/파일 추가 버튼을 이용하여
+            이미지·파일 합산 최대 10개, 첨부 항목당 최대 10MB까지 첨부할 수 있습니다.
+            <br />
+            첨부 가능 형식:
+            <br />
+            이미지: PNG, JPG, JPEG, GIF, WebP
+            <br />
+            파일: PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, PPT, PPTX, HWP, HWPX
+          </DropHint>
           <ButtonGroup>
             <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>닫기</Button>
             <Button type="submit" loading={isSubmitting}>{mode === 'create' ? '등록' : '수정'}</Button>
