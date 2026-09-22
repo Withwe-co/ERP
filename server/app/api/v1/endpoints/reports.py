@@ -21,6 +21,29 @@ from app.models.employees import Employees
 
 router = APIRouter()
 
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
+MAX_ATTACHMENT_COUNT = 10
+
+ALLOWED_FILE_EXTENSIONS = {
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.csv',
+    '.txt',
+    '.ppt',
+    '.pptx',
+    '.hwp',
+    '.hwpx',
+}
+
+IMAGE_EXTENSIONS_BY_FORMAT = {
+    'PNG': {'.png'},
+    'JPEG': {'.jpg', '.jpeg'},
+    'GIF': {'.gif'},
+    'WEBP': {'.webp'},
+}
 
 @router.post("/{report_type}", response_model=ReportInDBBase)
 async def create_report(report_type: Literal["daily", "weekly"],request: Request,db: Session = Depends(get_db),):
@@ -61,7 +84,7 @@ async def create_report(report_type: Literal["daily", "weekly"],request: Request
             raise HTTPException(status_code=422, detail='보고서 요청 형식이 올바르지 않습니다.') from exc
 
     # 첨부 ID와 본문 노드의 대응을 확인하고 저장할 파일을 준비한다.
-    if len(files) != len(upload_ids) or len(set(upload_ids)) != len(upload_ids) or len(files) > 10:
+    if len(files) != len(upload_ids) or len(set(upload_ids)) != len(upload_ids) or len(files) > MAX_ATTACHMENT_COUNT:
         raise HTTPException(status_code=422, detail='첨부 파일 목록이 올바르지 않습니다.')
     pending_nodes = {}
     stack = [report_in.content]
@@ -78,10 +101,9 @@ async def create_report(report_type: Literal["daily", "weekly"],request: Request
         raise HTTPException(status_code=422, detail='본문과 첨부 파일 목록이 일치하지 않습니다.')
 
     attachments = []
-    allowed_file_extensions = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.zip', '.ppt', '.pptx', '.hwp', '.hwpx', '.png', '.jpg', '.jpeg', '.gif', '.webp'}
     for file, upload_id in zip(files, upload_ids):
-        content = await file.read(10 * 1024 * 1024 + 1)
-        if not content or len(content) > 10 * 1024 * 1024:
+        content = await file.read(MAX_ATTACHMENT_SIZE + 1)
+        if not content or len(content) > MAX_ATTACHMENT_SIZE:
             raise HTTPException(status_code=400, detail='첨부 파일은 각각 10MB 이하만 허용됩니다.')
         node = pending_nodes[upload_id]
         if node.get('type') == 'reportImage':
@@ -89,15 +111,22 @@ async def create_report(report_type: Literal["daily", "weekly"],request: Request
                 image = Image.open(BytesIO(content))
                 image.verify()
                 image_format = image.format
+
             except Exception as exc:
-                raise HTTPException(status_code=400, detail='이미지 파일 형식이 올바르지 않습니다.') from exc
-            extension = { 'PNG': '.png', 'JPEG': '.jpg', 'GIF': '.gif', 'WEBP': '.webp' }.get(image_format)
-            if extension is None:
-                raise HTTPException(status_code=400, detail='PNG, JPEG, GIF, WebP 이미지만 허용됩니다.')
+                raise HTTPException(status_code=400,  detail='이미지 파일 형식이 올바르지 않습니다.',) from exc
+
+            original_extension = Path((file.filename or '').replace('\\', '/')).suffix.lower()
+            allowed_extensions = IMAGE_EXTENSIONS_BY_FORMAT.get(image_format)
+
+            if (allowed_extensions is None or original_extension not in allowed_extensions):
+                raise HTTPException(status_code=400, detail='PNG, JPG, JPEG, GIF, WebP 이미지만 허용됩니다.',)
+
+            extension = original_extension
             target_attr = 'src'
+
         elif node.get('type') == 'reportFile':
             extension = Path((file.filename or '').replace('\\', '/')).suffix.lower()
-            if extension not in allowed_file_extensions:
+            if extension not in ALLOWED_FILE_EXTENSIONS:
                 raise HTTPException(status_code=400, detail='지원하지 않는 첨부 파일 형식입니다.')
             target_attr = 'href'
         else:
@@ -277,9 +306,7 @@ def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query
             raise HTTPException(status_code=404,detail=f"해당 직원과 날짜의 {report_name} 보고서를 찾을 수 없습니다.")
 
         return report
-    except HTTPException:
-        # 조회 결과가 없을 때 발생한 HTTP 예외를 그대로 반환한다.
-        raise
+
     except TimeoutError as exc:
         # 데이터베이스 연결 또는 커넥션 풀 대기 시간 초과를 처리한다.
         raise HTTPException(status_code=504,detail=f"{report_name} 보고서 조회 중 데이터베이스 연결 시간이 초과되었습니다.",) from exc
@@ -326,7 +353,7 @@ async def update_report(report_type: Literal["daily", "weekly"],report_id: int,r
             raise HTTPException(status_code=422, detail='보고서 요청 형식이 올바르지 않습니다.') from exc
 
     # 새 첨부 ID가 본문 노드와 일치하는지 확인하고 파일을 준비한다.
-    if len(files) != len(upload_ids) or len(set(upload_ids)) != len(upload_ids) or len(files) > 10:
+    if len(files) != len(upload_ids) or len(set(upload_ids)) != len(upload_ids) or len(files) > MAX_ATTACHMENT_COUNT:
         raise HTTPException(status_code=422, detail='첨부 파일 목록이 올바르지 않습니다.')
     pending_nodes = {}
     stack = [report_in.content] if report_in.content else []
@@ -343,10 +370,9 @@ async def update_report(report_type: Literal["daily", "weekly"],report_id: int,r
         raise HTTPException(status_code=422, detail='본문과 첨부 파일 목록이 일치하지 않습니다.')
 
     attachments = []
-    allowed_file_extensions = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.zip', '.ppt', '.pptx', '.hwp', '.hwpx', '.png', '.jpg', '.jpeg', '.gif', '.webp'}
     for file, upload_id in zip(files, upload_ids):
-        content = await file.read(10 * 1024 * 1024 + 1)
-        if not content or len(content) > 10 * 1024 * 1024:
+        content = await file.read(MAX_ATTACHMENT_SIZE + 1)
+        if not content or len(content) > MAX_ATTACHMENT_SIZE:
             raise HTTPException(status_code=400, detail='첨부 파일은 각각 10MB 이하만 허용됩니다.')
         node = pending_nodes[upload_id]
         if node.get('type') == 'reportImage':
@@ -355,14 +381,23 @@ async def update_report(report_type: Literal["daily", "weekly"],report_id: int,r
                 image.verify()
                 image_format = image.format
             except Exception as exc:
-                raise HTTPException(status_code=400, detail='이미지 파일 형식이 올바르지 않습니다.') from exc
-            extension = { 'PNG': '.png', 'JPEG': '.jpg', 'GIF': '.gif', 'WEBP': '.webp' }.get(image_format)
-            if extension is None:
-                raise HTTPException(status_code=400, detail='PNG, JPEG, GIF, WebP 이미지만 허용됩니다.')
+                raise HTTPException(status_code=400, detail='이미지 파일 형식이 올바르지 않습니다.',) from exc
+
+            original_extension = Path((file.filename or '').replace('\\', '/')).suffix.lower()
+
+            allowed_extensions = IMAGE_EXTENSIONS_BY_FORMAT.get(image_format)
+
+            if (allowed_extensions is None or original_extension not in allowed_extensions):
+                raise HTTPException(
+                    status_code=400,
+                    detail='PNG, JPG, JPEG, GIF, WebP 이미지만 허용됩니다.',
+                )
+
+            extension = original_extension
             target_attr = 'src'
         elif node.get('type') == 'reportFile':
             extension = Path((file.filename or '').replace('\\', '/')).suffix.lower()
-            if extension not in allowed_file_extensions:
+            if extension not in ALLOWED_FILE_EXTENSIONS:
                 raise HTTPException(status_code=400, detail='지원하지 않는 첨부 파일 형식입니다.')
             target_attr = 'href'
         else:
