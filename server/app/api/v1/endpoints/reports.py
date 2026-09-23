@@ -4,7 +4,7 @@ from datetime import date
 from io import BytesIO
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
@@ -242,8 +242,8 @@ def read_daily_report_calendar_status(
         raise HTTPException(status_code=500, detail="일일 보고서 달력 상태 조회 중 데이터베이스 오류가 발생했습니다.",) from exc
 
         
-@router.get("/{report_type}", response_model=ReportInDBBase)
-def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query(..., description="직원 ID"),period_start: date = Query(..., description="보고 대상 날짜 또는 주 시작일"),db: Session = Depends(get_db),) -> ReportInDBBase:
+@router.get("/{report_type}", response_model=Optional[ReportInDBBase])
+def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query(..., description="직원 ID"),period_start: date = Query(..., description="보고 대상 날짜 또는 주 시작일"),db: Session = Depends(get_db),) -> Optional[ReportInDBBase]:
     """
         summary : 일일/주간 보고서 조회 함수
 
@@ -272,7 +272,10 @@ def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query
         # 요청한 직원·보고 유형·기준 날짜를 사용해 보고서를 조회한다.
         report = db.query(Reports).filter(Reports.employee_id == employee_id,Reports.report_type == normalized_report_type,Reports.period_start == period_start,).first()
 
-        # 요청한 조건에 해당하는 보고서가 존재하지 않으면 404 에러 반환
+        # 주간 보고서가 없으면 정상 빈 응답, 일일 보고서가 없으면 기존처럼 404 반환
+        if report is None and normalized_report_type == "WEEKLY":
+            return None
+
         if report is None:
             raise HTTPException(status_code=404,detail=f"해당 직원과 날짜의 {report_name} 보고서를 찾을 수 없습니다.")
 

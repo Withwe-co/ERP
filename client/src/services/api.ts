@@ -2279,7 +2279,7 @@ export const reportApi = {
   },
 
   // 보고서 조회
-  getReport: async (employeeId: number, periodStart: string, reportType: ReportType): Promise<Report> => {
+  getReport: async <T extends ReportType>(employeeId: number, periodStart: string, reportType: T): Promise<T extends 'WEEKLY' ? Report | null : Report> => {
     return apiRequest.get(`/reports/${reportType.toLowerCase()}`, {
       employee_id: employeeId,
       period_start: periodStart,

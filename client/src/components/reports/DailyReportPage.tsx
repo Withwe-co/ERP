@@ -231,7 +231,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     queryKey: ['daily-report-calendar', employeeId, calendarRange.start, calendarRange.end,],
     queryFn: () =>
       reportApi.getDailyCalendarStatus(Number(employeeId), calendarRange.start, calendarRange.end,),
-    enabled: Boolean(calendarRange.start && calendarRange.end),
+      enabled: Boolean(calendarRange.start && calendarRange.end),
   });
 
   const completedReportDates = useMemo(() =>

@@ -2,7 +2,6 @@ import { JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Details, { DetailsContent, DetailsSummary } from '@tiptap/extension-details';
-import Underline from '@tiptap/extension-underline';
 import styled from 'styled-components';
 
 import Card from '../common/Card';
@@ -101,7 +100,7 @@ const Message = styled.p`
 // 보고서 내용을 편집할 수 없는 Tiptap 문서로 렌더링
 const ReadOnlyReport: React.FC<{ content: JSONContent }> = ({ content }) => {
   const editor = useEditor({
-    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent, ReportImage, ReportFile],
+    extensions: [StarterKit, Details, DetailsSummary, DetailsContent, ReportImage, ReportFile],
     content,
     editable: false,
   }, [content]);
