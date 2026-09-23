@@ -20,7 +20,7 @@ router = APIRouter()
 
 @router.post("/",response_model=dict)
 @rate_limit(max_requests=10, window_seconds=300)
-def create_wbs(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+def create_wbs(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict) -> dict:
 
     """
         summary : WBS 등록 함수
@@ -113,7 +113,7 @@ def create_wbs(*,request: Request,db:Session=Depends(get_db),background_tasks: B
         raise HTTPException(status_code=500, detail=f"WBS 등록에 실패했습니다: {str(e)}")
 
 @router.put("/{wbs_id}",response_model=dict)
-def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)):
+def update_wbs(wbs_id: int,request_in: UpdateWbs,db:Session=Depends(get_db)) -> dict:
 
     """
         summary : WBS 수정 함수
@@ -246,7 +246,7 @@ def get_wbs_list(project_id: int = Query(...),db: Session = Depends(get_db),):
     return ( db.query(DBWbs).filter(DBWbs.project_id == project_id).order_by(DBWbs.wbs_order.asc(), DBWbs.id.asc()).all() )
 
 @router.delete("/{wbs_id}")
-def delete_wbs(wbs_id: int,db: Session = Depends(get_db)):
+def delete_wbs(wbs_id: int,db: Session = Depends(get_db)) -> dict:
     """
         summary : WBS 삭제 함수
 

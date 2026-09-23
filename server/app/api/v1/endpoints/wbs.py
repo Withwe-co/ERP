@@ -22,7 +22,7 @@ from app.models.projects import Project as DBProject
 from app.models.tasks import Task as DBTask
 router = APIRouter()
 
-def make_project_list_items(db: Session, projects: list[DBProject]):
+def make_project_list_items(db: Session, projects: list[DBProject]) -> list[dict]:
     """
         summary : 프로젝트 목록에 태스크 정보 연동 함수
 
@@ -80,7 +80,7 @@ def make_project_list_items(db: Session, projects: list[DBProject]):
 
 @router.post("/",response_model=dict)
 @rate_limit(max_requests=10, window_seconds=300)
-def create_project(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+def create_project(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict) -> dict:
 
     """
         summary : 프로젝트 등록 함수
@@ -96,8 +96,6 @@ def create_project(*,request: Request,db:Session=Depends(get_db),background_task
     """
 
     try:
-        # 프로젝트 생성 확인용 출력문
-        print(f"프로젝트 생성 시작")
 
         # 필수 필드 검증
         required_fields = ['project_name', 'status', 'manager_name', 'department', 'start_date', 'due_date']
@@ -168,7 +166,7 @@ def create_project(*,request: Request,db:Session=Depends(get_db),background_task
         raise HTTPException(status_code=500, detail=f"프로젝트 등록에 실패했습니다: {str(e)}")
 
 @router.put("/{project_id}",response_model=dict)
-def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(get_db)):
+def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(get_db)) -> dict:
 
     """
         summary : 프로젝트 수정 함수
@@ -192,11 +190,11 @@ def update_project(project_id: int,request_in: UpdateProject,db:Session=Depends(
 
     try:
         # DB에서 전달받은 id조회
-        project=db.query(DBProject).filter(DBProject.id==project_id).first()
+        project = db.query(DBProject).filter(DBProject.id == project_id).first()
 
         # DB에서 id조회 실패 -> 404에러
         if project is None:
-            raise HTTPException(status_code=404,detail="프로젝트를 찾을 수 없습니다.")
+            raise HTTPException(status_code = 404, detail = "프로젝트를 찾을 수 없습니다.")
 
         # 실제로 전달된 항목만 추출
         update_data = request_in.model_dump(exclude_unset=True)
@@ -260,7 +258,7 @@ def read_projectlist(
     search: Optional[str] = Query(default=None, description="검색어"),
     status: Optional[str] = Query(default=None, description="상태 필터"),
     department: Optional[str] = Query(default=None, description="부서 필터")
-):
+) -> dict:
     """
         summary : 프로젝트 목록 호출 함수
         
@@ -335,7 +333,7 @@ def read_on_hold_projectlist(
     search: Optional[str] = Query(default=None, description="검색어"),
     status: Optional[str] = Query(default=None, description="상태 필터"),
     department: Optional[str] = Query(default=None, description="부서 필터")
-):
+) -> dict:
     """
         summary : 보류된 프로젝트 목록 호출 함수
         
@@ -397,7 +395,7 @@ def read_on_hold_projectlist(
         )
 
 @router.get("/next-code",response_model=dict)
-def get_next_project_code(db: Session = Depends(get_db)):
+def get_next_project_code(db: Session = Depends(get_db)) -> dict:
     """
         summary : 프로젝트 코드 자동 생성 함수
 
@@ -423,7 +421,7 @@ def get_next_project_code(db: Session = Depends(get_db)):
     }
 
 @router.patch("/{project_id}/store",response_model=dict)
-def Store_project(project_id:int , db:Session=Depends(get_db)):
+def Store_project(project_id:int , db:Session=Depends(get_db)) -> dict:
     """
         summary : 프로젝트 상태(Status)를 보류(ON_HOLD)로 변경하는 함수
 

@@ -4,7 +4,6 @@ import { JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Details, { DetailsContent, DetailsSummary } from '@tiptap/extension-details';
-import Underline from '@tiptap/extension-underline';
 import styled from 'styled-components';
 
 // Components
@@ -213,7 +212,7 @@ interface ReportContentProps {
 // 조회된 Tiptap JSON을 수정할 수 없는 문서 형태로 렌더링
 const ReportContent: React.FC<ReportContentProps> = ({ content }) => {
   const editor = useEditor({
-    extensions: [StarterKit, Underline, Details, DetailsSummary, DetailsContent, ReportImage, ReportFile],
+    extensions: [StarterKit, Details, DetailsSummary, DetailsContent, ReportImage, ReportFile],
     content,
     editable: false,
   }, [content]);
