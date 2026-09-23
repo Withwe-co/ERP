@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { JSONContent } from '@tiptap/core';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -54,6 +54,7 @@ const HeaderButtons = styled.div`
 const TitleArea = styled.div`
   h2 {
     margin: 0 0 6px;
+    padding-left: 8px;
     color: ${props => props.theme.colors.text};
   }
 
@@ -229,6 +230,8 @@ const ReportContent: React.FC<ReportContentProps> = ({ content }) => {
 
 // 이번 주 달력과 직원의 주간 보고서를 조회하고 관리하는 페이지
 const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
+  const queryClient = useQueryClient();
+
   // 모달 표시 여부와 등록/수정 모드를 각각 관리
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
@@ -236,10 +239,7 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
   // 이번 주 월~금 날짜와 연도 목록을 한 번 계산
   const weekDays = useMemo(getCurrentWeekDays, []);
   const periodStart = weekDays[0].dateKey;
-  const holidayYears = useMemo(
-    () => Array.from(new Set(weekDays.map(({ date }) => date.getFullYear()))),
-    [weekDays],
-  );
+  const holidayYears = useMemo(() => Array.from(new Set(weekDays.map(({ date }) => date.getFullYear()))), [weekDays],);
 
   // 직원 ID와 이번 주 시작일로 주간 보고서 API를 호출
   const getWeeklyReport = () => reportApi.getReport(Number(employeeId), periodStart, 'WEEKLY');
@@ -247,9 +247,7 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
   // 이번 주에 포함된 연도의 공휴일 목록 조회
   const { data: holidays = [] } = useQuery<KoreanHoliday[]>({
     queryKey: ['weekly-report-holidays', holidayYears],
-    queryFn: async () => (
-      await Promise.all(holidayYears.map(year => holidayApi.getByYear(year)))
-    ).flat(),
+    queryFn: async () => (await Promise.all(holidayYears.map(year => holidayApi.getByYear(year)))).flat(),
     staleTime: 1000 * 60 * 60 * 24,
     retry: 1,
   });
@@ -279,6 +277,21 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
     setIsFormOpen(false);
   };
 
+  // 등록된 주간 보고서를 삭제하고 조회 상태를 갱신한다.
+  const handleDeleteReport = async () => {
+    if (!weeklyReport) {return;}
+
+    const confirmed = window.confirm('주간 보고서를 삭제하시겠습니까?\n삭제된 보고서는 복구할 수 없습니다.',);
+
+    if (!confirmed) {return;}
+
+    try {
+      await reportApi.deleteReport(weeklyReport.id, 'WEEKLY');
+      queryClient.setQueryData<WeeklyReport | null>(['report', 'WEEKLY', Number(employeeId), periodStart], null,);
+    } 
+    catch (error) {console.error('주간 보고서 삭제 실패:', error);}
+  };
+
   // 달력 상단에 표시할 이번 주 날짜 범위
   const weekTitle = `${weekDays[0].date.getMonth() + 1}월 ${weekDays[0].date.getDate()}일 ~ ${weekDays[4].date.getMonth() + 1}월 ${weekDays[4].date.getDate()}일`;
 
@@ -290,10 +303,19 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
         </TitleArea>
         <HeaderButtons>
           <Button
+            variant="danger"
+            onClick={handleDeleteReport}
+            disabled={!weeklyReport}
+            title={!weeklyReport ? '삭제할 보고서가 없습니다.' : undefined}
+          >
+            보고서 삭제
+          </Button>
+          <Button
             variant="outline"
             onClick={() => openForm('edit')}
             disabled={!weeklyReport}
             title={!weeklyReport ? '수정할 보고서가 없습니다.' : undefined}
+            style={{width: '109.88px', height: '40px'}}
           >
             보고서 수정
           </Button>

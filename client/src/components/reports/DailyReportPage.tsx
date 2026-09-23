@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 
 import FullCalendar from '@fullcalendar/react';
@@ -11,9 +11,7 @@ import Card from '../common/Card';
 import Modal from '../common/Modal';
 
 import CreateReportForm from './CreateReportForm';
-import DailyReportDetail, {
-  DailyReportDetailData,
-} from './DailyReportDetail';
+import DailyReportDetail, {DailyReportDetailData,} from './DailyReportDetail';
 
 import {
   holidayApi,
@@ -59,94 +57,89 @@ const Container = styled.div`
 const PageHeader = styled.div`
   h2 {
     margin: 0 0 6px;
+    padding-left: 8px;
     color: ${props => props.theme.colors.text};
   }
 
   p {
     margin: 0;
+    padding-left: 8px;
     color: ${props => props.theme.colors.textSecondary};
   }
 `;
 
 const CalendarCard = styled(Card)`
   padding: 16px;
+  min-width: 0;
+`;
+
+const CalendarScroll = styled.div`
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 `;
 
 const CalendarContainer = styled.div`
   width: 100%;
+  min-width: 900px; /* 최소 너비를 설정하여 가로 스크롤이 생기도록 함 */
 
-  .fc .fc-scrollgrid {
-    overflow: hidden;
-    border-radius: 12px;
-  }
+  .fc .fc-scrollgrid {overflow: hidden; border-radius: 12px;}
 
-  .fc .fc-daygrid-day {
-    background: #ffffff;
-  }
+  .fc .fc-daygrid-day {background: #ffffff;}
   
   /* 오늘 */
-  .fc .fc-daygrid-day.fc-day-today {
-    background: #eff6ff;
-  }
-
+  .fc .fc-daygrid-day.fc-day-today {background: #eff6ff;}
   /* 주말 */
-  .fc .fc-daygrid-day.fc-weekend {
-    background: #f8fafc;
-  }
-
+  .fc .fc-daygrid-day.fc-weekend {background: #f8fafc;}
   /* 공휴일 - 주말보다 우선 */
-  .fc .fc-daygrid-day.fc-holiday {
-    background: #fef2f2;
-  }
+  .fc .fc-daygrid-day.fc-holiday {background: #fef2f2;}
 
-  .fc .fc-col-header-cell {
-    background: #f8fafc;
-  }
-
+  .fc .fc-col-header-cell {background: #f8fafc;}
   .fc .fc-col-header-cell-cushion,
-  .fc .fc-daygrid-day-number {
-    color: #111827;
-    text-decoration: none;
-  }
 
-  .fc .fc-day-sun .fc-col-header-cell-cushion {
-    color: #dc2626;
-    font-weight: 700;
-  }
-
-  .fc .fc-day-sat .fc-col-header-cell-cushion {
-    color: #2563eb;
-    font-weight: 700;
-  }
+  .fc .fc-daygrid-day-number {color: #111827; text-decoration: none;}
+  .fc .fc-day-sun .fc-col-header-cell-cushion {color: #dc2626; font-weight: 700;}
+  .fc .fc-day-sat .fc-col-header-cell-cushion {color: #2563eb; font-weight: 700;  }
 
   .fc .fc-daygrid-day.fc-weekend.fc-day-sun .fc-daygrid-day-number,
-  .fc .fc-daygrid-day.fc-holiday .fc-daygrid-day-number {
-    color: #dc2626;
-    font-weight: 700;
+  .fc .fc-daygrid-day.fc-holiday .fc-daygrid-day-number {color: #dc2626; font-weight: 700;}
+  .fc .fc-daygrid-day.fc-weekend.fc-day-sat .fc-daygrid-day-number {color: #2563eb; font-weight: 700;}
+
+  .fc .fc-toolbar {position: relative;}
+  .fc .fc-toolbar-chunk:nth-child(2) {position: absolute; left: 50%; transform: translateX(-50%);}
+  .fc .fc-toolbar-title {color: #111827; font-size: 1.4rem; font-weight: 700;}
+
+  .fc .fc-prev-button,
+  .fc .fc-next-button,
+  .fc .fc-today-button {height: 40px;}
+
+  .fc .fc-prev-button {position: relative;}
+  .fc .fc-prev-button::after {
+    content: '';
+    position: absolute;
+    top: 20%;
+    right: 0;
+    width: 1px;
+    height: 60%;
+    background: #cbd5e1;
+    pointer-events: none;
   }
 
-  .fc .fc-daygrid-day.fc-weekend.fc-day-sat .fc-daygrid-day-number {
-    color: #2563eb;
-    font-weight: 700;
-  }
-
-  .fc .fc-toolbar-title {
-    color: #111827;
-    font-size: 1.4rem;
-    font-weight: 700;
-  }
-
-  .fc .fc-daygrid-day-frame {
-    min-height: 90px;
-  }
+  .fc .fc-daygrid-day-frame {min-height: 100px;}
 `;
 
 const DayCellContent = styled.div`
   display: flex;
-  min-height: 78px;
+  width: 100%;
+  min-width: 0;
+  min-height: 88px;
+
   flex-direction: column;
   gap: 8px;
+
   padding: 5px 7px;
+  box-sizing: border-box;
 `;
 
 const DayNumber = styled.div`
@@ -157,19 +150,35 @@ const DayNumber = styled.div`
 
 const StatusBadge = styled.span<{ $status: DayStatus }>`
   display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
   align-items: center;
   justify-content: center;
 
-  padding: 6px 11px;
+  box-sizing: border-box;
+  padding: 6px 10px;
   border-radius: 7px;
 
   font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
+  text-align: center;
 
-  white-space: nowrap;
+  ${props =>
+    props.$status === 'HOLIDAY'
+      ? `
+        width: 100%;
+        max-width: 100%;
+
+        white-space: normal;
+        word-break: keep-all; // 글자 중간에서 막 쪼개지 않고, 단어 단위/괄호 앞과 같은 부분에서 줄바꿈
+        overflow-wrap: break-word;
+      `
+      : `
+        width: 76px;
+        height: 28px;
+
+        white-space: nowrap;
+      `
+  }
 
   ${props => {
     switch (props.$status) {
@@ -212,6 +221,7 @@ const formatDateKey = (date: Date) => {
 };
 
 const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
+  const queryClient = useQueryClient();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null,);
 
@@ -229,9 +239,8 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
 
   const { data: dailyReportStatuses = [] } = useQuery({
     queryKey: ['daily-report-calendar', employeeId, calendarRange.start, calendarRange.end,],
-    queryFn: () =>
-      reportApi.getDailyCalendarStatus(Number(employeeId), calendarRange.start, calendarRange.end,),
-      enabled: Boolean(calendarRange.start && calendarRange.end),
+    queryFn: () => reportApi.getDailyCalendarStatus(Number(employeeId), calendarRange.start, calendarRange.end,),
+    enabled: Boolean(calendarRange.start && calendarRange.end),
   });
 
   const completedReportDates = useMemo(() =>
@@ -247,10 +256,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
   const { data: holidays = [] } = useQuery<KoreanHoliday[]>({
     queryKey: ['daily-report-holidays', visibleYears],         
     queryFn: async () => {
-      const results = await Promise.all(
-        visibleYears.map(year => holidayApi.getByYear(year)),
-      );
-
+      const results = await Promise.all(visibleYears.map(year => holidayApi.getByYear(year)),);
       return results.flat();
     },
     staleTime: 1000 * 60 * 60 * 24,
@@ -266,23 +272,13 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
 
   // 날짜 → 공휴일명
   const holidaysByDate = useMemo(
-    () =>
-      new Map(
-        holidays.map(holiday => [
-          holiday.date.slice(0, 10),
-          holiday.name,
-        ]),
-      ),
+    () => new Map(holidays.map(holiday => [holiday.date.slice(0, 10), holiday.name,]),),
     [holidays],
   );
 
   // 현재 보고 대상 직원의 휴가만 추출
   const employeeLeaveEvents = useMemo(
-    () =>
-      leaveEvents.filter(
-        leave =>
-          leave.extendedProps.employeeId === Number(employeeId),
-      ),
+    () => leaveEvents.filter(leave => leave.extendedProps.employeeId === Number(employeeId),),
     [leaveEvents, employeeId],
   );
 
@@ -294,11 +290,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     employeeLeaveEvents.forEach(leave => {
       const current = new Date(`${leave.start}T00:00:00`);
       const end = new Date(`${leave.end}T00:00:00`);
-
-      while (current < end) {
-        dates.add(formatDateKey(current));
-        current.setDate(current.getDate() + 1);
-      }
+      while (current < end) {dates.add(formatDateKey(current)); current.setDate(current.getDate() + 1);}
     });
 
     return dates;
@@ -318,10 +310,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     const dayStatus = getDayStatus(dateStr);
 
     // 공휴일 및 휴가는 클릭 불가
-    if (
-      dayStatus.status === 'HOLIDAY' ||
-      dayStatus.status === 'LEAVE'
-    ) {
+    if (dayStatus.status === 'HOLIDAY' || dayStatus.status === 'LEAVE') {
       return;
     }
 
@@ -358,6 +347,22 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     setSelectedDate(null);
   };
 
+  // 선택한 일일 보고서를 삭제하고 달력의 작성 상태를 갱신한다.
+  const handleDeleteReport = async () => {
+    if (!selectedReport) {return;}
+
+    const confirmed = window.confirm('일일 보고서를 삭제하시겠습니까?\n삭제된 보고서는 복구할 수 없습니다.',);
+
+    if (!confirmed) {return;}
+
+    try {
+      await reportApi.deleteReport(selectedReport.id, 'DAILY');
+      await queryClient.invalidateQueries({queryKey: ['daily-report-calendar', employeeId],});
+      closeDetailModal();
+    } 
+    catch (error) {console.error('일일 보고서 삭제 실패:', error);}
+  };
+
   const handleEditReport = () => {
     setIsDetailModalOpen(false);
     setIsEditModalOpen(true);
@@ -377,92 +382,94 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
       </PageHeader>
 
       <CalendarCard>
-        <CalendarContainer>
-          <FullCalendar
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            locale={koLocale}
-            height="auto"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: '',
-            }}
-            datesSet={info => {
-              const years = [
-                info.start.getFullYear(),
-                info.end.getFullYear(),
-              ];
+        <CalendarScroll>
+          <CalendarContainer>
+            <FullCalendar
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              locale={koLocale}
+              height="auto"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: '',
+              }}
+              datesSet={info => {
+                const years = [
+                  info.start.getFullYear(),
+                  info.end.getFullYear(),
+                ];
 
-              setVisibleYears([...new Set(years)]);
+                setVisibleYears([...new Set(years)]);
 
-              const endDate = new Date(info.end);
-              endDate.setDate(endDate.getDate() - 1);
+                const endDate = new Date(info.end);
+                endDate.setDate(endDate.getDate() - 1);
 
-              setCalendarRange({
-                start: formatDateKey(info.start),
-                end: formatDateKey(endDate),
-              });
-            }}
-            dateClick={info => handleDateClick(info.dateStr)}
+                setCalendarRange({
+                  start: formatDateKey(info.start),
+                  end: formatDateKey(endDate),
+                });
+              }}
+              dateClick={info => handleDateClick(info.dateStr)}
 
-            dayCellClassNames={info => {
-              const dateKey = formatDateKey(info.date);
-              const day = info.date.getDay();
+              dayCellClassNames={info => {
+                const dateKey = formatDateKey(info.date);
+                const day = info.date.getDay();
 
-              if (holidaysByDate.has(dateKey)) {
-                return ['fc-holiday'];
-              }
+                if (holidaysByDate.has(dateKey)) {
+                  return ['fc-holiday'];
+                }
 
-              if (day === 0 || day === 6) {
-                return ['fc-weekend'];
-              }
+                if (day === 0 || day === 6) {
+                  return ['fc-weekend'];
+                }
 
-              return [];
-            }}
+                return [];
+              }}
 
-            dayCellContent={info => {
-              const dateKey = formatDateKey(info.date);
-              const holidayName = holidaysByDate.get(dateKey);
-              const day = info.date.getDay();
-              const isWeekend = day === 0 || day === 6;
+              dayCellContent={info => {
+                const dateKey = formatDateKey(info.date);
+                const holidayName = holidaysByDate.get(dateKey);
+                const day = info.date.getDay();
+                const isWeekend = day === 0 || day === 6;
 
-              // 공휴일은 주말 여부와 관계없이 공휴일명 표시
-              if (holidayName) {
+                // 공휴일은 주말 여부와 관계없이 공휴일명 표시
+                if (holidayName) {
+                  return (
+                    <DayCellContent>
+                      <DayNumber>{info.date.getDate()}</DayNumber>
+
+                      <StatusBadge $status="HOLIDAY">
+                        {holidayName}
+                      </StatusBadge>
+                    </DayCellContent>
+                  );
+                }
+
+                // 일반 주말은 날짜만 표시
+                if (isWeekend) {
+                  return (
+                    <DayCellContent>
+                      <DayNumber>{info.date.getDate()}</DayNumber>
+                    </DayCellContent>
+                  );
+                }
+
+                const dayStatus = getDayStatus(dateKey);
+
                 return (
                   <DayCellContent>
                     <DayNumber>{info.date.getDate()}</DayNumber>
 
-                    <StatusBadge $status="HOLIDAY">
-                      {holidayName}
+                    <StatusBadge $status={dayStatus.status}>
+                      {dayStatus.label}
                     </StatusBadge>
                   </DayCellContent>
                 );
-              }
-
-              // 일반 주말은 날짜만 표시
-              if (isWeekend) {
-                return (
-                  <DayCellContent>
-                    <DayNumber>{info.date.getDate()}</DayNumber>
-                  </DayCellContent>
-                );
-              }
-
-              const dayStatus = getDayStatus(dateKey);
-
-              return (
-                <DayCellContent>
-                  <DayNumber>{info.date.getDate()}</DayNumber>
-
-                  <StatusBadge $status={dayStatus.status}>
-                    {dayStatus.label}
-                  </StatusBadge>
-                </DayCellContent>
-              );
-            }}
-          />
-        </CalendarContainer>
+              }}
+            />
+          </CalendarContainer>
+        </CalendarScroll>
       </CalendarCard>
 
       <Modal
@@ -498,6 +505,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
             report={selectedReport}
             onClose={closeDetailModal}
             onEdit={handleEditReport}
+            onDelete={handleDeleteReport}
           />
         )}
       </Modal>

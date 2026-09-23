@@ -99,16 +99,23 @@ const ActionButtons = styled.div`
 // 상태 배지 스타일 정의
 const StatusBadge = styled.span<{ $status: ReportStatus }>`
     display: inline-flex;
-    min-width: 56px;
+    width: 60px;
+    height: 26px;
+    box-sizing: border-box;
+
+    align-items: center;
     justify-content: center;
-    padding: 4px 12px;
+
     border-radius: 16px;
+
     font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.5px;
     white-space: nowrap;
 
-    ${props => props.$status === '완료' ? `background: #D1FAE5; color: #065F46;`: `background: #FEE2E2;color: #991B1B;`}
+    ${props => props.$status === '완료'
+        ? `background: #D1FAE5; color: #065F46;`
+        : `background: #FEE2E2; color: #991B1B;`}
 `;
 
 // 테이블 셀 내용 스타일 정의
