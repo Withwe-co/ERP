@@ -64,8 +64,8 @@ def read_employees(
         print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"팀원 목록 조회 중 오류가 발생했습니다: {str(e)}")
 
-@router.post("/",response_model=dict)
-def create_employee(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+@router.post("/", response_model=dict)
+def create_employee(*, request: Request, db:Session=Depends(get_db), background_tasks: BackgroundTasks, request_in: dict):
 
     """
         summary : 팀원 등록 함수
@@ -75,6 +75,8 @@ def create_employee(*,request: Request,db:Session=Depends(get_db),background_tas
         desc : 
             - 필수 필드 검증 후, 팀원 데이터를 DB에 등록합니다.
             - 등록 성공 시, 생성된 팀원의 정보를 반환합니다.
+            - 예외 처리 : 필수 필드 누락, 총 휴가일수 및 사용한 휴가일수 검증, DB 저장 실패 시 500 에러 반환
+            - 성공 시 201 Created 상태 코드와 성공 메시지를 반환합니다.
     """
 
     try:
@@ -91,7 +93,17 @@ def create_employee(*,request: Request,db:Session=Depends(get_db),background_tas
         for field in ["total_leave", "used_leave"]:
             if field not in request_in or request_in[field] is None:
                 raise HTTPException(status_code=422,detail=f"필수 필드가 누락되었습니다: {field}")
-            
+
+
+        # 총 휴가일수와 사용한 휴가일수가 100일을 초과하는지 확인
+        if int(request_in['total_leave']) > 100:
+            raise HTTPException(status_code=422, detail="총 휴가일수는 100일을 초과할 수 없습니다.")
+        if int(request_in['used_leave']) > 100:
+            raise HTTPException(status_code=422, detail="사용한 휴가일수는 100일을 초과할 수 없습니다.")
+        # 사용한 휴가일수가 총 휴가일수를 초과하는지 확인
+        if int(request_in['used_leave']) > int(request_in['total_leave']):
+            raise HTTPException(status_code=422, detail="사용한 휴가일수는 총 휴가일수를 초과할 수 없습니다.")
+
         # 데이터 생성
         safe_data = {
             'name': str(request_in['name']).strip(),
