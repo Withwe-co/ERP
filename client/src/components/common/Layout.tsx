@@ -36,6 +36,7 @@ const ContentArea = styled.div`
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   
   /* 더 부드러운 스크롤바 */
   &::-webkit-scrollbar {

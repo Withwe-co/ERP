@@ -26,6 +26,7 @@ const ReportGrid = styled.div`
 // 조회 기준 날짜와 보고서 건수를 표시하는 스타일
 const ListTitle = styled.h2`
   margin: 0 0 20px;
+  padding-left: 8px;
   color: ${props => props.theme.colors.text};
   font-size: 1.15rem;
 `;
