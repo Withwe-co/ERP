@@ -15,7 +15,7 @@ from app.models.leaves import Leaves as DBLeaves
 router = APIRouter()
 
 @router.post("/",response_model=dict)
-def create_leave(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict):
+def create_leave(*,request: Request,db:Session=Depends(get_db),background_tasks: BackgroundTasks,request_in: dict) -> dict:
 
     """
         summary : 휴가 일정 등록 함수
@@ -115,7 +115,7 @@ def read_leave_events(
     start: date | None = Query(None, description="조회 시작일"),
     end: date | None = Query(None, description="조회 종료일"),
     db: Session = Depends(get_db),
-):
+) -> list[dict]:
     """
         summary : 휴가 일정 조회 함수
     
@@ -161,7 +161,7 @@ def read_leave_events(
 
 
 @router.put("/{leave_id}", response_model=dict)
-def update_leave(leave_id: int,request_in: dict,db: Session = Depends(get_db)):
+def update_leave(leave_id: int,request_in: dict,db: Session = Depends(get_db)) -> dict:
     """
         summary : 휴가 일정 수정 함수
     
@@ -262,7 +262,7 @@ def update_leave(leave_id: int,request_in: dict,db: Session = Depends(get_db)):
         raise HTTPException(status_code=500,detail=f"휴가 일정 수정 중 오류가 발생했습니다: {str(error)}")
 
 @router.delete("/{leave_id}", response_model=dict)
-def delete_leave(leave_id: int,db: Session = Depends(get_db)):
+def delete_leave(leave_id: int,db: Session = Depends(get_db)) -> dict:
     """
             summary : 휴가 일정 철회 함수
         

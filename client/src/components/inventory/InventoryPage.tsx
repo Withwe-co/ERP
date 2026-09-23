@@ -815,15 +815,11 @@ const InventoryPage: React.FC = () => {
     {
       key: 'item_code',
       label: '품목코드',
-      sortable: true,
       width: '160px',
+      align: 'center',
       style: { verticalAlign: 'middle' },
-      // render: (value) => (
-      //   <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
-      //     {value}
-      //   </span>
       render: (value) => (
-        <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
+        <span style={{fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
           {value}
           {/* 정렬 표시 아이콘 */}
           {sortBy === 'item_code' && (
@@ -837,7 +833,7 @@ const InventoryPage: React.FC = () => {
     {
       key: 'item_name',
       label: '품목명',
-      sortable: true,
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (value, item) => (
         <div>
@@ -853,7 +849,7 @@ const InventoryPage: React.FC = () => {
     {
       key: 'current_quantity',
       label: '재고 현황',
-      sortable: true,
+      align: 'center',
       width: '140px',
       style: { verticalAlign: 'middle' },
       render: (value, item) => (
@@ -873,9 +869,8 @@ const InventoryPage: React.FC = () => {
     {
       key: 'unit_price',
       label: '단가',
-      sortable: true,
       width: '160px',
-      align: 'right',
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (value, item) => {
         if (!value || value === 0) return '-';
@@ -887,6 +882,7 @@ const InventoryPage: React.FC = () => {
       key: 'last_received_date',
       label: '최근수령일',
       width: '130px',
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (value) => value ? new Date(value).toLocaleDateString('ko-KR') : '-',
     },
@@ -894,7 +890,8 @@ const InventoryPage: React.FC = () => {
       key: 'image_urls',
       label: '이미지',
       width: '150px',
-      style: { verticalAlign: 'middle' },
+      align: 'center',
+      style: { verticalAlign: 'middle', textAlign: 'center' },
       render: (value, item) => {
         const allImageUrls = [];
         
@@ -947,6 +944,7 @@ const InventoryPage: React.FC = () => {
       key: 'transaction_document',
       label: '거래명세서',
       width: '140px',
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (_, item) => {
         const hasDocument = Boolean(item.transaction_document_url);
@@ -1027,7 +1025,8 @@ const InventoryPage: React.FC = () => {
       key: 'receipt_status',
       label: '수령 상태',
       width: '120px',
-      style: { verticalAlign: 'middle' },
+      align: 'center',
+      style: { verticalAlign: 'middle', textAlign: 'center' },
       render: (_, item) => {
           <ReceiptStatusBadge hasReceipts={item.hasReceipts}>
             {item.hasReceipts ? '수령 완료' : '수령 대기'}
@@ -1038,7 +1037,8 @@ const InventoryPage: React.FC = () => {
       key: 'actions',
       label: '관리',
       width: '180px',
-      style: { verticalAlign: 'middle' },
+      align: 'center',
+      style: { verticalAlign: 'middle'},
       render: (_, item) => {
         const itemHasReceipts = item.hasReceipts;
         
