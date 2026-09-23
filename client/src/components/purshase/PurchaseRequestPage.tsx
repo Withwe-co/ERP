@@ -39,7 +39,7 @@ import { useNavigate } from 'react-router-dom';
 
 // Services
 import api, { purchaseApi, inventoryApi, UnifiedInventoryItem } from '../../services/api';
-import { normalizeInventoryName } from '../../utils/inventoryGrouping';
+// 동일 품목 조회 기능(중단): import { normalizeInventoryName } from '../../utils/inventoryGrouping';
 import { ExcelExportService } from '@/services/excelExport';
 
 // SearchFilters 타입 정의
@@ -513,9 +513,11 @@ const PurchaseRequestPage: React.FC = () => {
   const [viewingRequest, setViewingRequest] = useState<PurchaseRequest | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [confirmingItem, setConfirmingItem] = useState<PurchaseRequest | null>(null);
+  /* 동일 품목 조회 기능(중단)
   const [pendingCompletionRequest, setPendingCompletionRequest] = useState<PurchaseRequest | null>(null);
   const [similarInventoryItems, setSimilarInventoryItems] = useState<UnifiedInventoryItem[]>([]);
   const [isCheckingSimilarItems, setIsCheckingSimilarItems] = useState(false);
+  */
   const [selectedRequests,setSelectedRequests] = useState<PurchaseRequest[]>([]);
 
   // 구매 요청 목록 조회
@@ -658,8 +660,10 @@ const PurchaseRequestPage: React.FC = () => {
 
     onSuccess: async (result, variables) => {
       console.log('🎉 구매완료 처리 결과:', result);
+      /* 동일 품목 조회 기능(중단)
       setPendingCompletionRequest(null);
       setSimilarInventoryItems([]);
+      */
       
       try {
         // 캐시 업데이트
@@ -696,11 +700,6 @@ const PurchaseRequestPage: React.FC = () => {
               : `🎉 구매완료! 품목코드: ${result.inventory_item_code}로 등록되었습니다.`,
             { autoClose: 5000, position: 'top-center' }
           );
-          
-          // 품목관리 페이지로 이동
-          setTimeout(() => {
-            navigate(`/inventory?highlight=${result.inventory_item_id}`);
-          }, 2000);
           
         } else {
           // 부분 성공
@@ -1261,6 +1260,7 @@ const handleBulkReset = async () => {
         console.log('⚠️ 이미 처리 중입니다.');
         return;
       }
+      /* 동일 품목 조회 기능(중단)
       setIsCheckingSimilarItems(true);
       const response = await inventoryApi.getItems(1, 1000, {}, {
         sort_by: 'item_name',
@@ -1287,6 +1287,7 @@ const handleBulkReset = async () => {
         setConfirmingItem(null);
         return;
       }
+      */
       await completePurchaseMutation.mutateAsync({
         requestId: confirmingItem.id,
         requestData: confirmingItem,
@@ -1295,10 +1296,13 @@ const handleBulkReset = async () => {
     } catch (error) {
       // 이미 onError에서 처리됨
       console.log('구매완료 처리가 실패했습니다.');
-      toast.error('기존 품목 확인 중 오류가 발생했습니다. 다시 시도해 주세요.');
-    } finally {
+      toast.error('구매완료 처리 중 오류가 발생했습니다. 다시 시도해 주세요.');
+    }
+    /* 동일 품목 조회 기능(중단)
+    finally {
       setIsCheckingSimilarItems(false);
     }
+    */
   };
 
   const cancelPurchaseComplete = () => {
@@ -1603,7 +1607,7 @@ const handleBulkReset = async () => {
         />
       )}
 
-      {/* 🔥 구매완료 확인 다이얼로그 (첫 번째 코드 스타일) */}
+      {/* 동일 품목 조회 기능(중단)
       <Modal
         isOpen={Boolean(pendingCompletionRequest)}
         onClose={() => {
@@ -1668,6 +1672,7 @@ const handleBulkReset = async () => {
           </Button>
         </div>
       </Modal>
+      */}
 
       {confirmingItem && (
         <ConfirmDialog onClick={cancelPurchaseComplete}>
@@ -1728,11 +1733,15 @@ const handleBulkReset = async () => {
               >
                 취소
               </Button>
+              {/* 동일 품목 조회 기능(중단)
+                loading={completePurchaseMutation.isPending || isCheckingSimilarItems}
+                disabled={completePurchaseMutation.isPending || isCheckingSimilarItems}
+              */}
               <Button 
                 onClick={confirmPurchaseComplete}
                 size="lg"
-                loading={completePurchaseMutation.isPending || isCheckingSimilarItems}
-                disabled={completePurchaseMutation.isPending || isCheckingSimilarItems}
+                loading={completePurchaseMutation.isPending}
+                disabled={completePurchaseMutation.isPending}
                 style={{
                   background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
                   border: 'none'
