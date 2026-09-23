@@ -57,11 +57,13 @@ const Container = styled.div`
 const PageHeader = styled.div`
   h2 {
     margin: 0 0 6px;
+    padding-left: 8px;
     color: ${props => props.theme.colors.text};
   }
 
   p {
     margin: 0;
+    padding-left: 8px;
     color: ${props => props.theme.colors.textSecondary};
   }
 `;
@@ -82,71 +84,37 @@ const CalendarContainer = styled.div`
   width: 100%;
   min-width: 900px; /* 최소 너비를 설정하여 가로 스크롤이 생기도록 함 */
 
-  .fc .fc-scrollgrid {
-    overflow: hidden;
-    border-radius: 12px;
-  }
+  .fc .fc-scrollgrid {overflow: hidden; border-radius: 12px;}
 
-  .fc .fc-daygrid-day {
-    background: #ffffff;
-  }
+  .fc .fc-daygrid-day {background: #ffffff;}
   
   /* 오늘 */
-  .fc .fc-daygrid-day.fc-day-today {
-    background: #eff6ff;
-  }
-
+  .fc .fc-daygrid-day.fc-day-today {background: #eff6ff;}
   /* 주말 */
-  .fc .fc-daygrid-day.fc-weekend {
-    background: #f8fafc;
-  }
-
+  .fc .fc-daygrid-day.fc-weekend {background: #f8fafc;}
   /* 공휴일 - 주말보다 우선 */
-  .fc .fc-daygrid-day.fc-holiday {
-    background: #fef2f2;
-  }
+  .fc .fc-daygrid-day.fc-holiday {background: #fef2f2;}
 
-  .fc .fc-col-header-cell {
-    background: #f8fafc;
-  }
-
+  .fc .fc-col-header-cell {background: #f8fafc;}
   .fc .fc-col-header-cell-cushion,
-  .fc .fc-daygrid-day-number {
-    color: #111827;
-    text-decoration: none;
-  }
 
-  .fc .fc-day-sun .fc-col-header-cell-cushion {
-    color: #dc2626;
-    font-weight: 700;
-  }
-
-  .fc .fc-day-sat .fc-col-header-cell-cushion {
-    color: #2563eb;
-    font-weight: 700;
-  }
+  .fc .fc-daygrid-day-number {color: #111827; text-decoration: none;}
+  .fc .fc-day-sun .fc-col-header-cell-cushion {color: #dc2626; font-weight: 700;}
+  .fc .fc-day-sat .fc-col-header-cell-cushion {color: #2563eb; font-weight: 700;  }
 
   .fc .fc-daygrid-day.fc-weekend.fc-day-sun .fc-daygrid-day-number,
-  .fc .fc-daygrid-day.fc-holiday .fc-daygrid-day-number {
-    color: #dc2626;
-    font-weight: 700;
-  }
+  .fc .fc-daygrid-day.fc-holiday .fc-daygrid-day-number {color: #dc2626; font-weight: 700;}
+  .fc .fc-daygrid-day.fc-weekend.fc-day-sat .fc-daygrid-day-number {color: #2563eb; font-weight: 700;}
 
-  .fc .fc-daygrid-day.fc-weekend.fc-day-sat .fc-daygrid-day-number {
-    color: #2563eb;
-    font-weight: 700;
-  }
+  .fc .fc-toolbar {position: relative;}
+  .fc .fc-toolbar-chunk:nth-child(2) {position: absolute; left: 50%; transform: translateX(-50%);}
+  .fc .fc-toolbar-title {color: #111827; font-size: 1.4rem; font-weight: 700;}
 
-  .fc .fc-toolbar-title {
-    color: #111827;
-    font-size: 1.4rem;
-    font-weight: 700;
-  }
+  .fc .fc-prev-button,
+  .fc .fc-next-button,
+  .fc .fc-today-button {height: 40px;}
 
-  .fc .fc-prev-button {
-    position: relative;
-  }
-
+  .fc .fc-prev-button {position: relative;}
   .fc .fc-prev-button::after {
     content: '';
     position: absolute;
@@ -158,9 +126,7 @@ const CalendarContainer = styled.div`
     pointer-events: none;
   }
 
-  .fc .fc-daygrid-day-frame {
-    min-height: 100px;
-  }
+  .fc .fc-daygrid-day-frame {min-height: 100px;}
 `;
 
 const DayCellContent = styled.div`

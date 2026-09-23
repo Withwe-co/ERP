@@ -55,6 +55,7 @@ const HeaderButtons = styled.div`
 const TitleArea = styled.div`
   h2 {
     margin: 0 0 6px;
+    padding-left: 8px;
     color: ${props => props.theme.colors.text};
   }
 
@@ -315,6 +316,7 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
             onClick={() => openForm('edit')}
             disabled={!weeklyReport}
             title={!weeklyReport ? '수정할 보고서가 없습니다.' : undefined}
+            style={{width: '109.88px', height: '40px'}}
           >
             보고서 수정
           </Button>
