@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import styled from 'styled-components';
 
 import FullCalendar from '@fullcalendar/react';
@@ -255,6 +255,7 @@ const formatDateKey = (date: Date) => {
 };
 
 const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
+  const queryClient = useQueryClient();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null,);
 
@@ -272,8 +273,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
 
   const { data: dailyReportStatuses = [] } = useQuery({
     queryKey: ['daily-report-calendar', employeeId, calendarRange.start, calendarRange.end,],
-    queryFn: () =>
-      reportApi.getDailyCalendarStatus(Number(employeeId), calendarRange.start, calendarRange.end,),
+    queryFn: () => reportApi.getDailyCalendarStatus(Number(employeeId), calendarRange.start, calendarRange.end,),
     enabled: Boolean(calendarRange.start && calendarRange.end),
   });
 
@@ -290,10 +290,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
   const { data: holidays = [] } = useQuery<KoreanHoliday[]>({
     queryKey: ['daily-report-holidays', visibleYears],         
     queryFn: async () => {
-      const results = await Promise.all(
-        visibleYears.map(year => holidayApi.getByYear(year)),
-      );
-
+      const results = await Promise.all(visibleYears.map(year => holidayApi.getByYear(year)),);
       return results.flat();
     },
     staleTime: 1000 * 60 * 60 * 24,
@@ -309,23 +306,13 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
 
   // 날짜 → 공휴일명
   const holidaysByDate = useMemo(
-    () =>
-      new Map(
-        holidays.map(holiday => [
-          holiday.date.slice(0, 10),
-          holiday.name,
-        ]),
-      ),
+    () => new Map(holidays.map(holiday => [holiday.date.slice(0, 10), holiday.name,]),),
     [holidays],
   );
 
   // 현재 보고 대상 직원의 휴가만 추출
   const employeeLeaveEvents = useMemo(
-    () =>
-      leaveEvents.filter(
-        leave =>
-          leave.extendedProps.employeeId === Number(employeeId),
-      ),
+    () => leaveEvents.filter(leave => leave.extendedProps.employeeId === Number(employeeId),),
     [leaveEvents, employeeId],
   );
 
@@ -337,11 +324,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     employeeLeaveEvents.forEach(leave => {
       const current = new Date(`${leave.start}T00:00:00`);
       const end = new Date(`${leave.end}T00:00:00`);
-
-      while (current < end) {
-        dates.add(formatDateKey(current));
-        current.setDate(current.getDate() + 1);
-      }
+      while (current < end) {dates.add(formatDateKey(current)); current.setDate(current.getDate() + 1);}
     });
 
     return dates;
@@ -361,10 +344,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     const dayStatus = getDayStatus(dateStr);
 
     // 공휴일 및 휴가는 클릭 불가
-    if (
-      dayStatus.status === 'HOLIDAY' ||
-      dayStatus.status === 'LEAVE'
-    ) {
+    if (dayStatus.status === 'HOLIDAY' || dayStatus.status === 'LEAVE') {
       return;
     }
 
@@ -399,6 +379,22 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     setIsDetailModalOpen(false);
     setSelectedReport(null);
     setSelectedDate(null);
+  };
+
+  // 선택한 일일 보고서를 삭제하고 달력의 작성 상태를 갱신한다.
+  const handleDeleteReport = async () => {
+    if (!selectedReport) {return;}
+
+    const confirmed = window.confirm('일일 보고서를 삭제하시겠습니까?\n삭제된 보고서는 복구할 수 없습니다.',);
+
+    if (!confirmed) {return;}
+
+    try {
+      await reportApi.deleteReport(selectedReport.id, 'DAILY');
+      await queryClient.invalidateQueries({queryKey: ['daily-report-calendar', employeeId],});
+      closeDetailModal();
+    } 
+    catch (error) {console.error('일일 보고서 삭제 실패:', error);}
   };
 
   const handleEditReport = () => {
@@ -543,6 +539,7 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
             report={selectedReport}
             onClose={closeDetailModal}
             onEdit={handleEditReport}
+            onDelete={handleDeleteReport}
           />
         )}
       </Modal>

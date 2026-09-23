@@ -23,6 +23,7 @@ interface DailyReportDetailProps {
   report: DailyReportDetailData;
   onClose: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
 const Container = styled.div`
@@ -146,10 +147,15 @@ const ContentArea = styled.div`
 
 const ButtonArea = styled.div`
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
   padding-top: 20px;
   border-top: 1px solid ${props => props.theme.colors.border};
+`;
+
+const RightButtons = styled.div`
+  display: flex;
+  gap: 8px;
 `;
 
 const formatDate = (date: string) => {
@@ -168,7 +174,7 @@ const formatDate = (date: string) => {
   return `${dateText}(${weekday})`;
 };
 
-const DailyReportDetail = ({report, onClose, onEdit}: DailyReportDetailProps) => {
+const DailyReportDetail = ({report, onClose, onEdit, onDelete}: DailyReportDetailProps) => {
   const editor = useEditor(
     {
       extensions: [
@@ -204,12 +210,17 @@ const DailyReportDetail = ({report, onClose, onEdit}: DailyReportDetailProps) =>
       </ContentArea>
 
       <ButtonArea>
-        <Button variant="outline" onClick={onEdit}>
-          수정
+        <Button variant="danger" onClick={onDelete}>
+          삭제
         </Button>
-        <Button variant="outline" onClick={onClose}>
-          닫기
-        </Button>
+        <RightButtons>
+          <Button variant="outline" onClick={onEdit}>
+            수정
+          </Button>
+          <Button variant="outline" onClick={onClose}>
+            닫기
+          </Button>
+        </RightButtons>
       </ButtonArea>
     </Container>
   );

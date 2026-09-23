@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile
 from PIL import Image
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError, TimeoutError
@@ -463,3 +463,87 @@ async def update_report(report_type: Literal["daily", "weekly"],report_id: int,r
     # 업데이트된 보고서를 다시 불러온다.
     db.refresh(report)
     return report
+
+@router.delete("/{report_type}/{report_id}", status_code=204)
+def delete_report(
+    report_type: Literal["daily", "weekly"],
+    report_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+        summary : 일일/주간 보고서 삭제 함수
+
+        arg :
+            - report_type (Literal["daily", "weekly"]) : 보고 유형
+            - report_id (int) : 삭제할 보고서 ID
+            - db (Session) : DB 세션
+
+        desc :
+            - 보고 유형과 ID로 일일 또는 주간 보고서를 삭제
+            - 요청한 보고서가 존재하지 않는 경우에는 404 에러를 반환
+            - 보고서 삭제 후 연결된 첨부 파일도 함께 삭제
+            - 데이터베이스 오류 발생 시에는 해당 상태 코드의 에러를 반환
+    """
+    normalized_report_type = report_type.upper()
+    report_name = "주간" if normalized_report_type == "WEEKLY" else "일일"
+
+    # 요청한 보고 유형과 ID를 사용해 삭제할 보고서를 조회한다.
+    report = (
+        db.query(Reports)
+        .filter(Reports.id == report_id, Reports.report_type == normalized_report_type,)
+        .first()
+    )
+
+    if report is None:
+        raise HTTPException(status_code=404, detail=f"해당 ID의 {report_name} 보고서를 찾을 수 없습니다.",)
+
+    # 보고서 본문에 연결된 첨부 파일 경로를 수집한다.
+    attachment_paths: list[Path] = []
+    stack = [report.content] if report.content else []
+
+    while stack:
+        node = stack.pop()
+
+        if not isinstance(node, dict):
+            continue
+
+        attrs = node.get("attrs") or {}
+
+        for key in ("src", "href"):
+            file_url = attrs.get(key)
+
+            if (
+                isinstance(file_url, str)
+                and file_url.startswith("/uploads/report_attachments/")
+            ):
+                attachment_paths.append(Path("uploads/report_attachments") / Path(file_url).name)
+
+        stack.extend(node.get("content") or [])
+
+    try:
+        # 보고서를 삭제하고 변경사항을 데이터베이스에 반영한다.
+        db.delete(report)
+        db.commit()
+
+    except TimeoutError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=504,
+            detail=f"{report_name} 보고서 삭제 중 데이터베이스 연결 시간이 초과되었습니다.",
+        ) from exc
+
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"{report_name} 보고서 삭제 중 데이터베이스 오류가 발생했습니다.",
+        ) from exc
+
+    # DB 삭제가 정상적으로 완료된 뒤 연결된 첨부 파일을 정리한다.
+    for file_path in attachment_paths:
+        try:
+            file_path.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+    return Response(status_code=204)

@@ -2323,6 +2323,12 @@ export const reportApi = {
       }
   },
 
+  // 보고서 삭제
+  deleteReport: async (reportId: number, reportType: ReportType): Promise<void> => {
+    try {await api.delete(`/reports/${reportType.toLowerCase()}/${reportId}`);}
+    catch (error) {console.error('보고서 삭제 실패:', error.response?.data); throw error;}
+  },
+
 };
 
 export default {
