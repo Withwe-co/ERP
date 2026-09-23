@@ -19,7 +19,7 @@ def read_employees(
     db: Session = Depends(get_db),
     skip: int = Query(default=0, ge=0, description="건너뛸 항목 수"),
     limit: int = Query(default=20, ge=1, le=100, description="반환할 최대 항목 수"),
-):
+) -> EmployeesList:
     """
         summary : 팀원 목록 목록 호출 함수
         
@@ -65,7 +65,7 @@ def read_employees(
         raise HTTPException(status_code=500, detail=f"팀원 목록 조회 중 오류가 발생했습니다: {str(e)}")
 
 @router.post("/", response_model=dict)
-def create_employee(*, request: Request, db:Session=Depends(get_db), background_tasks: BackgroundTasks, request_in: dict):
+def create_employee(*, request: Request, db:Session=Depends(get_db), background_tasks: BackgroundTasks, request_in: dict) -> dict:
 
     """
         summary : 팀원 등록 함수
@@ -148,7 +148,7 @@ def create_employee(*, request: Request, db:Session=Depends(get_db), background_
 
 
 @router.put("/{employee_id}",response_model=dict)
-def update_employee(employee_id: int,request_in: UpdateEmployee,db:Session=Depends(get_db)):
+def update_employee(employee_id: int,request_in: UpdateEmployee,db:Session=Depends(get_db)) -> dict:
 
     """
         summary : 팀원 수정 함수
@@ -212,7 +212,7 @@ def update_employee(employee_id: int,request_in: UpdateEmployee,db:Session=Depen
 
 
 @router.delete("/{employee_id}")
-def delete_employee(employee_id: int,db: Session = Depends(get_db)):
+def delete_employee(employee_id: int,db: Session = Depends(get_db)) -> dict:
     """
         summary : 팀원 삭제 함수
 

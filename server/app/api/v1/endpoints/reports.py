@@ -23,7 +23,7 @@ router = APIRouter()
 
 
 @router.post("/{report_type}", response_model=ReportInDBBase)
-async def create_report(report_type: Literal["daily", "weekly"],request: Request,db: Session = Depends(get_db),):
+async def create_report(report_type: Literal["daily", "weekly"],request: Request,db: Session = Depends(get_db),)-> ReportInDBBase:
     """
         summary : 일일/주간 보고서 생성 함수
 
@@ -170,7 +170,7 @@ async def create_report(report_type: Literal["daily", "weekly"],request: Request
 
 
 @router.get("/statuses", response_model=list[ReportWithEmployee])
-def read_report_statuses(daily_period_start: date = Query(..., description="일일 보고 대상 날짜"),weekly_period_start: date = Query(..., description="주간 보고 시작일"),db: Session = Depends(get_db),):
+def read_report_statuses(daily_period_start: date = Query(..., description="일일 보고 대상 날짜"),weekly_period_start: date = Query(..., description="주간 보고 시작일"),db: Session = Depends(get_db),) -> list[ReportWithEmployee]:
     """
         summary : 직원별 일일/주간 보고서 제출 상태 조회 함수
 
@@ -211,7 +211,7 @@ def read_daily_report_calendar_status(
     start_date: date = Query(..., description="조회 시작일"),
     end_date: date = Query(..., description="조회 종료일"),
     db: Session = Depends(get_db),
-):
+) -> list[ReportCalendarStatus]:
     """
     일일 업무 보고 달력의 작성 상태를 기간 기준으로 조회한다.
     """
@@ -243,7 +243,7 @@ def read_daily_report_calendar_status(
 
         
 @router.get("/{report_type}", response_model=ReportInDBBase)
-def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query(..., description="직원 ID"),period_start: date = Query(..., description="보고 대상 날짜 또는 주 시작일"),db: Session = Depends(get_db),):
+def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query(..., description="직원 ID"),period_start: date = Query(..., description="보고 대상 날짜 또는 주 시작일"),db: Session = Depends(get_db),) -> ReportInDBBase:
     """
         summary : 일일/주간 보고서 조회 함수
 
@@ -289,7 +289,7 @@ def read_report(report_type: Literal["daily", "weekly"],employee_id: int = Query
 
 
 @router.put("/{report_type}/{report_id}", response_model=ReportInDBBase)
-async def update_report(report_type: Literal["daily", "weekly"],report_id: int,request: Request,db: Session = Depends(get_db),):
+async def update_report(report_type: Literal["daily", "weekly"],report_id: int,request: Request,db: Session = Depends(get_db),) -> ReportInDBBase:
     """
         summary : 일일/주간 보고서 수정 함수
 
