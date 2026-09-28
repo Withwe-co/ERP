@@ -10,12 +10,11 @@ import {
 } from '../components/wbs/task/taskImageUtils';
 
 // API 기본 설정
-// const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
-// const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
+//  로컬 작업용
+//const API_BASE_URL = 'http://localhost:8000/api/v1';
 
-//const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
- const API_BASE_URL = 'http://localhost:8000/api/v1';
-
+// 서버 배포용
+const API_BASE_URL = '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -714,14 +713,14 @@ export const purchaseApi = {
     method?: string;
   }> => {
     try {
-      console.log(`🗑️ 구매 요청 삭제 API 호출: ID=${id}`);
-      console.log(`📍 요청 URL: ${API_BASE_URL}/purchase-requests/${id}`);
+      console.log(`구매 요청 삭제 API 호출: ID=${id}`);
+      console.log(` 요청 URL: ${API_BASE_URL}/purchase-requests/${id}`);
       
       const response = await apiRequest.delete(`/purchase-requests/${id}`);
       
-      console.log('✅ 삭제 API 성공 응답:', response);
+      console.log('삭제 API 성공 응답:', response);
       
-      // 🔥 응답 데이터 구조 확인 및 정규화
+      // 응답 데이터 구조 확인 및 정규화
       if (response.success !== undefined) {
         // 백엔드가 올바른 응답을 반환한 경우
         return response;
@@ -736,8 +735,8 @@ export const purchaseApi = {
         };
       }
     } catch (error: any) {
-      console.error('❌ 삭제 API 실패:', error);
-      console.error('❌ 에러 상세 정보:', {
+      console.error('삭제 API 실패:', error);
+      console.error('에러 상세 정보:', {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
@@ -763,7 +762,7 @@ export const purchaseApi = {
   // Excel 업로드 개선
   uploadExcel: async (file: File): Promise<UploadResult> => {
     try {
-      console.log('📤 구매요청 Excel 업로드 시작:', file.name);
+      console.log(' 구매요청 Excel 업로드 시작:', file.name);
       
       // 파일 유효성 검사
       if (!file) {
@@ -789,7 +788,7 @@ export const purchaseApi = {
         timeout: 300000, // 5분 타임아웃
       });
       
-      console.log('✅ 구매요청 업로드 성공:', response.data);
+      console.log('구매요청 업로드 성공:', response.data);
       
       // 응답 구조화
       const result: UploadResult = {
@@ -815,7 +814,7 @@ export const purchaseApi = {
   // 템플릿 다운로드
   downloadTemplate: async (): Promise<void> => {
     try {
-      console.log('📋 구매요청 템플릿 다운로드 시작...');
+      console.log('구매요청 템플릿 다운로드 시작...');
       
       const response = await api.get('/purchase-requests/template/download', {
         responseType: 'blob',
@@ -839,16 +838,16 @@ export const purchaseApi = {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ 구매요청 템플릿 다운로드 완료');
+      console.log('구매요청 템플릿 다운로드 완료');
     } catch (error: any) {
-      console.error('❌ 구매요청 템플릿 다운로드 실패:', error);
+      console.error('구매요청 템플릿 다운로드 실패:', error);
       throw new Error('템플릿 다운로드 중 오류가 발생했습니다.');
     }
   },
-  // 🔥 Excel 내보내기 함수 추가
+  // Excel 내보내기 함수 추가
   exportRequests: async (filters?: SearchFilters): Promise<void> => {
     try {
-      console.log('📊 구매요청 Excel 내보내기 시작...');
+      console.log('구매요청 Excel 내보내기 시작...');
       
       const params = filters ? {
         ids: filters?.ids?.join(','),
@@ -867,7 +866,7 @@ export const purchaseApi = {
         Object.entries(params).filter(([_, value]) => value !== undefined && value !== null)
       );
 
-      console.log('📋 내보내기 파라미터:', filteredParams);
+      console.log('내보내기 파라미터:', filteredParams);
 
       const response = await api.get('/purchase-requests/export/excel', {
         params: filteredParams,
@@ -880,7 +879,7 @@ export const purchaseApi = {
         throw new Error('빈 파일이 반환되었습니다.');
       }
 
-      console.log('📥 파일 다운로드 완료, 크기:', response.data.size);
+      console.log('파일 다운로드 완료, 크기:', response.data.size);
 
       // 파일 다운로드 처리
       const blob = response.data;
@@ -896,9 +895,9 @@ export const purchaseApi = {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      console.log('✅ 구매요청 Excel 내보내기 완료');
+      console.log('구매요청 Excel 내보내기 완료');
     } catch (error: any) {
-      console.error('❌ 구매요청 Excel 내보내기 실패:', error);
+      console.error('구매요청 Excel 내보내기 실패:', error);
       
       // 에러 타입별 처리
       if (error.response?.status === 404) {
@@ -958,7 +957,7 @@ export const purchaseApi = {
       throw error;
     }
   },
-  // 🔥 새로 추가: 구매 요청 완료 처리
+  // 새로 추가: 구매 요청 완료 처리
   completePurchase: async (requestId: number, completionData: {
     received_quantity?: number;
     receiver_name?: string;
@@ -1059,7 +1058,7 @@ export const inventoryApi = {
     page = 1, 
     limit = 20, 
     filters: any = {}, 
-    sortOptions?: {  // 🔥 새로 추가
+    sortOptions?: {  // 새로 추가
       sort_by?: string;
       sort_order?: 'asc' | 'desc';
     }
@@ -1069,12 +1068,12 @@ export const inventoryApi = {
         skip: (page - 1) * limit,
         limit,
         ...filters,
-        // 🔥 정렬 파라미터 추가
+        // 정렬 파라미터 추가
         sort_by: sortOptions?.sort_by || 'item_code',
         sort_order: sortOptions?.sort_order || 'desc'
       };
       
-      console.log('📋 API 요청 파라미터:', params);
+      console.log('API 요청 파라미터:', params);
       
       const response = await apiRequest.get('/inventory/', params);
       return { data: response };
@@ -1083,7 +1082,7 @@ export const inventoryApi = {
       throw error;
     }
   },
-  // 🔥 stats API 경로 수정
+  // stats API 경로 수정
   getStats: async (): Promise<any> => {
     try {
       // /stats 대신 /inventory/stats 사용
@@ -1092,7 +1091,7 @@ export const inventoryApi = {
     } catch (error) {
       console.error('재고 통계 조회 실패:', error);
       
-      // 🔥 404 오류 시 기본값 반환
+      // 404 오류 시 기본값 반환
       return { 
         data: {
           total_items: 0,
@@ -1186,9 +1185,9 @@ export const inventoryApi = {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    console.log('✅ Excel 내보내기 완료');
+    console.log('Excel 내보내기 완료');
     } catch (error) {
-      console.error('❌ Excel 내보내기 실패:', error);
+      console.error('Excel 내보내기 실패:', error);
       
       // 에러 타입별 처리
       if (error.response?.status === 404) {
@@ -1332,11 +1331,11 @@ export const inventoryApi = {
   // },
 
   // Excel 일괄 업로드
-  // 🔥 개선된 Excel 업로드
+  // 개선된 Excel 업로드
   // Excel 업로드 개선
 uploadExcel: async (file: File): Promise<UploadResult> => {
   try {
-    console.log('📤 Excel 업로드 시작:', file.name, file.size);
+    console.log(' Excel 업로드 시작:', file.name, file.size);
     
     // 파일 유효성 검사
     if (!file) {
@@ -1356,7 +1355,7 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    console.log('🚀 서버에 업로드 요청...');
+    console.log(' 서버에 업로드 요청...');
     
     const response = await api.post('/inventory/bulk-upload', formData, {
       headers: {
@@ -1365,7 +1364,7 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
       timeout: 300000, // 5분 타임아웃
     });
     
-    console.log('✅ 업로드 성공:', response.data);
+    console.log('업로드 성공:', response.data);
     
     // 성공 응답 구조화
     const result: UploadResult = {
@@ -1382,7 +1381,7 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
     return result;
     
   } catch (error: any) {
-    console.error('❌ Excel 업로드 실패:', error);
+    console.error('Excel 업로드 실패:', error);
     
     if (error.response?.data) {
       const errorData = error.response.data;
@@ -1393,10 +1392,10 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
   }
 },
 
-  // 🔥 개선된 템플릿 다운로드
+  // 개선된 템플릿 다운로드
   downloadTemplate: async (): Promise<void> => {
     try {
-      console.log('📋 템플릿 다운로드 시작...');
+      console.log('템플릿 다운로드 시작...');
       
       const response = await api.get('/inventory/template/download', {
         responseType: 'blob',
@@ -1408,7 +1407,7 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
         throw new Error('빈 템플릿 파일이 반환되었습니다.');
       }
       
-      console.log('📥 템플릿 파일 다운로드 완료, 크기:', response.data.size);
+      console.log('템플릿 파일 다운로드 완료, 크기:', response.data.size);
       
       // 파일 다운로드 처리
       const blob = response.data;
@@ -1426,9 +1425,9 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ 템플릿 다운로드 완료');
+      console.log('템플릿 다운로드 완료');
     } catch (error: any) {
-      console.error('❌ 템플릿 다운로드 실패:', error);
+      console.error('템플릿 다운로드 실패:', error);
       
       if (error.response?.status === 404) {
         throw new Error('템플릿 파일을 찾을 수 없습니다.');
@@ -1579,7 +1578,7 @@ uploadExcel: async (file: File): Promise<UploadResult> => {
       throw error;
     }
   },
-  // 🔥 새로 추가: 수령 완료 처리 (이미지 포함)
+  // 새로 추가: 수령 완료 처리 (이미지 포함)
   completeReceiptWithImages: async (itemId: number, receiptData: {
     receipt_number?: string;
     received_quantity: number;
@@ -1886,7 +1885,7 @@ export const uploadApi = {
   // 템플릿 다운로드 개선
 downloadTemplate: async (): Promise<void> => {
   try {
-    console.log('📋 템플릿 다운로드 시작...');
+    console.log('템플릿 다운로드 시작...');
     
     const response = await api.get('/inventory/template/download', {
       responseType: 'blob',
@@ -1897,7 +1896,7 @@ downloadTemplate: async (): Promise<void> => {
       throw new Error('빈 템플릿 파일이 반환되었습니다.');
     }
     
-    console.log('📥 템플릿 파일 다운로드 완료');
+    console.log('템플릿 파일 다운로드 완료');
     
     // 파일 다운로드 처리
     const blob = response.data;
@@ -1913,9 +1912,9 @@ downloadTemplate: async (): Promise<void> => {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
     
-    console.log('✅ 템플릿 다운로드 완료');
+    console.log('템플릿 다운로드 완료');
   } catch (error: any) {
-    console.error('❌ 템플릿 다운로드 실패:', error);
+    console.error('템플릿 다운로드 실패:', error);
     throw new Error('템플릿 다운로드 중 오류가 발생했습니다.');
     }
   },

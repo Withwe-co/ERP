@@ -148,7 +148,7 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
             sort_by = sort_options.get('sort_by', 'item_code')
             sort_order = sort_options.get('sort_order', 'desc')
             
-            print(f"📊 정렬 적용: {sort_by} {sort_order}")
+            print(f"정렬 적용: {sort_by} {sort_order}")
             
             if sort_by == 'item_code':
                 try:
@@ -162,7 +162,7 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
                             asc(text("CAST(SUBSTRING(item_code, '\\d{4}$') AS INTEGER)"))
                         )
                 except Exception as e:
-                    print(f"⚠️ 정규식 정렬 실패, 기본 정렬 사용: {e}")
+                    print(f" 정규식 정렬 실패, 기본 정렬 사용: {e}")
                     # 정규식 실패 시 단순 문자열 정렬
                     if sort_order == 'desc':
                         query = query.order_by(desc(UnifiedInventory.item_code))
@@ -187,7 +187,7 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
                     # 기본 정렬로 fallback
                     query = query.order_by(desc(UnifiedInventory.created_at))
         else:
-            # 🔥 기본 정렬
+            # 기본 정렬
             try:
                 # 정규식으로 마지막 4자리 숫자 추출하여 내림차순
                 query = query.order_by(
@@ -1208,7 +1208,7 @@ class CRUDInventory(CRUDBase[UnifiedInventory, UnifiedInventoryCreate, UnifiedIn
         # file_url = f"http://localhost:8000/uploads/transaction_documents/{unique_filename}"
         
 
-        # 🔥 새로운 컬럼들 업데이트
+        # 새로운 컬럼들 업데이트
         inventory.transaction_document_url = file_url
         inventory.transaction_upload_date = datetime.now()
         inventory.transaction_uploaded_by = uploaded_by

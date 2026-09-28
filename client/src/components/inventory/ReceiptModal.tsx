@@ -141,7 +141,7 @@ const OptionItem = styled.div<{ isSelected: boolean }>`
   }
 `;
 
-// 🔥 개선된 이미지 업로드 섹션
+// 개선된 이미지 업로드 섹션
 const ImageUploadSection = styled.div<{ isDragging: boolean }>`
   border: 2px dashed ${props => props.isDragging ? '#3b82f6' : '#d1d5db'};
   border-radius: 8px;
@@ -350,7 +350,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
     return () => { cancelled = true; };
   }, [item?.purchase_request_id]);
 
-  // 🔥 드래그 이벤트 핸들러 개선
+  // 드래그 이벤트 핸들러 개선
   const handleDragEvents = useCallback({
     onDragEnter: (e: React.DragEvent) => {
       e.preventDefault();
@@ -414,11 +414,11 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
     setIsDepartmentOpen(!isDepartmentOpen);
   };
 
-  // 🔥 개선된 이미지 처리 함수
+  // 개선된 이미지 처리 함수
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     
-    console.log('🔥 파일 선택됨:', files.length, '개');
+    console.log('파일 선택됨:', files.length, '개');
     
     setIsProcessingImages(true);
 
@@ -428,10 +428,10 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
       
       if (!isImage) {
-        console.warn('🚫 이미지가 아닌 파일 제외:', file.name);
+        console.warn('이미지가 아닌 파일 제외:', file.name);
       }
       if (!isValidSize) {
-        console.warn('🚫 크기 초과 파일 제외:', file.name, file.size);
+        console.warn('크기 초과 파일 제외:', file.name, file.size);
       }
       
       return isImage && isValidSize;
@@ -443,18 +443,18 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       return;
     }
 
-    console.log('✅ 처리할 이미지 파일:', imageFiles.length, '개');
+    console.log('처리할 이미지 파일:', imageFiles.length, '개');
 
-    // 🔥 FileReader를 사용하여 base64로 변환
+    // FileReader를 사용하여 base64로 변환
     const promises = imageFiles.map((file, index) => {
       return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          console.log(`✅ 이미지 ${index + 1} 로딩 완료:`, file.name);
+          console.log(`이미지 ${index + 1} 로딩 완료:`, file.name);
           resolve(reader.result as string);
         };
         reader.onerror = () => {
-          console.error(`❌ 이미지 ${index + 1} 로딩 실패:`, file.name);
+          console.error(`이미지 ${index + 1} 로딩 실패:`, file.name);
           reject(new Error(`파일 읽기 실패: ${file.name}`));
         };
         reader.readAsDataURL(file);
@@ -468,10 +468,10 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       setSelectedImages(prev => [...prev, ...imageFiles]);
       setImagePreviewUrls(prev => [...prev, ...newPreviewUrls]);
       
-      console.log('🎉 모든 이미지 처리 완료! 총', newPreviewUrls.length, '개');
+      console.log(' 모든 이미지 처리 완료! 총', newPreviewUrls.length, '개');
       
     } catch (error) {
-      console.error('❌ 이미지 처리 중 오류:', error);
+      console.error('이미지 처리 중 오류:', error);
       alert(`이미지 처리 중 오류가 발생했습니다:\n${error.message}`);
     } finally {
       setIsProcessingImages(false);
@@ -479,12 +479,12 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('📁 파일 입력 변경됨');
+    console.log(' 파일 입력 변경됨');
     handleFileSelect(e.target.files);
   };
 
   const removeImage = (index: number) => {
-    console.log('🗑️ 이미지 제거:', index);
+    console.log('이미지 제거:', index);
     
     // base64 URL은 revoke 불필요하지만, blob URL인 경우 처리
     const urlToRemove = imagePreviewUrls[index];
@@ -511,7 +511,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       return;
     }
     
-    console.log('📤 폼 제출:', {
+    console.log(' 폼 제출:', {
       formData,
       imageCount: selectedImages.length
     });
@@ -550,7 +550,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
           fontSize: '0.875rem',
           marginBottom: '16px'
         }}>
-          ⚠️ 수령 완료를 위해 이미지 업로드가 필수입니다.
+           수령 완료를 위해 이미지 업로드가 필수입니다.
         </div>
       )}
 
@@ -707,7 +707,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
           />
         </FormGroup>
 
-        {/* 🔥 개선된 이미지 업로드 섹션 */}
+        {/* 개선된 이미지 업로드 섹션 */}
         <FormGroup>
           <label>
             수령 이미지 {requireImages && <span style={{ color: '#ef4444' }}>*</span>}
@@ -719,7 +719,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             {...handleDragEvents}
           >
             <DragOverlay isDragging={isDragging}>
-              📷 이미지를 놓아주세요!
+               이미지를 놓아주세요!
             </DragOverlay>
             
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
@@ -744,7 +744,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             />
           </ImageUploadSection>
 
-          {/* 🔥 처리 중 표시 */}
+          {/*  처리 중 표시 */}
           {isProcessingImages && (
             <ProcessingIndicator>
               <div className="spinner"></div>
@@ -752,7 +752,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             </ProcessingIndicator>
           )}
 
-          {/* 🔥 개선된 이미지 미리보기 */}
+          {/* 개선된 이미지 미리보기 */}
           {selectedImages.length > 0 && (
             <>
               <ImageCounter>
@@ -768,11 +768,11 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       alt={`Preview ${index + 1}`} 
                       className="preview-image"
                       onError={(e) => {
-                        console.error(`❌ 이미지 로딩 실패 (index: ${index}):`, url.substring(0, 50));
+                        console.error(`이미지 로딩 실패 (index: ${index}):`, url.substring(0, 50));
                         e.currentTarget.style.display = 'none';
                       }}
                       onLoad={() => {
-                        console.log(`✅ 이미지 로딩 성공 (index: ${index})`);
+                        console.log(`이미지 로딩 성공 (index: ${index})`);
                       }}
                     />
                     <button

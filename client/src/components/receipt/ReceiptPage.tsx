@@ -745,7 +745,7 @@ const ReceiptPage: React.FC = () => {
         />
         {groupedItems.length > 0 && (
           <PaginationSummary>
-            총 {groupedItems.length.toLocaleString('ko-KR')}건 중{' '}
+            총 {groupedItems.length.toLocaleString('ko-KR')}건 중{}
             {(pageStart + 1).toLocaleString('ko-KR')}–{Math.min(pageStart + PAGE_SIZE, groupedItems.length).toLocaleString('ko-KR')}건 표시
             {' · '}페이지당 {PAGE_SIZE}건
           </PaginationSummary>

@@ -91,7 +91,7 @@ def read_inventories(
         )
         total = crud.inventory.count_with_filter(db=db, filters=filters)
         
-        # 🔥 각 품목의 receipt_history 데이터 검증 및 수정
+        # 각 품목의 receipt_history 데이터 검증 및 수정
         processed_items = []
         for item in items:
             # receipt_history가 있는 경우 필수 필드 추가
@@ -104,7 +104,7 @@ def read_inventories(
                     else:
                         receipt_dict = receipt.__dict__.copy() if hasattr(receipt, '__dict__') else {}
                     
-                    # 🆕 필수 필드들 추가/수정
+                    #  필수 필드들 추가/수정
                     receipt_dict.update({
                         'receipt_number': receipt_dict.get('receipt_number', f"REC-{datetime.now().strftime('%Y%m%d')}-{item.id:04d}"),
                         'item_name': item.item_name,  # 필수 필드 추가
@@ -114,7 +114,7 @@ def read_inventories(
                         'created_at': receipt_dict.get('created_at', datetime.now().isoformat()),  # 생성일시 추가
                     })
                     
-                    # 🔥 날짜 형식 수정 (datetime 형식으로 변환)
+                    # 날짜 형식 수정 (datetime 형식으로 변환)
                     received_date = datetime.now()
                     if received_date and isinstance(received_date, str):
                         try:
@@ -124,7 +124,7 @@ def read_inventories(
                             else:
                                 receipt_dict['received_date'] = received_date
                         except Exception as date_error:
-                            print(f"⚠️ 날짜 변환 실패: {date_error}")
+                            print(f" 날짜 변환 실패: {date_error}")
                             receipt_dict['received_date'] = datetime.now().isoformat()
                     
                     processed_receipt_history.append(receipt_dict)
@@ -143,11 +143,11 @@ def read_inventories(
         }
         
     except Exception as e:
-        print(f"❌ 품목 목록 조회 오류: {e}")
+        print(f"품목 목록 조회 오류: {e}")
         import traceback
-        print(f"❌ 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         
-        # 🔥 임시 해결책: 응답 검증 오류 시 빈 목록 반환
+        # 임시 해결책: 응답 검증 오류 시 빈 목록 반환
         return {
             "items": [],
             "total": 0,
@@ -250,7 +250,7 @@ def read_inventories(
     """통합 재고 목록 조회 - 날짜 형식 완전 수정"""
     
     try:
-        print(f"📋 재고 목록 조회 시작 - skip: {skip}, limit: {limit}")
+        print(f"재고 목록 조회 시작 - skip: {skip}, limit: {limit}")
         
         # 필터 객체 생성
         filters = schemas.UnifiedInventoryFilter(
@@ -280,9 +280,9 @@ def read_inventories(
         )
         total = crud.inventory.count_with_filter(db=db, filters=filters)
         
-        print(f"📊 조회 결과 - 총 {total}개 중 {len(items)}개 조회")
+        print(f"조회 결과 - 총 {total}개 중 {len(items)}개 조회")
         
-        # 🔥 각 품목의 receipt_history 날짜 형식 완전 수정
+        # 각 품목의 receipt_history 날짜 형식 완전 수정
         processed_items = []
         for item in items:
             try:
@@ -332,7 +332,7 @@ def read_inventories(
                     "stock_status": item.stock_status,
                 }
                 
-                # 🔥 receipt_history 처리 - 날짜 문제 완전 해결
+                # receipt_history 처리 - 날짜 문제 완전 해결
                 processed_receipt_history = []
                 if hasattr(item, 'receipt_history') and item.receipt_history:
                     for i, receipt in enumerate(item.receipt_history):
@@ -343,7 +343,7 @@ def read_inventories(
                             else:
                                 receipt_dict = receipt.__dict__.copy() if hasattr(receipt, '__dict__') else {}
                             
-                            # 🔥 날짜 처리 개선 - 반드시 datetime 객체로 변환
+                            # 날짜 처리 개선 - 반드시 datetime 객체로 변환
                             received_date_str = receipt_dict.get('received_date')
                             if received_date_str:
                                 try:
@@ -358,16 +358,16 @@ def read_inventories(
                                     elif isinstance(received_date_str, datetime):
                                         received_date = received_date_str
                                     else:
-                                        print(f"⚠️ 알 수 없는 날짜 타입: {type(received_date_str)}")
+                                        print(f" 알 수 없는 날짜 타입: {type(received_date_str)}")
                                         received_date = datetime.now()
                                 except (ValueError, TypeError) as date_error:
-                                    print(f"⚠️ 날짜 변환 실패 (품목 {item.id}, 수령 {i}): {received_date_str} - {date_error}")
+                                    print(f" 날짜 변환 실패 (품목 {item.id}, 수령 {i}): {received_date_str} - {date_error}")
                                     received_date = datetime.now()
                             else:
-                                print(f"⚠️ 수령일이 없음 (품목 {item.id}, 수령 {i})")
+                                print(f" 수령일이 없음 (품목 {item.id}, 수령 {i})")
                                 received_date = datetime.now()
                             
-                            # 🔥 완전한 수령 이력 객체 생성 (모든 필수 필드 포함)
+                            # 완전한 수령 이력 객체 생성 (모든 필수 필드 포함)
                             complete_receipt = {
                                 "id": receipt_dict.get('id', i + 1),
                                 "receipt_number": receipt_dict.get('receipt_number', f"REC-{datetime.now().strftime('%Y%m%d')}-{item.id:04d}-{i+1:03d}"),
@@ -378,7 +378,7 @@ def read_inventories(
                                 "receiver_name": receipt_dict.get('receiver_name', 'Unknown'),
                                 "receiver_email": receipt_dict.get('receiver_email'),
                                 "department": receipt_dict.get('department', 'Unknown'),
-                                "received_date": received_date,  # 🔥 datetime 객체 (문자열 아님)
+                                "received_date": received_date,  # datetime 객체 (문자열 아님)
                                 "location": receipt_dict.get('location'),
                                 "condition": receipt_dict.get('condition', 'good'),
                                 "notes": receipt_dict.get('notes'),
@@ -396,10 +396,10 @@ def read_inventories(
                                     complete_receipt['created_at'] = datetime.now()
                             
                             processed_receipt_history.append(complete_receipt)
-                            print(f"✅ 수령 이력 {i+1} 처리 완료 - 날짜: {received_date}")
+                            print(f"수령 이력 {i+1} 처리 완료 - 날짜: {received_date}")
                             
                         except Exception as receipt_error:
-                            print(f"⚠️ 수령 이력 처리 오류 (품목 {item.id}, 수령 {i}): {receipt_error}")
+                            print(f" 수령 이력 처리 오류 (품목 {item.id}, 수령 {i}): {receipt_error}")
                             # 문제가 있는 수령 이력은 기본값으로 대체
                             default_receipt = {
                                 "id": i + 1,
@@ -411,12 +411,12 @@ def read_inventories(
                                 "receiver_name": "Unknown",
                                 "receiver_email": None,
                                 "department": "Unknown",
-                                "received_date": datetime.now(),  # 🔥 datetime 객체
+                                "received_date": datetime.now(),  # datetime 객체
                                 "location": None,
                                 "condition": "good",
                                 "notes": None,
                                 "image_urls": [],
-                                "created_at": datetime.now(),  # 🔥 datetime 객체
+                                "created_at": datetime.now(),  # datetime 객체
                                 "is_complete": True,
                                 "quality_check_passed": True,
                             }
@@ -424,16 +424,16 @@ def read_inventories(
                 
                 item_dict["receipt_history"] = processed_receipt_history
                 processed_items.append(item_dict)
-                print(f"✅ 품목 {item.id} 처리 완료 - 수령 이력 {len(processed_receipt_history)}개")
+                print(f"품목 {item.id} 처리 완료 - 수령 이력 {len(processed_receipt_history)}개")
                 
             except Exception as item_error:
-                print(f"⚠️ 품목 처리 오류 (ID: {getattr(item, 'id', 'Unknown')}): {item_error}")
+                print(f" 품목 처리 오류 (ID: {getattr(item, 'id', 'Unknown')}): {item_error}")
                 import traceback
-                print(f"❌ 스택 트레이스: {traceback.format_exc()}")
+                print(f"스택 트레이스: {traceback.format_exc()}")
                 # 문제가 있는 품목은 건너뛰기
                 continue
         
-        print(f"✅ 전체 처리 완료 - {len(processed_items)}개 품목 반환")
+        print(f"전체 처리 완료 - {len(processed_items)}개 품목 반환")
         
         return {
             "items": processed_items,
@@ -444,11 +444,11 @@ def read_inventories(
         }
         
     except Exception as e:
-        print(f"❌ 품목 목록 조회 중 전체 오류: {e}")
+        print(f"품목 목록 조회 중 전체 오류: {e}")
         import traceback
-        print(f"❌ 전체 스택 트레이스: {traceback.format_exc()}")
+        print(f"전체 스택 트레이스: {traceback.format_exc()}")
         
-        # 🔥 오류 발생 시 빈 목록 반환 (서비스 유지)
+        # 오류 발생 시 빈 목록 반환 (서비스 유지)
         return {
             "items": [],
             "total": 0,
@@ -568,9 +568,9 @@ async def complete_receipt_with_images(
     """수령 완료 처리 (이미지 필수 포함)"""
     saved_files = []
     try:
-        print(f"📥 수령완료 요청 받음 - 품목 ID: {item_id}")
-        print(f"📝 폼 데이터: quantity={received_quantity}, receiver={receiver_name}, dept={department}")
-        print(f"📷 이미지 개수: {len(images) if images else 0}")
+        print(f"수령완료 요청 받음 - 품목 ID: {item_id}")
+        print(f"폼 데이터: quantity={received_quantity}, receiver={receiver_name}, dept={department}")
+        print(f" 이미지 개수: {len(images) if images else 0}")
         
         # 품목 존재 확인
         inventory = crud.inventory.get(db=db, id=item_id)
@@ -585,20 +585,20 @@ async def complete_receipt_with_images(
         upload_dir = os.path.join(os.getcwd(), "uploads", "inventory_images")
         try:
             os.makedirs(upload_dir, exist_ok=True)
-            print(f"📁 업로드 디렉토리: {upload_dir}")
+            print(f" 업로드 디렉토리: {upload_dir}")
         except Exception as dir_error:
-            print(f"❌ 디렉토리 생성 실패: {dir_error}")
+            print(f"디렉토리 생성 실패: {dir_error}")
             raise HTTPException(status_code=500, detail=f"디렉토리 생성 실패: {str(dir_error)}")
         
         image_urls = []
         # 이미지 파일들 저장
         for i, image in enumerate(images):
             try:
-                print(f"🖼️ 이미지 {i+1} 처리 중: {image.filename}, 타입: {image.content_type}")
+                print(f"이미지 {i+1} 처리 중: {image.filename}, 타입: {image.content_type}")
                 
                 # 파일 유효성 검사
                 if not image.filename:
-                    print(f"⚠️ 이미지 {i+1}: 파일명이 없음")
+                    print(f" 이미지 {i+1}: 파일명이 없음")
                     continue
                     
                 if not image.content_type or not image.content_type.startswith('image/'):
@@ -612,12 +612,12 @@ async def complete_receipt_with_images(
                 # 파일 저장 (async 방식으로 수정)
                 try:
                     contents = await image.read()
-                    print(f"📄 파일 읽기 완료: {len(contents)} bytes")
+                    print(f"파일 읽기 완료: {len(contents)} bytes")
                     
                     with open(file_path, "wb") as f:
                         f.write(contents)
                     
-                    print(f"💾 파일 저장 완료: {file_path}")
+                    print(f"파일 저장 완료: {file_path}")
                     saved_files.append(file_path)
                     
                     # 상대 경로로 URL 생성
@@ -627,21 +627,21 @@ async def complete_receipt_with_images(
                     # image_url = f"http://211.44.183.165:8000/uploads/inventory_images/{unique_filename}"
                     # image_url = f"http://192.168.0.16:8000/uploads/inventory_images/{unique_filename}"
                     image_urls.append(image_url)
-                    print(f"🔗 이미지 URL 생성: {image_url}")
+                    print(f"이미지 URL 생성: {image_url}")
                     
                 except Exception as file_error:
-                    print(f"❌ 파일 저장 실패: {file_error}")
+                    print(f"파일 저장 실패: {file_error}")
                     raise HTTPException(status_code=500, detail=f"파일 저장 실패: {str(file_error)}")
                     
             except HTTPException:
                 raise
             except Exception as img_error:
-                print(f"❌ 이미지 {i+1} 처리 실패: {img_error}")
+                print(f"이미지 {i+1} 처리 실패: {img_error}")
                 raise HTTPException(status_code=500, detail=f"이미지 처리 실패: {str(img_error)}")
                 
-        print(f"✅ 모든 이미지 저장 완료. URL들: {image_urls}")
+        print(f"모든 이미지 저장 완료. URL들: {image_urls}")
         
-        # 🔥 날짜 처리 개선 - datetime 객체로 변환
+        # 날짜 처리 개선 - datetime 객체로 변환
         try:
             if 'T' in received_date:
                 # ISO 형식 날짜 처리
@@ -649,9 +649,9 @@ async def complete_receipt_with_images(
             else:
                 # 날짜만 있는 경우 시간 추가
                 parsed_received_date = datetime.strptime(received_date, '%Y-%m-%d')
-            print(f"📅 수령일 파싱 완료: {parsed_received_date}")
+            print(f"수령일 파싱 완료: {parsed_received_date}")
         except ValueError as date_error:
-            print(f"⚠️ 날짜 파싱 실패: {date_error}, 현재 시간 사용")
+            print(f" 날짜 파싱 실패: {date_error}, 현재 시간 사용")
             parsed_received_date = datetime.now()
         
         receipt_number = (
@@ -710,21 +710,21 @@ async def complete_receipt_with_images(
             db.commit()
             db.refresh(inventory)
             
-            print(f"🎉 수령 완료 처리 성공 - 품목 ID: {item_id}")
+            print(f" 수령 완료 처리 성공 - 품목 ID: {item_id}")
             
-            # 🔥 응답 전에 로깅 추가
-            print(f"📤 응답 데이터 타입: {type(inventory)}")
-            print(f"📤 수령 이력 개수: {len(inventory.receipt_history) if inventory.receipt_history else 0}")
+            # 응답 전에 로깅 추가
+            print(f" 응답 데이터 타입: {type(inventory)}")
+            print(f" 수령 이력 개수: {len(inventory.receipt_history) if inventory.receipt_history else 0}")
             
             return inventory
             
         except HTTPException:
             raise
         except Exception as db_error:
-            print(f"❌ 데이터베이스 업데이트 실패: {db_error}")
-            print(f"❌ 에러 타입: {type(db_error).__name__}")
+            print(f"데이터베이스 업데이트 실패: {db_error}")
+            print(f"에러 타입: {type(db_error).__name__}")
             import traceback
-            print(f"❌ 스택 트레이스: {traceback.format_exc()}")
+            print(f"스택 트레이스: {traceback.format_exc()}")
             db.rollback()
             for saved_file in saved_files:
                 try:
@@ -738,19 +738,19 @@ async def complete_receipt_with_images(
         # HTTP 예외는 그대로 전달
         raise
     except Exception as e:
-        print(f"❌ 수령 처리 중 예상치 못한 오류: {str(e)}")
-        print(f"❌ 오류 타입: {type(e).__name__}")
+        print(f"수령 처리 중 예상치 못한 오류: {str(e)}")
+        print(f"오류 타입: {type(e).__name__}")
         import traceback
-        print(f"❌ 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         
         # 오류 발생 시 업로드된 파일들 정리
         for file_path in saved_files:
             try:
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                    print(f"🗑️ 파일 정리 완료: {file_path}")
+                    print(f"파일 정리 완료: {file_path}")
             except Exception as cleanup_error:
-                print(f"⚠️ 파일 정리 실패: {cleanup_error}")
+                print(f" 파일 정리 실패: {cleanup_error}")
         
         raise HTTPException(status_code=500, detail=f"수령 처리 중 오류 발생: {str(e)}")
 
@@ -1140,7 +1140,7 @@ def get_inventory_recommendations(db: Session = Depends(get_db)):
     """재고 관리 추천사항"""
     return crud.inventory.get_recommendations(db=db)
 
-# ✅ 유지해야 할 엔드포인트: 구매 요청에서 품목 생성
+# 유지해야 할 엔드포인트: 구매 요청에서 품목 생성
 @router.post("/from-purchase-request", response_model=schemas.UnifiedInventoryInDB)
 def create_inventory_from_purchase(
     purchase_data: schemas.CreateInventoryFromPurchase,
@@ -1182,7 +1182,7 @@ def bulk_upload_inventory(
 ):
     """Excel 파일로 품목 일괄 업로드 - 개선된 버전"""
     try:
-        print(f"📁 Excel 업로드 시작: {file.filename}, 크기: {file.size}")
+        print(f" Excel 업로드 시작: {file.filename}, 크기: {file.size}")
         
         # 파일 검증 강화
         if not file.filename:
@@ -1207,7 +1207,7 @@ def bulk_upload_inventory(
             raise HTTPException(status_code=400, detail="빈 파일입니다.")
         
         df = pd.read_excel(BytesIO(content), engine='openpyxl')
-        print(f"📋 Excel 데이터 로드 완료: {len(df)} 행")
+        print(f"Excel 데이터 로드 완료: {len(df)} 행")
         
         # 필수 컬럼 검증
         required_columns = ['품목코드', '품목명', '단위', '최소재고']
@@ -1299,14 +1299,14 @@ def bulk_upload_inventory(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ 업로드 오류: {e}")
+        print(f"업로드 오류: {e}")
         raise HTTPException(status_code=500, detail=f"파일 처리 중 오류: {str(e)}")
 
 @router.get("/template/download")
 def download_inventory_template():
     """품목 등록용 Excel 템플릿 다운로드"""
     try:
-        print("📝 품목 템플릿 생성 시작")
+        print("품목 템플릿 생성 시작")
         
         # 템플릿 데이터 생성
         template_data = {
@@ -1421,7 +1421,7 @@ def download_inventory_template():
         today = datetime.now().strftime('%Y%m%d')
         filename = f"inventory_apply_template{today}.xlsx"
         
-        # 🔥 한글 파일명을 위한 RFC 5987 인코딩 사용
+        # 한글 파일명을 위한 RFC 5987 인코딩 사용
         import urllib.parse
         encoded_filename = urllib.parse.quote(f"구매요청목록_{today}.xlsx".encode('utf-8'))
         
@@ -1434,7 +1434,7 @@ def download_inventory_template():
         )
         
     except Exception as e:
-        print(f"❌ 템플릿 생성 실패: {e}")
+        print(f"템플릿 생성 실패: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"템플릿 생성에 실패했습니다: {str(e)}"
@@ -1453,7 +1453,7 @@ def export_inventory_excel(
 ):
     """품목 목록을 Excel 파일로 내보내기"""
     try:
-        print("📊 품목 Excel 내보내기 시작")
+        print("품목 Excel 내보내기 시작")
         
         # 필터 설정
         filters = schemas.UnifiedInventoryFilter(
@@ -1630,7 +1630,7 @@ def export_inventory_excel(
         today = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"품목목록_{today}.xlsx"
         
-        print(f"✅ Excel 내보내기 완료: {filename}")
+        print(f"Excel 내보내기 완료: {filename}")
         
         # 응답 생성
         return StreamingResponse(
@@ -1642,7 +1642,7 @@ def export_inventory_excel(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Excel 내보내기 실패: {e}")
+        print(f"Excel 내보내기 실패: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Excel 내보내기에 실패했습니다: {str(e)}"
@@ -1656,7 +1656,7 @@ async def upload_transaction_document(
 ):
     """거래명세서 업로드 처리 로직"""
     try:
-        print(f"📄 거래명세서 업로드 시작 - 품목 ID: {item_id}")
+        print(f"거래명세서 업로드 시작 - 품목 ID: {item_id}")
         
         # 품목 존재 확인
         inventory = crud.inventory.get(db=db, id=item_id)
@@ -1700,14 +1700,14 @@ async def upload_transaction_document(
         db.commit()
         db.refresh(inventory)
         
-        print(f"📁 거래 명세서 업로드 완료: {file_url}")
+        print(f" 거래 명세서 업로드 완료: {file_url}")
 
         return inventory
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ 거래명세서 업로드 실패: {e}")
+        print(f"거래명세서 업로드 실패: {e}")
         db.rollback()
         raise HTTPException(
             status_code=500,

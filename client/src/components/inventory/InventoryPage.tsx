@@ -85,7 +85,7 @@ const hasReceipts = (item: InventoryItem): boolean => {
 const Container = styled.div`
   padding: 20px;
   
-  /* 🔥 테이블 세로 가운데 정렬 강제 적용 */
+  /* 테이블 세로 가운데 정렬 강제 적용 */
   table {
     td, th {
       vertical-align: middle !important;
@@ -154,7 +154,7 @@ const StatCard = styled(Card)<{ color?: string }>`
   }
 `;
 
-// 🔥 수정: 수령 상태 표시를 위한 새로운 컴포넌트
+// 수정: 수령 상태 표시를 위한 새로운 컴포넌트
 const ReceiptStatusBadge = styled.span<{ hasReceipts: boolean }>`
   display: inline-flex;
   align-items: center;
@@ -218,7 +218,7 @@ const QuantityInfo = styled.div`
   }
 `;
 
-// 🔥 새로운: 이미지 미리보기 컴포넌트
+// 새로운: 이미지 미리보기 컴포넌트
 const ImagePreviewGrid = styled.div`
   display: flex;
   gap: 4px;
@@ -492,7 +492,7 @@ const InventoryPage: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 🔥 수정: 수령 완료 처리 (이미지 포함) - FormData 방식으로 변경
+  // 수정: 수령 완료 처리 (이미지 포함) - FormData 방식으로 변경
   const addReceiptWithImagesMutation = useMutation({
     mutationFn: async ({ itemId, receiptData, images }: { 
       itemId: number; 
@@ -511,7 +511,7 @@ const InventoryPage: React.FC = () => {
       }
       
       refetch();
-      toast.success('🎉 수령이 완료되고 이미지가 업로드되었습니다!');
+      toast.success(' 수령이 완료되고 이미지가 업로드되었습니다!');
       setIsReceiptWithImagesModalOpen(false);
       setSelectedItemForReceipt(null);
     },
@@ -780,15 +780,15 @@ const InventoryPage: React.FC = () => {
   }, [selectedImageUrl]);
 
   const handleTransactionDocumentUpload = (item: InventoryItem) => {
-    console.log('🔍 거래명세서 업로드 버튼 클릭됨:', item);
-    console.log('🔍 API 베이스 URL:', window.location.origin);
-    //console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
-    // console.log('🔍 API 베이스 URL:', 'http://211.44.183.165:8000');
+    console.log('거래명세서 업로드 버튼 클릭됨:', item);
+    console.log('API 베이스 URL:', window.location.origin);
+    //console.log('API 베이스 URL:', 'http://211.197.16.248:8000');
+    // console.log('API 베이스 URL:', 'http://211.44.183.165:8000');
     
     setSelectedItemForTransaction(item);
     setIsTransactionUploadModalOpen(true);
     
-    console.log('🔍 모달 상태 변경 완료');
+    console.log('모달 상태 변경 완료');
   };
 
   const handleTransactionDocumentSubmit = (file: File) => {
@@ -809,7 +809,7 @@ const InventoryPage: React.FC = () => {
     setSelectedTransactionName('');
   };
 
-  // 🔥 수정: 테이블 컬럼 정의 - 상태 표시 로직 변경
+  // 수정: 테이블 컬럼 정의 - 상태 표시 로직 변경
   // const columns: TableColumn<InventoryItem>[] = useMemo(() => [
   const columns: TableColumn<DisplayInventoryItem>[] = useMemo(() => [
     {
@@ -925,8 +925,8 @@ const InventoryPage: React.FC = () => {
                 src={getFullImageUrl(url)}
                 alt={`${item.item_name} ${index + 1}`}
                 className="thumbnail"
-                style={{ cursor: 'pointer' }} // 🔥 추가: 클릭 가능 표시
-                onClick={() => handleImageClick(url, item.item_name, index)} // 🔥 추가: 클릭 이벤트
+                style={{ cursor: 'pointer' }} // 추가: 클릭 가능 표시
+                onClick={() => handleImageClick(url, item.item_name, index)} // 추가: 클릭 이벤트
                 onError={(e) => {
                   console.error('이미지 로딩 실패:', url);
                   (e.target as HTMLImageElement).style.display = 'none';
@@ -1044,7 +1044,7 @@ const InventoryPage: React.FC = () => {
         
         return (
           <ActionButtonGroup>
-            {/* 🔥 수정: !!를 사용하여 Boolean 변환 또는 && 대신 ? : 사용 */}
+            {/* 수정: !!를 사용하여 Boolean 변환 또는 && 대신 ? : 사용 */}
             {!itemHasReceipts ? (
               <Button
                 size="sm"
@@ -1289,7 +1289,7 @@ const InventoryPage: React.FC = () => {
               <Plus size={16} />
               품목 추가
             </Button>
-            {/* 🔥 새로 추가: Excel 업로드 버튼 */}
+            {/* 새로 추가: Excel 업로드 버튼 */}
             {/* <Button
               variant="outline"
               onClick={() => setIsExcelUploadModalOpen(true)}
@@ -1407,7 +1407,7 @@ const InventoryPage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* 🔥 수령완료 모달 (이미지 포함) */}
+      {/* 수령완료 모달 (이미지 포함) */}
       {isReceiptWithImagesModalOpen && selectedItemForReceipt && (
         <Modal
           isOpen={isReceiptWithImagesModalOpen}
@@ -1448,7 +1448,7 @@ const InventoryPage: React.FC = () => {
           />
         </Modal>
       )}
-      {/* 🔥 이미지 뷰어 모달 */}
+      {/* 이미지 뷰어 모달 */}
       {selectedImageUrl && (
         <ImageViewerModal onClick={handleCloseImageViewer}>
           <ImageViewerContainer onClick={(e) => e.stopPropagation()}>

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 
-# 🔥 빠른 해결: received_date를 문자열로 변경
+# 빠른 해결: received_date를 문자열로 변경
 class ReceiptHistoryBase(BaseModel):
     receipt_number: Optional[str] = Field(None, max_length=50, description="수령 번호")
     item_name: Optional[str] = Field(None, max_length=200, description="품목명") 
@@ -14,7 +14,7 @@ class ReceiptHistoryBase(BaseModel):
     receiver_name: str = Field(..., max_length=100, description="수령자명")
     receiver_email: Optional[str] = Field(None, max_length=255, description="수령자 이메일")
     department: str = Field(..., max_length=100, description="부서")
-    received_date: str = Field(..., description="수령일 (YYYY-MM-DD 또는 ISO 형식)")  # 🔥 문자열로 변경
+    received_date: str = Field(..., description="수령일 (YYYY-MM-DD 또는 ISO 형식)")  # 문자열로 변경
     location: Optional[str] = Field(None, max_length=200, description="수령 위치")
     condition: Optional[str] = Field(None, max_length=50, description="품목 상태")
     notes: Optional[str] = Field(None, description="비고")
@@ -33,7 +33,7 @@ class ReceiptHistoryCreate(BaseModel):
 
 class ReceiptHistoryInDB(ReceiptHistoryBase):
     id: Optional[int] = Field(None, description="수령 이력 ID")
-    created_at: Optional[str] = Field(None, description="생성일시 (ISO 형식)")  # 🔥 문자열로 변경
+    created_at: Optional[str] = Field(None, description="생성일시 (ISO 형식)")  # 문자열로 변경
     is_complete: Optional[bool] = Field(True, description="완료 여부")
     quality_check_passed: Optional[bool] = Field(True, description="품질 검사 통과")
     

@@ -174,7 +174,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
   const queryClient = useQueryClient();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // 🔥 수정: 초기 데이터 처리 개선
+  // 수정: 초기 데이터 처리 개선
   const getInitialFormData = (): PurchaseRequestFormData => {
     if (!initialData) {
       return {
@@ -218,7 +218,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
 
   const [formData, setFormData] = useState<PurchaseRequestFormData>(getInitialFormData());
 
-  // 🔥 수정: initialData가 변경될 때마다 폼 데이터 업데이트
+  // 수정: initialData가 변경될 때마다 폼 데이터 업데이트
   useEffect(() => {
     setFormData(getInitialFormData());
   }, [initialData]);
@@ -242,7 +242,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
     },
   });
 
-  // 🔥 수정: 수정 Mutation 추가
+  // 수정: 수정 Mutation 추가
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) => purchaseApi.updateRequest(id, data),
     onSuccess: () => {
@@ -288,7 +288,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // 🔥 수정: handleSubmit 함수 개선
+  // 수정: handleSubmit 함수 개선
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -318,7 +318,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
     //   budget_code: formData.budgetCode,
     //   status: 'SUBMITTED', // 기본 상태는 '요청됨'
     // };
-    // 🔥 total_budget 계산 로직 추가
+    // total_budget 계산 로직 추가
     const quantity = Number(formData.quantity) || 1;
     const estimatedPrice = Number(formData.estimatedPrice) || 0;
     const totalBudget = quantity * estimatedPrice;
@@ -329,7 +329,7 @@ const PurchaseRequestForm: React.FC<PurchaseRequestFormProps> = ({
       quantity: Number(formData.quantity),
       unit: '개',
       estimated_unit_price: estimatedPrice,
-      total_budget: totalBudget, // 🔥 계산된 값 사용
+      total_budget: totalBudget, // 계산된 값 사용
       currency: 'KRW',
       category: formData.category,
       urgency: formData.urgency,

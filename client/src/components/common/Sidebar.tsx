@@ -211,7 +211,7 @@ const NavLinkStyled = styled(NavLink)<{ isOpen: boolean }>`
   }
 `;
 
-// 🔥 동적 알림 배지 컴포넌트
+// 동적 알림 배지 컴포넌트
 const NavBadge = styled.span<{ isOpen: boolean; count: number }>`
   margin-left: auto;
   background: linear-gradient(135deg, #e74c3c, #c0392b);
@@ -245,7 +245,7 @@ const NavBadge = styled.span<{ isOpen: boolean; count: number }>`
   }
 `;
 
-// 🔥 축소 상태에서의 알림 점
+// 축소 상태에서의 알림 점
 const CompactNotification = styled.div<{ show: boolean }>`
   position: absolute;
   top: 8px;
@@ -308,7 +308,7 @@ const NavItemWithTooltip = styled.div`
   }
 `;
 
-// 🔥 API 연결 상태 표시 컴포넌트
+// API 연결 상태 표시 컴포넌트
 const ConnectionStatus = styled.div<{ connected: boolean }>`
   position: absolute;
   bottom: 4px;
@@ -324,7 +324,7 @@ const ConnectionStatus = styled.div<{ connected: boolean }>`
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
 
-  // 🔥 메뉴 아이템들 (동적 배지 포함)
+  // 메뉴 아이템들 (동적 배지 포함)
   const mainMenuItems = [
     { path: '/dashboard', label: '대시보드', icon: LayoutDashboard },
     { 
@@ -373,20 +373,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             <Icon className="nav-icon" size={18} />
             <span className="nav-text">{item.label}</span>
             
-            {/* 🔥 동적 알림 배지 (사이드바 열린 상태) */}
+            {/* 동적 알림 배지 (사이드바 열린 상태) */}
             {showBadge && isOpen && (
               <NavBadge isOpen={isOpen} count={badgeCount}>
                 {badgeCount > 99 ? '99+' : badgeCount}
               </NavBadge>
             )}
             
-            {/* 🔥 축소 상태 알림 점 */}
+            {/* 축소 상태 알림 점 */}
             {showBadge && !isOpen && (
               <CompactNotification show={!isOpen} />
             )}
           </NavLinkStyled>
           
-          {/* 🔥 툴팁 (축소 상태에서만) */}
+          {/* 툴팁 (축소 상태에서만) */}
           {!isOpen && (
             <Tooltip show={!isOpen} className="tooltip">
               {item.label}
@@ -413,7 +413,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           </ToggleButton>
         )}
         
-        {/* 🔥 API 연결 상태 표시 */}
+        {/* API 연결 상태 표시 */}
         {/*<ConnectionStatus connected={apiConnected} title={apiConnected ? 'API 연결됨' : 'API 미연결 (샘플 모드)'} />*/}
       </SidebarHeader>
 
