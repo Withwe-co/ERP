@@ -10,12 +10,11 @@ import {
 } from '../components/wbs/task/taskImageUtils';
 
 // API 기본 설정
-// const API_BASE_URL = 'http://192.168.0.16:8000/api/v1';
-// const API_BASE_URL = 'http://211.44.183.165:8000/api/v1';
+//  로컬 작업용
+//const API_BASE_URL = 'http://localhost:8000/api/v1';
 
-//const API_BASE_URL = 'http://211.197.16.248:8000/api/v1';
- const API_BASE_URL = 'http://localhost:8000/api/v1';
-
+// 서버 배포용
+const API_BASE_URL = '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
