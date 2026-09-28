@@ -184,7 +184,7 @@ class CRUDPurchaseRequest(CRUDBase[PurchaseRequest, PurchaseRequestCreate, Purch
             "pending": 0,
             "approved": 0,
             "rejected": 0,
-            "completed": 0,  # 🔥 이 필드 추가!
+            "completed": 0,  # 이 필드 추가!
             "this_month": 0,
             "total_budget": float(total_budget),
             "average_approval_time": None

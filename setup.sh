@@ -4,7 +4,7 @@
 
 set -e
 
-echo "🚀 시놀로지 NAS용 인벤토리 관리 시스템 설정 시작"
+echo " 시놀로지 NAS용 인벤토리 관리 시스템 설정 시작"
 
 # 색깔 정의
 RED='\033[0;31m'
@@ -15,19 +15,19 @@ NC='\033[0m' # No Color
 
 # 로그 함수
 log_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+    echo -e "${BLUE} info: $1${NC}"
 }
 
 log_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN} success: $1${NC}"
 }
 
 log_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW} warning: $1${NC}"
 }
 
 log_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED} $1${NC}"
 }
 
 # 필요한 디렉토리 생성
@@ -194,7 +194,7 @@ start_services() {
         docker-compose ps
         
         log_info ""
-        log_success "🎉 설정 완료!"
+        log_success " 설정 완료!"
         log_info ""
         log_info "접속 정보:"
         log_info "- 메인 애플리케이션: http://http://211.197.16.248/"
@@ -218,7 +218,7 @@ start_services() {
 # 메인 실행
 main() {
     echo "============================================"
-    echo "🏠 시놀로지 NAS용 인벤토리 관리 시스템 설정"
+    echo "시놀로지 NAS용 인벤토리 관리 시스템 설정"
     echo "============================================"
     echo ""
     

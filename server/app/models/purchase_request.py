@@ -76,7 +76,7 @@ class PurchaseRequest(Base):
         
         # 요청일로부터 경과 시간 (오래된 요청일수록 높은 점수)
         if self.created_at:
-            # 🔥 수정: 타임존 정보 통일
+            # 수정: 타임존 정보 통일
             from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
             

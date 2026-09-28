@@ -87,7 +87,7 @@ def send_purchase_request_notification(background_tasks: BackgroundTasks,purchas
     )
 
 
-# 🔥 CRUD 대신 직접 DB 쿼리로 구현
+# CRUD 대신 직접 DB 쿼리로 구현
 @router.get("/", response_model=PurchaseRequestList)
 def read_purchase_requests(
     db: Session = Depends(get_db),
@@ -108,13 +108,13 @@ def read_purchase_requests(
     구매 요청 목록 조회 - 유효하지 않은 status 필터링
     """
     try:
-        print(f"🔍 구매 요청 목록 조회 시작")
+        print(f"구매 요청 목록 조회 시작")
         
-        # 🔥 유효한 상태만 조회하도록 필터 추가
+        # 유효한 상태만 조회하도록 필터 추가
         valid_statuses = ['SUBMITTED', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED']
         
         query = db.query(DBPurchaseRequest).filter(
-            DBPurchaseRequest.status.in_(valid_statuses)  # 🔥 유효한 상태만 조회
+            DBPurchaseRequest.status.in_(valid_statuses)  # 유효한 상태만 조회
         )
         
         # 기존 필터들 적용
@@ -126,7 +126,7 @@ def read_purchase_requests(
                 )
             )
         
-        if status and status in valid_statuses:  # 🔥 상태 필터도 검증
+        if status and status in valid_statuses:  # 상태 필터도 검증
             query = query.filter(DBPurchaseRequest.status == status)
             
         if urgency:
@@ -164,11 +164,11 @@ def read_purchase_requests(
         
         # 총 개수 조회
         total = query.count()
-        print(f"📊 총 개수: {total}")
+        print(f"총 개수: {total}")
         
         # 데이터 조회
         items = query.order_by(DBPurchaseRequest.id.desc()).offset(skip).limit(limit).all()
-        print(f"📋 조회된 항목 수: {len(items)}")
+        print(f"조회된 항목 수: {len(items)}")
         
         # Response 객체로 변환
         response_items = []
@@ -177,8 +177,8 @@ def read_purchase_requests(
                 response_item = PurchaseRequestResponse.from_orm(item)
                 response_items.append(response_item)
             except Exception as e:
-                print(f"⚠️ 항목 변환 실패 (ID: {item.id}, Status: {item.status}): {e}")
-                # 🔥 변환 실패 시 안전한 기본값으로 추가
+                print(f" 항목 변환 실패 (ID: {item.id}, Status: {item.status}): {e}")
+                # 변환 실패 시 안전한 기본값으로 추가
                 response_items.append({
                     "id": item.id,
                     "item_name": item.item_name or "품목명 없음",
@@ -186,7 +186,7 @@ def read_purchase_requests(
                     "requester_name": item.requester_name or "요청자 없음",
                     "department": item.department or "부서 없음",
                     "urgency": item.urgency or "NORMAL",
-                    "status": "SUBMITTED",  # 🔥 안전한 기본값
+                    "status": "SUBMITTED",  # 안전한 기본값
                     "created_at": item.request_date.isoformat() if item.request_date else datetime.now().isoformat(),
                     "total_budget": float(item.total_budget or 0),
                     "estimated_unit_price": float(item.estimated_unit_price or 0),
@@ -202,13 +202,13 @@ def read_purchase_requests(
             "pages": (total + limit - 1) // limit if total > 0 else 0
         }
         
-        print(f"✅ 목록 조회 완료")
+        print(f"목록 조회 완료")
         return result
         
     except Exception as e:
-        print(f"❌ 구매 요청 목록 조회 오류: {e}")
+        print(f"구매 요청 목록 조회 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"구매 요청 목록 조회 중 오류가 발생했습니다: {str(e)}"
@@ -224,8 +224,8 @@ def complete_purchase_request(
     """
     완전한 구매 요청 완료 처리 - 품목 생성 포함
     """
-    print(f"🔥 구매완료 API 호출 시작: request_id={request_id}")
-    print(f"📥 수신 데이터: {completion_data}")
+    print(f"구매완료 API 호출 시작: request_id={request_id}")
+    print(f"수신 데이터: {completion_data}")
     
     try:
         # 1. 구매 요청 조회
@@ -234,7 +234,7 @@ def complete_purchase_request(
         if not purchase_request:
             raise HTTPException(status_code=404, detail="구매 요청을 찾을 수 없습니다.")
         
-        print(f"✅ 구매 요청 조회 성공: {purchase_request.item_name}")
+        print(f"구매 요청 조회 성공: {purchase_request.item_name}")
         
         # 2. 데이터 추출
         item_name = purchase_request.item_name
@@ -245,14 +245,14 @@ def complete_purchase_request(
         received_quantity = completion_data.get("received_quantity", quantity)
         unit_price = completion_data.get("unit_price", estimated_price)
         
-        print(f"📊 데이터: {item_name}, 수량={received_quantity}, 단가={unit_price}")
+        print(f"데이터: {item_name}, 수량={received_quantity}, 단가={unit_price}")
         
-        # 3. 🔥 품목 생성 (원시 SQL 사용)
+        # 3. 품목 생성 (원시 SQL 사용)
         item_code = f"ITM-{datetime.now().strftime('%Y%m%d')}-{request_id:04d}"
         inventory_item_id = None
         
         try:
-            print("🏭 품목 생성 시도...")
+            print("품목 생성 시도...")
             
             # 원시 SQL로 unified_inventory에 품목 생성
             insert_sql = text("""
@@ -290,10 +290,10 @@ def complete_purchase_request(
             })
             
             inventory_item_id = result.fetchone()[0]
-            print(f"✅ 품목 생성 성공: ID={inventory_item_id}, 코드={item_code}")
+            print(f"품목 생성 성공: ID={inventory_item_id}, 코드={item_code}")
             
         except Exception as inv_error:
-            print(f"⚠️ 품목 생성 실패: {inv_error}")
+            print(f" 품목 생성 실패: {inv_error}")
             # 품목 생성 실패해도 구매 요청은 완료 처리
             
         # 4. 구매 요청 상태 업데이트
@@ -312,17 +312,17 @@ def complete_purchase_request(
             db.commit()
             db.refresh(purchase_request)
             
-            print("✅ 구매 요청 상태 업데이트 완료")
+            print("구매 요청 상태 업데이트 완료")
             
         except Exception as update_error:
-            print(f"❌ 상태 업데이트 실패: {update_error}")
+            print(f"상태 업데이트 실패: {update_error}")
             db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"상태 업데이트 실패: {str(update_error)}"
             )
         
-        # 5. 🔥 성공 응답 - 품목 생성 여부에 따라 다른 응답
+        # 5. 성공 응답 - 품목 생성 여부에 따라 다른 응답
         if inventory_item_id:
             # 품목 생성 성공
             response_data = {
@@ -332,7 +332,7 @@ def complete_purchase_request(
                 "inventory_item_id": inventory_item_id,
                 "inventory_item_code": item_code,
                 "redirect_url": f"/inventory/{inventory_item_id}",
-                "completed_fully": True,  # 🔥 완전히 완료됨을 표시
+                "completed_fully": True,  # 완전히 완료됨을 표시
                 "data": {
                     "id": purchase_request.id,
                     "item_name": item_name,
@@ -348,7 +348,7 @@ def complete_purchase_request(
                 "success": True,
                 "message": "구매 요청이 완료되었습니다. (품목 등록은 수동으로 진행해주세요)",
                 "purchase_request_id": request_id,
-                "completed_fully": False,  # 🔥 부분적으로만 완료됨
+                "completed_fully": False,  # 부분적으로만 완료됨
                 "warning": "품목 자동 생성에 실패했습니다.",
                 "data": {
                     "id": purchase_request.id,
@@ -359,15 +359,15 @@ def complete_purchase_request(
                 }
             }
         
-        print(f"🎉 처리 완료 응답: {response_data}")
+        print(f" 처리 완료 응답: {response_data}")
         return response_data
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"💥 예상치 못한 오류: {e}")
+        print(f"예상치 못한 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,
@@ -380,14 +380,14 @@ def create_purchase_request(
     *,
     db: Session = Depends(get_db),
     background_tasks: BackgroundTasks,
-    request_in: dict  # 🔥 스키마 대신 dict 사용
+    request_in: dict  # 스키마 대신 dict 사용
 ):
     """
     새 구매 요청 생성 - 유연한 데이터 처리
     """
     try:
-        print(f"🆕 새 구매 요청 생성 시작")
-        print(f"📥 수신 데이터: {request_in}")
+        print(f" 새 구매 요청 생성 시작")
+        print(f"수신 데이터: {request_in}")
         
         # 필수 필드 검증
         required_fields = ['item_name', 'quantity', 'requester_name', 'department', 'justification']
@@ -443,13 +443,13 @@ def create_purchase_request(
                 else:
                     safe_data['expected_delivery_date'] = request_in['expected_delivery_date']
             except ValueError:
-                print(f"⚠️ 잘못된 날짜 형식: {request_in['expected_delivery_date']}")
+                print(f" 잘못된 날짜 형식: {request_in['expected_delivery_date']}")
         
         # total_budget 자동 계산
         if not safe_data['total_budget'] and safe_data['estimated_unit_price'] and safe_data['quantity']:
             safe_data['total_budget'] = safe_data['estimated_unit_price'] * safe_data['quantity']
         
-        print(f"📋 처리된 안전 데이터: {safe_data}")
+        print(f"처리된 안전 데이터: {safe_data}")
         
         # None 값 제거 (선택사항)
         filtered_data = {k: v for k, v in safe_data.items() if v is not None}
@@ -464,7 +464,7 @@ def create_purchase_request(
         # 현재는 이메일 발송으로 구현
         send_purchase_request_notification(background_tasks, purchase_request)
         
-        print(f"✅ 구매 요청 생성 완료: ID={purchase_request.id}")
+        print(f"구매 요청 생성 완료: ID={purchase_request.id}")
         
         return {
             "success": True,
@@ -484,9 +484,9 @@ def create_purchase_request(
         raise
     except Exception as e:
         db.rollback()
-        print(f"❌ 구매 요청 생성 실패: {e}")
+        print(f"구매 요청 생성 실패: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"구매 요청 생성에 실패했습니다: {str(e)}"
@@ -596,7 +596,7 @@ def read_purchase_request_stats(db: Session = Depends(get_db)):
     구매 요청 통계 조회 - 직접 쿼리 방식
     """
     try:
-        print("📊 통계 조회 시작")
+        print("통계 조회 시작")
         
         # 전체 개수
         total = db.query(func.count(DBPurchaseRequest.id)).scalar() or 0
@@ -638,11 +638,11 @@ def read_purchase_request_stats(db: Session = Depends(get_db)):
             "average_approval_time": None
         }
         
-        print(f"✅ 통계 조회 완료: {stats}")
+        print(f"통계 조회 완료: {stats}")
         return stats
         
     except Exception as e:
-        print(f"❌ 통계 조회 오류: {e}")
+        print(f"통계 조회 오류: {e}")
         # 기본값 반환
         return {
             "total": 0,
@@ -720,7 +720,7 @@ def read_purchase_request(
         raise HTTPException(status_code=404, detail="구매 요청을 찾을 수 없습니다.")
     return purchase_request
 
-@router.put("/{request_id}", response_model=dict)  # 🔥 경로 수정: "/purchase-requests/" 제거
+@router.put("/{request_id}", response_model=dict)  # 경로 수정: "/purchase-requests/" 제거
 async def update_purchase_request(
     request_id: int,
     update_data: PurchaseRequestUpdate,
@@ -730,8 +730,8 @@ async def update_purchase_request(
     구매 요청 업데이트 (405 에러 수정)
     올바른 경로: PUT /api/v1/purchase-requests/{request_id}
     """
-    print(f"🔥 PUT 엔드포인트 호출됨: ID={request_id}")
-    print(f"📝 업데이트 데이터: {update_data.dict(exclude_unset=True)}")
+    print(f"PUT 엔드포인트 호출됨: ID={request_id}")
+    print(f"업데이트 데이터: {update_data.dict(exclude_unset=True)}")
     
     try:
         # 1. 기존 요청 조회
@@ -740,33 +740,33 @@ async def update_purchase_request(
         ).first()
         
         if not purchase_request:
-            print(f"❌ 구매 요청 {request_id}를 찾을 수 없음")
+            print(f"구매 요청 {request_id}를 찾을 수 없음")
             raise HTTPException(
                 status_code=404, 
                 detail=f"구매 요청 {request_id}를 찾을 수 없습니다"
             )
         
-        print(f"✅ 기존 구매 요청 조회 성공: {purchase_request.item_name}")
+        print(f"기존 구매 요청 조회 성공: {purchase_request.item_name}")
         
         # 2. 업데이트 데이터 적용
         update_dict = update_data.dict(exclude_unset=True)
-        print(f"📤 적용할 필드: {list(update_dict.keys())}")
+        print(f" 적용할 필드: {list(update_dict.keys())}")
         
         for field, value in update_dict.items():
             if hasattr(purchase_request, field):
                 setattr(purchase_request, field, value)
-                print(f"🔄 {field} = {value}")
+                print(f" {field} = {value}")
         
         # 3. 특별 처리: 상태가 COMPLETED로 변경되는 경우
         if update_data.status and str(update_data.status) == "COMPLETED":
-            print("🎯 구매완료 상태로 변경 중...")
+            print("구매완료 상태로 변경 중...")
             
             # 현재 시간으로 승인일 설정
             purchase_request.approved_date = datetime.now()
             if not purchase_request.approved_by:
                 purchase_request.approved_by = purchase_request.request_name
             
-            print("✅ 완료 처리 데이터 설정됨")
+            print("완료 처리 데이터 설정됨")
         
         # 4. updated_at 설정
         purchase_request.updated_at = datetime.now()
@@ -775,7 +775,7 @@ async def update_purchase_request(
         db.commit()
         db.refresh(purchase_request)
         
-        print(f"💾 구매 요청 {request_id} 업데이트 성공")
+        print(f"구매 요청 {request_id} 업데이트 성공")
         
         # 6. 응답 데이터 구성
         response_data = {
@@ -792,14 +792,14 @@ async def update_purchase_request(
             }
         }
         
-        print(f"🎉 응답 데이터: {response_data}")
+        print(f" 응답 데이터: {response_data}")
         return response_data
         
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"❌ 데이터베이스 오류: {e}")
+        print(f"데이터베이스 오류: {e}")
         raise HTTPException(
             status_code=500, 
             detail=f"데이터베이스 업데이트 실패: {str(e)}"
@@ -814,55 +814,55 @@ def delete_purchase_request(
     """
     구매 요청 삭제 - 디버깅 버전
     """
-    print(f"\n🔥 ===== 삭제 요청 시작 =====")
-    print(f"📥 요청 ID: {request_id}")
-    print(f"📥 요청 타입: {type(request_id)}")
+    print(f"\n===== 삭제 요청 시작 =====")
+    print(f"요청 ID: {request_id}")
+    print(f"요청 타입: {type(request_id)}")
     
     try:
         # 1. 요청 존재 확인
-        print(f"🔍 1단계: 요청 존재 확인...")
+        print(f"1단계: 요청 존재 확인...")
         
         request_query = db.query(DBPurchaseRequest).filter(
             DBPurchaseRequest.id == request_id
         )
         
-        print(f"📋 실행할 쿼리: {request_query}")
+        print(f"실행할 쿼리: {request_query}")
         
         existing_request = request_query.first()
         
         if not existing_request:
-            print(f"❌ 요청을 찾을 수 없음: ID={request_id}")
+            print(f"요청을 찾을 수 없음: ID={request_id}")
             
-            # 🔥 전체 요청 목록 확인 (디버깅용)
+            # 전체 요청 목록 확인 (디버깅용)
             all_requests = db.query(DBPurchaseRequest.id, DBPurchaseRequest.item_name).limit(10).all()
-            print(f"📋 현재 존재하는 요청들: {[(r.id, r.item_name) for r in all_requests]}")
+            print(f"현재 존재하는 요청들: {[(r.id, r.item_name) for r in all_requests]}")
             
             raise HTTPException(
                 status_code=404, 
                 detail=f"구매 요청 {request_id}를 찾을 수 없습니다."
             )
         
-        print(f"✅ 요청 발견: {existing_request.item_name} (상태: {existing_request.status})")
+        print(f"요청 발견: {existing_request.item_name} (상태: {existing_request.status})")
         
         # 2. 삭제 권한 확인 (선택사항)
-        print(f"🔍 2단계: 삭제 권한 확인...")
+        print(f"2단계: 삭제 권한 확인...")
         
         if existing_request.status == 'COMPLETED':
-            print(f"⚠️ 완료된 요청은 삭제 제한")
+            print(f" 완료된 요청은 삭제 제한")
             # 완료된 요청도 삭제 허용하되 경고만 출력
-            print(f"⚠️ 완료된 요청이지만 삭제 진행...")
+            print(f" 완료된 요청이지만 삭제 진행...")
         
         # 3. 삭제 실행
-        print(f"🗑️ 3단계: 삭제 실행...")
+        print(f"3단계: 삭제 실행...")
         
-        # 🔥 방법 1: ORM 삭제
+        # 방법 1: ORM 삭제
         try:
-            print(f"🔥 ORM 방식으로 삭제 시도...")
+            print(f"ORM 방식으로 삭제 시도...")
             
             db.delete(existing_request)
             db.commit()
             
-            print(f"✅ ORM 삭제 성공")
+            print(f"ORM 삭제 성공")
             
             return {
                 "success": True,
@@ -873,11 +873,11 @@ def delete_purchase_request(
             }
             
         except Exception as orm_error:
-            print(f"❌ ORM 삭제 실패: {orm_error}")
+            print(f"ORM 삭제 실패: {orm_error}")
             db.rollback()
             
-            # 🔥 방법 2: 원시 SQL 삭제
-            print(f"🔄 원시 SQL 방식으로 재시도...")
+            # 방법 2: 원시 SQL 삭제
+            print(f" 원시 SQL 방식으로 재시도...")
             
             try:
                 delete_sql = text("DELETE FROM purchase_requests WHERE id = :id")
@@ -885,7 +885,7 @@ def delete_purchase_request(
                 
                 if result.rowcount > 0:
                     db.commit()
-                    print(f"✅ 원시 SQL 삭제 성공")
+                    print(f"원시 SQL 삭제 성공")
                     
                     return {
                         "success": True,
@@ -895,15 +895,15 @@ def delete_purchase_request(
                         "method": "raw_sql_delete"
                     }
                 else:
-                    print(f"❌ 삭제된 행이 없음")
+                    print(f"삭제된 행이 없음")
                     raise Exception("삭제된 행이 없습니다.")
                     
             except Exception as sql_error:
-                print(f"❌ 원시 SQL 삭제도 실패: {sql_error}")
+                print(f"원시 SQL 삭제도 실패: {sql_error}")
                 db.rollback()
                 
-                # 🔥 방법 3: 소프트 삭제
-                print(f"🔄 소프트 삭제로 전환...")
+                # 방법 3: 소프트 삭제
+                print(f" 소프트 삭제로 전환...")
                 
                 try:
                     # is_active 컬럼이 있는지 확인
@@ -917,7 +917,7 @@ def delete_purchase_request(
                     
                     db.commit()
                     
-                    print(f"✅ 소프트 삭제 성공")
+                    print(f"소프트 삭제 성공")
                     
                     return {
                         "success": True,
@@ -928,7 +928,7 @@ def delete_purchase_request(
                     }
                     
                 except Exception as soft_error:
-                    print(f"❌ 소프트 삭제도 실패: {soft_error}")
+                    print(f"소프트 삭제도 실패: {soft_error}")
                     db.rollback()
                     raise HTTPException(
                         status_code=500,
@@ -939,15 +939,15 @@ def delete_purchase_request(
         raise
     except Exception as e:
         db.rollback()
-        print(f"❌ 예상치 못한 삭제 오류: {e}")
+        print(f"예상치 못한 삭제 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스:\n{traceback.format_exc()}")
+        print(f"스택 트레이스:\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"삭제 중 오류가 발생했습니다: {str(e)}"
         )
     finally:
-        print(f"🔥 ===== 삭제 요청 종료 =====\n")
+        print(f"===== 삭제 요청 종료 =====\n")
 
 
 # server/app/api/v1/endpoints/purchase_request.py - project 필드 제거 버전
@@ -956,7 +956,7 @@ def delete_purchase_request(
 def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Depends(get_db)):
     """ Excel 업로드"""
     try:
-        print(f"📁 구매요청 Excel 업로드 시작: {file.filename}")
+        print(f" 구매요청 Excel 업로드 시작: {file.filename}")
         
         # 파일 검증
         if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls')):
@@ -968,7 +968,7 @@ def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Dep
             raise HTTPException(status_code=400, detail="빈 파일입니다.")
         
         df = pd.read_excel(BytesIO(content), engine='openpyxl')
-        print(f"📋 Excel 데이터 로드: {len(df)} 행, 컬럼: {list(df.columns)}")
+        print(f"Excel 데이터 로드: {len(df)} 행, 컬럼: {list(df.columns)}")
         
         # 필수 컬럼 검증
         required_columns = ['품목명', '수량', '요청자명', '부서', '구매사유']
@@ -988,7 +988,7 @@ def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Dep
             try:
                 row_num = index + 2
                 
-                # 🔥 실제 테이블 컬럼에 맞는 필드만 사용
+                # 실제 테이블 컬럼에 맞는 필드만 사용
                 item_name = str(row['품목명']).strip() if pd.notna(row['품목명']) else ''
                 requester_name = str(row['요청자명']).strip() if pd.notna(row['요청자명']) else ''
                 department = str(row['부서']).strip() if pd.notna(row['부서']) else ''
@@ -1052,7 +1052,7 @@ def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Dep
                 now = dt.now()
                 request_number = f"PR{now.strftime('%Y%m%d')}{now.microsecond//1000:03d}"
                 
-                # 🔥 실제 DB 스키마에 맞는 객체 생성 (존재하는 컬럼만)
+                # 실제 DB 스키마에 맞는 객체 생성 (존재하는 컬럼만)
                 new_request = DBPurchaseRequest(
                     request_number=request_number,
                     item_name=item_name,
@@ -1066,26 +1066,26 @@ def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Dep
                     urgency=urgency,
                     purchase_method='DIRECT',
                     requester_name=requester_name,
-                    requester_email=f"{requester_name.replace(' ', '').lower()}@company.com",
+                    requester_email=f"{requester_name.replace(, '').lower()}@company.com",
                     department=department,
                     # position=None,  # 테이블에 없으면 제거
-                    # project=project,  # 🔥 이 필드 제거!
+                    # project=project,  # 이 필드 제거!
                     justification=justification,
                     status='SUBMITTED',
                     request_date=now,
                     is_active=True
                 )
                 
-                print(f"✅ 구매요청 객체 생성: {new_request.item_name}")
+                print(f"구매요청 객체 생성: {new_request.item_name}")
                 
                 db.add(new_request)
                 db.flush()
                 
                 created_requests.append(new_request.request_number)
-                print(f"✅ 구매요청 생성 성공: {new_request.request_number}")
+                print(f"구매요청 생성 성공: {new_request.request_number}")
                     
             except Exception as item_error:
-                print(f"❌ 구매요청 생성 오류 (행 {row_num}): {item_error}")
+                print(f"구매요청 생성 오류 (행 {row_num}): {item_error}")
                 errors.append({
                     "row": row_num,
                     "field": "전체",
@@ -1095,10 +1095,10 @@ def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Dep
         # 커밋
         try:
             db.commit()
-            print(f"💾 {len(created_requests)}개 구매요청 커밋 완료")
+            print(f"{len(created_requests)}개 구매요청 커밋 완료")
         except Exception as commit_error:
             db.rollback()
-            print(f"❌ 커밋 실패: {commit_error}")
+            print(f"커밋 실패: {commit_error}")
             raise HTTPException(status_code=500, detail=f"데이터베이스 저장 실패: {str(commit_error)}")
         
         # 결과 반환
@@ -1111,15 +1111,15 @@ def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Dep
             "errors": errors
         }
         
-        print(f"🎉 구매요청 업로드 완료: {result}")
+        print(f" 구매요청 업로드 완료: {result}")
         return result
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ 구매요청 업로드 오류: {e}")
+        print(f"구매요청 업로드 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"파일 처리 중 오류: {str(e)}")
     
     
@@ -1184,7 +1184,7 @@ def export_purchase_requests_excel(
                     detail="내보낼 구매요청이 없습니다"
                 )
         
-        print(f"📋 내보낼 구매요청 수: {len(requests)}")
+        print(f"내보낼 구매요청 수: {len(requests)}")
         
         # DataFrame 생성
         data = []
@@ -1243,9 +1243,9 @@ def export_purchase_requests_excel(
         today = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"purchase_requests_{today}.xlsx"  # 영문 파일명 사용
         
-        print(f"✅ 구매요청 Excel 내보내기 완료: {filename}")
+        print(f"구매요청 Excel 내보내기 완료: {filename}")
         
-        # 🔥 한글 파일명을 위한 RFC 5987 인코딩 사용
+        # 한글 파일명을 위한 RFC 5987 인코딩 사용
         import urllib.parse
         encoded_filename = urllib.parse.quote(f"구매요청목록_{today}.xlsx".encode('utf-8'))
         
@@ -1258,7 +1258,7 @@ def export_purchase_requests_excel(
         )
             
     except Exception as e:
-        print(f"❌ 구매요청 Excel 내보내기 실패: {e}")
+        print(f"구매요청 Excel 내보내기 실패: {e}")
         import traceback
         print(f"스택 트레이스: {traceback.format_exc()}")
         raise HTTPException(
@@ -1270,7 +1270,7 @@ def export_purchase_requests_excel(
 def download_purchase_request_template():
     """구매 요청 등록용 Excel 템플릿 다운로드 - 개선된 버전"""
     try:
-        print("📝 구매요청 템플릿 생성 시작")
+        print("구매요청 템플릿 생성 시작")
         
         # 상세한 템플릿 데이터
         template_data = {
@@ -1385,9 +1385,9 @@ def download_purchase_request_template():
         today = datetime.now().strftime('%Y%m%d')
         filename = f"purchase_requests_{today}.xlsx"  # 영문 파일명 사용
         
-        print(f"✅ 구매요청 Excel 내보내기 완료: {filename}")
+        print(f"구매요청 Excel 내보내기 완료: {filename}")
         
-        # 🔥 한글 파일명을 위한 RFC 5987 인코딩 사용
+        # 한글 파일명을 위한 RFC 5987 인코딩 사용
         import urllib.parse
         encoded_filename = urllib.parse.quote(f"구매요청목록_{today}.xlsx".encode('utf-8'))
         
@@ -1400,7 +1400,7 @@ def download_purchase_request_template():
         )
         
     except Exception as e:
-        print(f"❌ 구매요청 템플릿 생성 실패: {e}")
+        print(f"구매요청 템플릿 생성 실패: {e}")
         raise HTTPException(status_code=500, detail=f"템플릿 생성에 실패했습니다: {str(e)}")
 
 # server/app/api/v1/endpoints/purchase_request.py 에 추가할 엔드포인트
@@ -1415,8 +1415,8 @@ def complete_purchase_request(
     """
     실제 DB 스키마에 맞는 구매 요청 완료 처리
     """
-    print(f"🔥 구매완료 API 호출 시작: request_id={request_id}")
-    print(f"📥 수신 데이터: {completion_data}")
+    print(f"구매완료 API 호출 시작: request_id={request_id}")
+    print(f"수신 데이터: {completion_data}")
     
     try:
         # 1. 구매 요청 조회
@@ -1424,7 +1424,7 @@ def complete_purchase_request(
         if not purchase_request:
             raise HTTPException(status_code=404, detail="구매 요청을 찾을 수 없습니다.")
         
-        print(f"✅ 구매 요청 조회 성공")
+        print(f"구매 요청 조회 성공")
         
         # 2. 데이터 추출
         item_name = getattr(purchase_request, 'item_name', '품목명 없음')
@@ -1435,14 +1435,14 @@ def complete_purchase_request(
         received_quantity = completion_data.get("received_quantity", quantity)
         unit_price = completion_data.get("unit_price", estimated_price)
         
-        print(f"📊 데이터: {item_name}, 수량={received_quantity}, 단가={unit_price}")
+        print(f"데이터: {item_name}, 수량={received_quantity}, 단가={unit_price}")
         
         # 3. 품목 생성 시도 (실제 스키마에 맞게)
         item_code = f"ITM-{datetime.now().strftime('%Y%m%d')}-{request_id:04d}"
         created_inventory = None
         
         try:
-            print("🏭 품목 생성 시도...")
+            print("품목 생성 시도...")
             
             # 실제 unified_inventory 스키마에 맞는 데이터
             inventory_data = {
@@ -1467,16 +1467,16 @@ def complete_purchase_request(
                 "tags": ["구매완료"]
             }
             
-            print(f"📋 품목 생성 데이터: {inventory_data}")
+            print(f"품목 생성 데이터: {inventory_data}")
             created_inventory = crud.inventory.create(db=db, obj_in=inventory_data)
-            print(f"✅ 품목 생성 성공: ID={created_inventory.id}")
+            print(f"품목 생성 성공: ID={created_inventory.id}")
             
         except Exception as inv_error:
-            print(f"⚠️ 품목 생성 실패 (계속 진행): {inv_error}")
+            print(f" 품목 생성 실패 (계속 진행): {inv_error}")
             db.rollback()  # 품목 생성 실패 시 롤백
         
         # 4. 구매 요청 상태 업데이트 (실제 필드명 사용)
-        print("📝 상태 업데이트 중...")
+        print("상태 업데이트 중...")
         
         try:
             # 실제 스키마에 맞는 업데이트
@@ -1502,7 +1502,7 @@ def complete_purchase_request(
             result = db.execute(update_sql, params)
             
             if result.rowcount > 0:
-                print("✅ 기본 상태 업데이트 완료")
+                print("기본 상태 업데이트 완료")
                 
                 # 품목 ID 연결은 별도 필드가 없으므로 notes에 기록
                 if created_inventory:
@@ -1516,17 +1516,17 @@ def complete_purchase_request(
                             "inventory_note": f"\n[품목 등록] 품목코드: {item_code}, 품목ID: {created_inventory.id}",
                             "id": request_id
                         })
-                        print("✅ 품목 정보 기록 완료")
+                        print("품목 정보 기록 완료")
                     except Exception as note_error:
-                        print(f"⚠️ 품목 정보 기록 실패 (무시): {note_error}")
+                        print(f" 품목 정보 기록 실패 (무시): {note_error}")
                 
                 db.commit()
-                print("✅ 전체 업데이트 완료")
+                print("전체 업데이트 완료")
             else:
                 raise Exception("업데이트된 레코드가 없습니다.")
                 
         except Exception as update_error:
-            print(f"❌ 상태 업데이트 실패: {update_error}")
+            print(f"상태 업데이트 실패: {update_error}")
             db.rollback()
             raise HTTPException(
                 status_code=500,
@@ -1559,15 +1559,15 @@ def complete_purchase_request(
                 "warning": "품목 자동 생성에 실패했습니다."
             })
         
-        print(f"🎉 처리 완료: {response_data}")
+        print(f" 처리 완료: {response_data}")
         return response_data
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"💥 예상치 못한 오류: {e}")
+        print(f"예상치 못한 오류: {e}")
         import traceback
-        print(f"📋 스택 트레이스: {traceback.format_exc()}")
+        print(f"스택 트레이스: {traceback.format_exc()}")
         db.rollback()
         raise HTTPException(
             status_code=500,

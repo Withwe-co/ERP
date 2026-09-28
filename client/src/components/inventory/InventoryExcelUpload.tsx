@@ -486,7 +486,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
   const [showGuide, setShowGuide] = useState(false);
   const [currentStep, setCurrentStep] = useState<'upload' | 'processing' | 'result'>('upload');
 
-  // 🔥 개선된 업로드 Mutation
+  // 개선된 업로드 Mutation
   const uploadMutation = useMutation({
     mutationFn: inventoryApi.uploadExcel,
     onMutate: () => {
@@ -559,7 +559,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
     },
   });
 
-  // 🔥 개선된 템플릿 다운로드 Mutation
+  // 개선된 템플릿 다운로드 Mutation
   const downloadTemplateMutation = useMutation({
     mutationFn: inventoryApi.downloadTemplate,
     onSuccess: () => {
@@ -578,7 +578,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
   const handleFileSelect = useCallback((file: File) => {
     if (!file) return;
     
-    console.log('📁 파일 선택:', file.name, file.size);
+    console.log(' 파일 선택:', file.name, file.size);
     
     // 파일 확장자 검증
     if (!file.name.match(/\.(xlsx|xls)$/i)) {
@@ -616,7 +616,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
       return;
     }
     
-    console.log('🚀 업로드 시작:', selectedFile.name);
+    console.log(' 업로드 시작:', selectedFile.name);
     uploadMutation.mutate(selectedFile);
   }, [selectedFile, uploadMutation]);
 
@@ -677,7 +677,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +  + sizes[i];
   };
 
   return (
@@ -736,7 +736,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
           {/* 템플릿 다운로드 섹션 */}
           <TemplateSection>
             <div className="template-header">
-              <div className="template-title">📋 1단계: Excel 템플릿 다운로드</div>
+              <div className="template-title">1단계: Excel 템플릿 다운로드</div>
               <div className="template-description">
                 먼저 템플릿을 다운로드하여 올바른 형식을 확인하세요. 
                 템플릿에는 필수 컬럼과 샘플 데이터가 포함되어 있습니다.
@@ -774,7 +774,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
                 marginBottom: '12px',
                 color: '#1f2937'
               }}>
-                📤 2단계: Excel 파일 업로드
+                 2단계: Excel 파일 업로드
               </div>
               
               <UploadArea
@@ -806,7 +806,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
                 
                 {selectedFile && (
                   <div className="file-info">
-                    <div className="file-name">📄 {selectedFile.name}</div>
+                    <div className="file-name">{selectedFile.name}</div>
                     <div className="file-size">파일 크기: {formatFileSize(selectedFile.size)}</div>
                   </div>
                 )}
@@ -833,7 +833,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
           {currentStep === 'processing' && (
             <ProgressSection>
               <div className="progress-header">
-                <div className="progress-title">📊 업로드 진행중...</div>
+                <div className="progress-title">업로드 진행중...</div>
                 <div className="progress-percentage">{Math.round(uploadProgress)}%</div>
               </div>
               <div className="progress-bar">
@@ -861,7 +861,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
                   )}
                 </div>
                 <div className="result-title">
-                  {uploadResult.success ? '🎉 업로드 완료!' : '❌ 업로드 실패'}
+                  {uploadResult.success ? ' 업로드 완료!' : '업로드 실패'}
                 </div>
               </div>
 
@@ -926,7 +926,7 @@ const InventoryExcelUpload: React.FC<InventoryExcelUploadProps> = ({
                   {uploadResult.errors.slice(0, 20).map((error, index) => (
                     <div key={index} className="error-item">
                       <div className="error-row">
-                        📍 행 {error.row}
+                         행 {error.row}
                       </div>
                       <div className="error-field">
                         필드: {error.field}

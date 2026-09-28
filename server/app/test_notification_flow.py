@@ -23,7 +23,7 @@ logger = logging.getLogger("NotificationTest")
 
 def run_mock_test():
     logger.info("=========================================")
-    logger.info("🚀 알림톡 통합 Mock 테스트를 시작합니다.")
+    logger.info(" 알림톡 통합 Mock 테스트를 시작합니다.")
     logger.info("=========================================")
 
     # 1. 가상(Mock) 구매요청 데이터 세팅
@@ -73,7 +73,7 @@ def run_mock_test():
     # 6. 결과 검증 (Assertion)
     logger.info("2단계: 결과 검증 중...")
     if result is not None:
-        logger.info("✅ [성공] 알림 서비스가 에러 없이 정상적으로 흐름을 마쳤습니다.")
+        logger.info("[성공] 알림 서비스가 에러 없이 정상적으로 흐름을 마쳤습니다.")
         logger.info(f" -> 발송 요청 ID: {result.request_id}")
         logger.info(f" -> 수신 완료 인원: {result.recipient_count}명")
 
@@ -89,7 +89,7 @@ def run_mock_test():
         assert called_args["recipients"] == ["01012345678", "01098765432"]
         logger.info(" -> 수신자 번호 정규화 검증 완료 (공백 및 하이픈 제거 성공)")
     else:
-        logger.error("❌ [실패] 알림 서비스가 결과를 반환하지 못했습니다. 로그를 분석해 보세요.")
+        logger.error("[실패] 알림 서비스가 결과를 반환하지 못했습니다. 로그를 분석해 보세요.")
 
 
 if __name__ == "__main__":

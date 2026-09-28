@@ -7,7 +7,7 @@ export interface ReceiptComparableItem {
 }
 
 export const normalizeInventoryName = (value?: string) =>
-  (value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ko-KR');
+  (value || '').trim().replace(/\s+/g, ).toLocaleLowerCase('ko-KR');
 
 const normalizeItemCode = (value?: string) => (value || '').trim().toLocaleUpperCase('en-US');
 

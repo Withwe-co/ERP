@@ -1,7 +1,7 @@
 from enum import Enum
 
 class RequestStatus(str, Enum):
-    DRAFT = "DRAFT"                 # 🔥 추가 - 임시저장
+    DRAFT = "DRAFT"                 # 추가 - 임시저장
     SUBMITTED = "SUBMITTED"         # 요청됨
     PENDING_APPROVAL = "PENDING_APPROVAL"  # 승인 대기 (필요시)
     APPROVED = "APPROVED"           # 승인됨

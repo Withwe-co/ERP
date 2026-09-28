@@ -35,9 +35,9 @@ try:
             "ALTER TABLE unified_inventory "
             "ADD COLUMN IF NOT EXISTS deactivation_reason TEXT"
         ))
-    print("✅ 데이터베이스 테이블 생성 완료")
+    print("데이터베이스 테이블 생성 완료")
 except Exception as e:
-    print(f"⚠️ 데이터베이스 연결 오류: {e}")
+    print(f" 데이터베이스 연결 오류: {e}")
 
 app = FastAPI(
     title="Inventory Management System",
@@ -87,7 +87,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 allowed_origins_str = os.getenv("ALLOWED_HOSTS", "http://localhost,http://localhost:80,http://localhost:3001")
 allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]  # strip() 추가로 공백 제거
-print(f"✅ Loaded ALLOWED_ORIGINS: {allowed_origins}")  # 로그 추가 - 서버 시작 시 출력됨
+print(f"Loaded ALLOWED_ORIGINS: {allowed_origins}")  # 로그 추가 - 서버 시작 시 출력됨
 
 # CORS 미들웨어 추가 (기존 유지, 하지만 allow_origins에 * 추가로 테스트)
 app.add_middleware(

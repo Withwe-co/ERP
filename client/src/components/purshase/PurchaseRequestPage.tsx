@@ -88,7 +88,7 @@ interface TableColumn<T> {
 type RequestStatus = 'all' | 'pending' | 'approved' | 'rejected' | 'in_review';
 type UrgencyLevel = 'all' | 'low' | 'normal' | 'high' | 'urgent';
 
-// 🎨 개선된 Styled Components (두 번째 코드에서 가져옴)
+// 개선된 Styled Components (두 번째 코드에서 가져옴)
 const Container = styled.div`
   padding: 24px;
   max-width: 1400px;
@@ -452,7 +452,7 @@ const ConfirmContent = styled.div`
   }
 `;
 
-// 🔥 안전한 구매 요청 개수 조회 훅
+// 안전한 구매 요청 개수 조회 훅
 const usePurchaseRequestCount = () => {
   const [apiConnected, setApiConnected] = useState(false);
   
@@ -460,14 +460,14 @@ const usePurchaseRequestCount = () => {
     queryKey: ['purchase-requests-pending-count'],
     queryFn: async () => {
       try {
-        console.log('🔍 구매 요청 개수 조회 시도...');
+        console.log('구매 요청 개수 조회 시도...');
         
         const response = await purchaseApi.getRequests({
           page: 1,
           limit: 100, // 개수만 확인하므로 적게
         });
         
-        console.log('✅ API 연결 성공:', response);
+        console.log('API 연결 성공:', response);
         setApiConnected(true);
         
         // 완료되지 않은 요청만 필터링
@@ -477,10 +477,10 @@ const usePurchaseRequestCount = () => {
         
         return pendingRequests.length;
       } catch (error) {
-        console.warn('⚠️ API 연결 실패, 샘플 모드로 전환:', error.message);
+        console.warn(' API 연결 실패, 샘플 모드로 전환:', error.message);
         setApiConnected(false);
         
-        // 🔥 샘플 데이터 반환 (데모용)
+        // 샘플 데이터 반환 (데모용)
         return 3; // 샘플: 3개의 미완료 요청
       }
     },
@@ -541,24 +541,24 @@ const PurchaseRequestPage: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 🔥 안정적인 구매완료 처리 (첫 번째 코드의 로직 사용)
+  // 안정적인 구매완료 처리 (첫 번째 코드의 로직 사용)
   const completePurchaseMutation = useMutation({
     mutationFn: async ({ requestId, requestData, existingItem }: {
       requestId: number; 
       requestData: PurchaseRequest;
       existingItem?: UnifiedInventoryItem;
     }) => {
-      console.log('🚀 구매완료 + 품목 등록 시작:', { requestId, requestData });
+      console.log(' 구매완료 + 품목 등록 시작:', { requestId, requestData });
       
       try {
-        // 1️⃣ 먼저 구매 요청 상태를 COMPLETED로 변경
-        console.log('📝 1단계: 구매 요청 상태 업데이트');
+        // 먼저 구매 요청 상태를 COMPLETED로 변경
+        console.log('1단계: 구매 요청 상태 업데이트');
         const updateResult = await purchaseApi.updateRequest(requestId, {
           status: 'COMPLETED',
           completed_date: new Date().toISOString(),
           completed_by: requestData.requester_name
         });
-        console.log('✅ 구매 요청 상태 업데이트 성공:', updateResult);
+        console.log('구매 요청 상태 업데이트 성공:', updateResult);
 
         const inventoryData = {
           item_code: `ITM-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${requestId.toString().padStart(4, '0')}`,
@@ -600,14 +600,14 @@ const PurchaseRequestPage: React.FC = () => {
           };
         }
 
-        // 2️⃣ 품목관리에 새 품목 등록
-        console.log('📦 2단계: 품목관리에 등록');
+        // 품목관리에 새 품목 등록
+        console.log('2단계: 품목관리에 등록');
         
-        console.log('📤 품목 등록 데이터:', inventoryData);
+        console.log(' 품목 등록 데이터:', inventoryData);
         
         // 품목관리 API 호출 (inventoryApi 사용)
         const inventoryResult = await inventoryApi.createItem(inventoryData);
-        console.log('✅ 품목 등록 성공:', inventoryResult);
+        console.log('품목 등록 성공:', inventoryResult);
 
         return {
           success: true,
@@ -619,11 +619,11 @@ const PurchaseRequestPage: React.FC = () => {
         };
 
       } catch (error) {
-        console.error('❌ 처리 중 오류:', error);
+        console.error('처리 중 오류:', error);
         
         // 부분 실패 처리: 구매 요청은 성공했지만 품목 등록 실패
         if (error.message?.includes('inventory') || error.response?.status) {
-          console.warn('⚠️ 품목 등록 실패, 구매 요청만 완료됨');
+          console.warn(' 품목 등록 실패, 구매 요청만 완료됨');
           return {
             success: true,
             partial_success: true,
@@ -638,7 +638,7 @@ const PurchaseRequestPage: React.FC = () => {
       }
     },
     
-    // 🔥 재시도 설정 추가
+    // 재시도 설정 추가
     retry: (failureCount, error: any) => {
       // 최대 2번까지만 재시도
       if (failureCount >= 2) return false;
@@ -648,7 +648,7 @@ const PurchaseRequestPage: React.FC = () => {
                          error.response?.data?.detail?.includes('transaction is aborted');
       
       if (shouldRetry) {
-        console.log(`🔄 재시도 ${failureCount + 1}/2`);
+        console.log(` 재시도 ${failureCount + 1}/2`);
         return true;
       }
       
@@ -659,7 +659,7 @@ const PurchaseRequestPage: React.FC = () => {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
 
     onSuccess: async (result, variables) => {
-      console.log('🎉 구매완료 처리 결과:', result);
+      console.log(' 구매완료 처리 결과:', result);
       /* 동일 품목 조회 기능(중단)
       setPendingCompletionRequest(null);
       setSimilarInventoryItems([]);
@@ -697,7 +697,7 @@ const PurchaseRequestPage: React.FC = () => {
           toast.success(
             result.inventory_merged
               ? `구매완료! 새 품목(${result.inventory_item_code})으로 등록되며 수령관리에서는 동일 품목으로 누적됩니다.`
-              : `🎉 구매완료! 품목코드: ${result.inventory_item_code}로 등록되었습니다.`,
+              : ` 구매완료! 품목코드: ${result.inventory_item_code}로 등록되었습니다.`,
             { autoClose: 5000, position: 'top-center' }
           );
           
@@ -709,7 +709,7 @@ const PurchaseRequestPage: React.FC = () => {
           );
         }
         
-        // 🔥 쿼리 새로고침을 순차적으로 실행 (동시성 문제 방지)
+        // 쿼리 새로고침을 순차적으로 실행 (동시성 문제 방지)
         await queryClient.invalidateQueries({ queryKey: ['purchase-requests'] });
         await new Promise(resolve => setTimeout(resolve, 200));
         
@@ -733,7 +733,7 @@ const PurchaseRequestPage: React.FC = () => {
     },
     
     onError: (error: any) => {
-      console.error('❌ 구매완료 처리 실패:', error);
+      console.error('구매완료 처리 실패:', error);
       
       // 에러 메시지 추출 및 개선
       let errorMessage = '구매완료 처리 중 오류가 발생했습니다.';
@@ -743,7 +743,7 @@ const PurchaseRequestPage: React.FC = () => {
       } else if (error.response?.data?.detail) {
         // 트랜잭션 오류 메시지 개선
         if (error.response.data.detail.includes('transaction is aborted')) {
-          errorMessage = '⚠️ 데이터베이스 처리 중 문제가 발생했습니다.\n\n잠시 후 다시 시도하거나, 지속적으로 문제가 발생하면 관리자에게 문의해주세요.';
+          errorMessage = ' 데이터베이스 처리 중 문제가 발생했습니다.\n\n잠시 후 다시 시도하거나, 지속적으로 문제가 발생하면 관리자에게 문의해주세요.';
         } else {
           errorMessage = error.response.data.detail;
         }
@@ -763,16 +763,16 @@ const PurchaseRequestPage: React.FC = () => {
   // 삭제 Mutation
 const deleteMutation = useMutation({
   mutationFn: async (requestId: number) => {
-    console.log(`🔥 삭제 API 호출 시작: ID=${requestId}`);
+    console.log(`삭제 API 호출 시작: ID=${requestId}`);
     
     try {
-      // 🔥 purchaseApi.deleteRequest 사용
+      // purchaseApi.deleteRequest 사용
       const response = await purchaseApi.deleteRequest(requestId);
-      console.log('✅ 삭제 API 성공:', response);
+      console.log('삭제 API 성공:', response);
       return response;
     } catch (error: any) {
-      console.error('❌ 삭제 API 실패:', error);
-      console.error('❌ 에러 상세:', {
+      console.error('삭제 API 실패:', error);
+      console.error('에러 상세:', {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message
@@ -782,7 +782,7 @@ const deleteMutation = useMutation({
   },
   
   onSuccess: (data, requestId) => {
-    console.log('🎉 삭제 성공 처리:', data);
+    console.log(' 삭제 성공 처리:', data);
     
     // 성공 메시지
     const itemName = data.deleted_item || '구매 요청';
@@ -792,13 +792,13 @@ const deleteMutation = useMutation({
       autoClose: 3000
     });
     
-    // 🔥 캐시에서 해당 항목 제거 (즉시 UI 업데이트)
+    // 캐시에서 해당 항목 제거 (즉시 UI 업데이트)
     queryClient.setQueryData(['purchase-requests', currentPage, filters], (oldData: any) => {
       if (!oldData?.data?.items) return oldData;
       
       const newItems = oldData.data.items.filter((item: any) => item.id !== requestId);
       
-      console.log(`📋 캐시 업데이트: ${oldData.data.items.length} → ${newItems.length}`);
+      console.log(`캐시 업데이트: ${oldData.data.items.length} → ${newItems.length}`);
       
       return {
         ...oldData,
@@ -810,7 +810,7 @@ const deleteMutation = useMutation({
       };
     });
     
-    // 🔥 통계 캐시도 업데이트
+    // 통계 캐시도 업데이트
     queryClient.setQueryData(['purchase-requests-stats'], (oldStats: any) => {
       if (!oldStats?.data) return oldStats;
       
@@ -823,16 +823,16 @@ const deleteMutation = useMutation({
       };
     });
     
-    // 🔥 1초 후 새로고침 (확실한 동기화)
+    // 1초 후 새로고침 (확실한 동기화)
     setTimeout(() => {
-      console.log('🔄 캐시 새로고침 실행');
+      console.log(' 캐시 새로고침 실행');
       queryClient.invalidateQueries({ queryKey: ['purchase-requests'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-requests-stats'] });
     }, 1000);
   },
   
   onError: (error: any, requestId) => {
-    console.error('❌ 삭제 실패 처리:', error);
+    console.error('삭제 실패 처리:', error);
     
     // 구체적인 에러 메시지
     let errorMessage = '삭제 중 오류가 발생했습니다.';
@@ -970,9 +970,9 @@ const deleteMutation = useMutation({
         
         return (
           <ActionButtonGroup>
-            {/* 🔥 완료 상태와 품목 등록 여부에 따른 버튼 표시 */}
+            {/* 완료 상태와 품목 등록 여부에 따른 버튼 표시 */}
             {item.status === 'CANCELLED' ? (
-              // ❌ 취소됨 (버튼 비활성화)
+              // 취소됨 (버튼 비활성화)
               <Button
                 size="sm"
                 variant="outline"
@@ -989,7 +989,7 @@ const deleteMutation = useMutation({
               </Button>
             ) : isCompleted ? (
               hasInventoryItem ? (
-                // ✅ 완전 완료 (품목까지 등록됨)
+                // 완전 완료 (품목까지 등록됨)
                 <Button
                   size="sm"
                   variant="outline"
@@ -1010,7 +1010,7 @@ const deleteMutation = useMutation({
                   완료됨
                 </Button>
               ) : (
-                // ⚠️ 부분 완료 (구매만 완료, 품목 등록 안됨)
+                //  부분 완료 (구매만 완료, 품목 등록 안됨)
                 <Button
                   size="sm"
                   variant="outline"
@@ -1022,7 +1022,7 @@ const deleteMutation = useMutation({
                 </Button>
               )
             ) : (
-              // 🟢 미완료 - 구매완료 버튼
+              // 미완료 - 구매완료 버튼
               <Button
                 size="sm"
                 variant="success"
@@ -1080,22 +1080,22 @@ const deleteMutation = useMutation({
 
 const handleDelete = async (requestId: number) => {
   try {
-    console.log(`🗑️ 구매 요청 삭제 시작: ID=${requestId}`);
+    console.log(`구매 요청 삭제 시작: ID=${requestId}`);
     
     // 사용자 확인
-    const confirmMessage = `정말로 이 구매 요청을 삭제하시겠습니까?\n\nID: ${requestId}\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`;
+    const confirmMessage = `정말로 이 구매 요청을 삭제하시겠습니까?\n\nID: ${requestId}\n\n 이 작업은 되돌릴 수 없습니다.`;
     
     if (!window.confirm(confirmMessage)) {
-      console.log('🚫 사용자가 삭제를 취소함');
+      console.log('사용자가 삭제를 취소함');
       return;
     }
     
     // 삭제 실행
-    console.log(`🗑️ 삭제 API 호출: ID=${requestId}`);
+    console.log(`삭제 API 호출: ID=${requestId}`);
     await deleteMutation.mutateAsync(requestId);
     
   } catch (error: any) {
-    console.error('❌ 삭제 처리 중 오류:', error);
+    console.error('삭제 처리 중 오류:', error);
     
     // 에러 메시지 처리
     let errorMessage = '삭제 중 오류가 발생했습니다.';
@@ -1205,7 +1205,7 @@ const handleBulkReset = async () => {
   }
 };
 
-  // 🔥 개선된 새로고침 함수
+  // 개선된 새로고침 함수
   const handleRefresh = async () => {
     try {
       // 순차적으로 새로고침 (동시성 문제 방지)
@@ -1244,20 +1244,20 @@ const handleBulkReset = async () => {
   };
 
   const handlePurchaseComplete = (request: PurchaseRequest) => {
-    console.log('🔄 구매완료 처리 요청:', request);
+    console.log(' 구매완료 처리 요청:', request);
     setConfirmingItem(request);
   };
 
-  // 🔥 개선된 구매완료 확인 함수
+  // 개선된 구매완료 확인 함수
   const confirmPurchaseComplete = async () => {
     if (!confirmingItem) return;
     
-    console.log('🆕 구매완료 + 품목등록 처리 시작');
+    console.log(' 구매완료 + 품목등록 처리 시작');
     
     try {
       // 중복 클릭 방지
       if (completePurchaseMutation.isPending) {
-        console.log('⚠️ 이미 처리 중입니다.');
+        console.log(' 이미 처리 중입니다.');
         return;
       }
       /* 동일 품목 조회 기능(중단)
@@ -1321,7 +1321,7 @@ const handleBulkReset = async () => {
     this_month: 0,
   };
 
-  // 🔥 통계 계산 (실제 API 데이터와 현재 데이터 모두 사용)
+  // 통계 계산 (실제 API 데이터와 현재 데이터 모두 사용)
   const totalRequests = stats?.total || requests.length || 0;
   const completedRequests = stats?.approved || requests.filter(req => req.status === 'COMPLETED').length || 0;
   const pendingRequests = stats?.pending || requests.filter(req => req.status === 'SUBMITTED' || req.status === 'PENDING').length || 0;
@@ -1367,7 +1367,7 @@ const handleBulkReset = async () => {
         </PageSubtitle>
       </PageHeader>
 
-      {/* 🎨 개선된 통계 카드 (두 번째 코드 스타일) */}
+      {/* 개선된 통계 카드 (두 번째 코드 스타일) */}
       <StatsContainer>
         <StatCard $color="#3b82f6">
           <div className="stat-header">
@@ -1632,13 +1632,13 @@ const handleBulkReset = async () => {
               }}>
                 <div>
                   <div style={{ fontWeight: 700, marginBottom: '6px' }}>
-                    {item.item_name}{' '}
+                    {item.item_name}{}
                     {exactMatch && <span style={{ color: '#2563eb', fontSize: '0.8rem' }}>(동일 품목)</span>}
                   </div>
                   <div style={{ color: '#6b7280', fontSize: '0.9rem', lineHeight: 1.5 }}>
                     코드: {item.item_code} · 브랜드: {item.brand || '-'}<br />
                     규격/모델: {item.specifications || '-'} · 단위: {item.unit}<br />
-                    현재 재고: {(item.current_quantity || 0).toLocaleString()} / 구매 수량:{' '}
+                    현재 재고: {(item.current_quantity || 0).toLocaleString()} / 구매 수량:{}
                     {(pendingCompletionRequest?.quantity || 0).toLocaleString()}
                   </div>
                 </div>
@@ -1688,8 +1688,8 @@ const handleBulkReset = async () => {
             </div>
             
             <div className="confirm-message" style={{ color: '#10b981', fontWeight: 'bold' }}>
-              ✨ 1) 구매 요청 상태를 '완료'로 변경<br/>
-              ✨ 2) 품목관리에 자동 등록 후 해당 페이지로 이동
+               1) 구매 요청 상태를 '완료'로 변경<br/>
+               2) 품목관리에 자동 등록 후 해당 페이지로 이동
             </div>
             
             <div className="item-info">
