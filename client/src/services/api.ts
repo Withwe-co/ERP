@@ -515,26 +515,25 @@ export interface ReportPendingAttachment {
   id: string;
   file: File;
 }
+
+// 관리자 보고서 다운로드 요청에 사용할 조건
+export interface ReportDownloadParams {
+  weekStarts: string[];
+  employeeIds: number[];
+  includeDaily: boolean;
+  includeWeekly: boolean;
+  includeAttachments: boolean;
+}
+
 // 태스크 관리 API
 export const taskApi = {
-  createTask: async (
-    data: TaskCreateData,
-    images: File[],
-  ): Promise<TaskCreateResponse> => {
+  createTask: async (data: TaskCreateData, images: File[],): Promise<TaskCreateResponse> => {
     try {
-      const formData = createTaskCreateFormData(
-        data,
-        images,
-      );
-
+      const formData = createTaskCreateFormData(data, images,);
       const response = await api.post(
         "/tasks/",
         formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        },
+        {headers: {"Content-Type": "multipart/form-data",},},
       );
 
       return response.data;
@@ -571,35 +570,21 @@ export const taskApi = {
   },
 
   // 태스크의 기존 이미지 유지 목록과 신규 이미지를 저장
-  updateTaskImages: async (
-    taskId: number,
-    keptImageUrls: string[],
-    newImages: File[],
-  ): Promise<{
+  updateTaskImages: async (taskId: number, keptImageUrls: string[], newImages: File[],): Promise<{
     image_urls: string[];
   }> => {
     try {
-      const formData = createTaskImageFormData(
-        keptImageUrls,
-        newImages,
-      );
+      const formData = createTaskImageFormData(keptImageUrls, newImages,);
 
       const response = await api.put(
         `/tasks/${taskId}/images`,
         formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        },
+        {headers: {"Content-Type": "multipart/form-data",},},
       );
 
       return response.data;
     } catch (error) {
-      console.error(
-        "태스크 이미지 저장 실패:",
-        error,
-      );
+      console.error("태스크 이미지 저장 실패:", error,);
       throw error;
     }
   },
@@ -2212,6 +2197,24 @@ export const EmployeeApi = {
     return { data: response };
   },
 
+  // 보고서 다운로드 등 전체 팀원 목록이 필요한 경우 사용
+  getAllEmployees: async (): Promise<Employee[]> => {
+    const allEmployees: Employee[] = [];
+    const size = 100;
+
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const response = await apiRequest.get('/employees/', {page, size,},);
+      allEmployees.push(...(response.items ?? []),);
+      totalPages = response.pages ?? 1;
+      page += 1;
+    } while (page <= totalPages);
+
+    return allEmployees;
+  },
+
 };
 
 // Leaves Api
@@ -2300,6 +2303,35 @@ export const reportApi = {
       daily_period_start: dailyPeriodStart,
       weekly_period_start: weeklyPeriodStart,
     });
+  },
+
+  // 관리자 화면에서 선택한 조건에 따라 보고서 PDF 또는 ZIP 다운로드
+  downloadReports: async (params: ReportDownloadParams,): Promise<{
+    blob: Blob;
+    contentType: string;
+    contentDisposition?: string;
+  }> => {
+    // 여러 주차와 여러 직원을 전달해야 하므로 query parameter 대신 JSON body를 사용하는 POST 요청으로 처리
+    const response = await api.post(
+      '/reports/export/download',
+      {
+        week_starts: params.weekStarts,
+        employee_ids: params.employeeIds,
+        include_daily: params.includeDaily,
+        include_weekly: params.includeWeekly,
+        include_attachments: params.includeAttachments,
+      },
+      {
+        responseType: 'blob',
+      },
+    );
+
+    return {
+      blob: response.data,
+      // Axios 응답 헤더 값을 문자열로 변환
+      contentType: response.headers['content-type']?.toString() ?? '',
+      contentDisposition: response.headers['content-disposition']?.toString(),
+    };
   },
 
   // 보고서 수정

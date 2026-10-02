@@ -7,6 +7,7 @@ import Button from '../common/Button';
 import Card from '../common/Card';
 import { holidayApi, KoreanHoliday, LeavesApi, ReportWithEmployee, reportApi } from '../../services/api';
 import AdminReportList from './AdminReportList';
+import ReportDownloadModal, {ReportDownloadOptions,} from './ReportDownloadModal';
 
 // 기존 휴가 API가 반환하는 캘린더 일정의 표시 필드
 interface LeaveEvent {
@@ -51,6 +52,15 @@ const CardWrapper = styled.div`
   gap: 24px;
 `;
 
+// 뒤로 가기 버튼과 보고서 다운로드 버튼을 양쪽 끝에 배치
+const TopActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  button {height: 40px; display: flex; align-items: center; justify-content: center;
+  }
+`;
+
 // 주간 보고서와 같은 월~금 달력 및 공휴일·휴가 표시 스타일
 const CalendarCard = styled(Card)`
   padding: 0;
@@ -65,10 +75,7 @@ const CalendarCard = styled(Card)`
     font-size: 1.05rem;
   }
 
-  .week-grid {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
+  .week-grid {display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));}
 
   .day-cell {
     min-height: 128px;
@@ -78,34 +85,12 @@ const CalendarCard = styled(Card)`
     color: ${props => props.theme.colors.text};
   }
 
-  .day-cell.holiday {
-    background: #fef2f2;
-    color: #dc2626;
-  }
-
-  .day-cell:last-child {
-    border-right: none;
-  }
-
-  .day-label {
-    margin-bottom: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  .date-label {
-    font-size: 1.35rem;
-    font-weight: 700;
-  }
-
-  .holiday-name, .leave-list {
-    margin-top: 10px;
-    font-size: 0.85rem;
-  }
-
-  .holiday-name {
-    font-weight: 600;
-  }
+  .day-cell.holiday {background: #fef2f2; color: #dc2626;}
+  .day-cell:last-child {border-right: none;}
+  .day-label {margin-bottom: 6px; font-size: 0.85rem; font-weight: 600;}
+  .date-label {font-size: 1.35rem; font-weight: 700;}
+  .holiday-name, .leave-list {margin-top: 10px; font-size: 0.85rem;}
+  .holiday-name {font-weight: 600;}
 
   .leave-list {
     display: flex;
@@ -115,9 +100,7 @@ const CalendarCard = styled(Card)`
   }
 
   @media (max-width: 640px) {
-    .week-grid {
-      grid-template-columns: 1fr;
-    }
+    .week-grid {grid-template-columns: 1fr;}
 
     .day-cell {
       min-height: 72px;
@@ -159,6 +142,9 @@ const TabContent = styled.div`
 const AdminReportPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
+  const [isDownloadModalOpen, setIsDownloadModalOpen,] = useState(false);
+  // PDF 또는 ZIP 파일 생성 및 다운로드 진행 여부
+  const [isDownloading, setIsDownloading,] = useState(false);
   const { dailyPeriodStart, weeklyPeriodStart } = useMemo(getAdminReportDates, []);
 
   // 기존 주간 보고서와 같은 월요일부터 금요일까지의 날짜를 생성
@@ -211,14 +197,74 @@ const AdminReportPage: React.FC = () => {
 
   const periodLabel = `${activeTab === 'daily' ? dailyPeriodStart : weeklyPeriodStart} ${activeTab === 'daily' ? '일일' : '주간'}`;
 
+  // 선택한 조건으로 보고서 파일을 생성하고 브라우저 다운로드를 시작
+  const handleReportDownload = async (options: ReportDownloadOptions,) => {
+    try {
+      setIsDownloading(true);
+
+      const {
+        blob,
+        contentType,
+        contentDisposition,
+      } = await reportApi.downloadReports(options);
+
+      // 서버가 파일명을 응답한 경우 해당 파일명을 우선 사용
+      const encodedFileName =
+        contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i,)?.[1];
+
+      const basicFileName =
+        contentDisposition?.match(/filename="?([^";]+)"?/i,)?.[1];
+
+      // 응답 헤더에 파일명이 없을 경우 사용할 기본 파일명 생성
+      // 여러 주차가 선택된 경우 첫 주의 월요일부터 마지막 주의 금요일까지 표시
+      const sortedWeekStarts = [...options.weekStarts,].sort();
+      const firstWeekStart = sortedWeekStarts[0];
+      const lastWeekStart = sortedWeekStarts[sortedWeekStarts.length - 1];
+      const lastMonday = new Date(`${lastWeekStart}T00:00:00`,);
+      const lastFriday = new Date(lastMonday);
+
+      lastFriday.setDate(lastMonday.getDate() + 4,);
+
+      const lastWeekEnd = formatReportDate(lastFriday);
+      const extension = contentType.includes('zip') ? 'zip' : 'pdf';
+      const fallbackFileName = `업무보고_${firstWeekStart}_${lastWeekEnd}.${extension}`;
+      const fileName = encodedFileName ? decodeURIComponent(encodedFileName) : basicFileName || fallbackFileName;
+
+      // 서버에서 받은 Blob을 임시 URL로 만들어 다운로드 처리
+      const downloadUrl =URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+
+      link.href = downloadUrl;
+      link.download = fileName;
+
+      document.body.appendChild(link);
+
+      link.click();
+      link.remove();
+
+      // 브라우저가 다운로드를 시작한 뒤 임시 URL 해제
+      URL.revokeObjectURL(downloadUrl);
+
+      setIsDownloadModalOpen(false);
+    } catch (error) {
+      console.error('보고서 다운로드 실패:', error,);
+      window.alert('보고서 다운로드 중 오류가 발생했습니다.',);
+    } finally {setIsDownloading(false);}
+  };
+
   return (
     <Container>
       <CardWrapper>
-        <div>
+        <TopActions>
           <Button variant="outline" onClick={() => navigate('/reports')}>
             뒤로 가기
           </Button>
-        </div>
+
+          <Button onClick={() => setIsDownloadModalOpen(true)}>
+            보고서 다운로드
+          </Button>
+        </TopActions>
         <Card>
           <CalendarCard>
             <h3 className="calendar-title">{weekTitle}</h3>
@@ -272,6 +318,13 @@ const AdminReportPage: React.FC = () => {
           </TabContent>
         </Card>
       </CardWrapper>
+
+      <ReportDownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() =>setIsDownloadModalOpen(false)}
+        onDownload={handleReportDownload}
+        isDownloading={isDownloading}
+      />
     </Container>
   );
 };

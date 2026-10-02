@@ -1066,7 +1066,7 @@ def bulk_upload_purchase_requests(file: UploadFile = File(...),db: Session = Dep
                     urgency=urgency,
                     purchase_method='DIRECT',
                     requester_name=requester_name,
-                    requester_email=f"{requester_name.replace(, '').lower()}@company.com",
+                    requester_email=f"{requester_name.replace(' ', '').lower()}@company.com",
                     department=department,
                     # position=None,  # 테이블에 없으면 제거
                     # project=project,  # 이 필드 제거!
