@@ -9,6 +9,8 @@ data
 /dist
 /client/dist
 /client/logs/nginx/access.log
+# Local attendance validation dependencies
+.codex-attendance-deps/
 # Python local environment
 server/.venv/
 server/.pytest_cache/
@@ -24,3 +26,8 @@ package-lock.json
 package.json
 
 uploads/report_attachments
+
+# CAPS PC runtime settings and logs
+/tools
+
+/server/tests/

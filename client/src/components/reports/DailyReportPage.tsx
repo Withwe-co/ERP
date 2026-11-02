@@ -14,6 +14,7 @@ import CreateReportForm from './CreateReportForm';
 import DailyReportDetail, {DailyReportDetailData,} from './DailyReportDetail';
 
 import {
+  attendanceApi,
   holidayApi,
   KoreanHoliday,
   LeavesApi,
@@ -142,6 +143,23 @@ const DayCellContent = styled.div`
   box-sizing: border-box;
 `;
 
+const AttendanceTimes = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #334155;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+`;
+
+const AttendanceMessage = styled.div`
+  margin-bottom: 12px;
+  color: #475569;
+  font-size: 0.88rem;
+  button { margin-left: 8px; cursor: pointer; }
+`;
+
 const DayNumber = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -242,6 +260,19 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
     queryFn: () => reportApi.getDailyCalendarStatus(Number(employeeId), calendarRange.start, calendarRange.end,),
     enabled: Boolean(calendarRange.start && calendarRange.end),
   });
+
+  const {
+    data: attendanceDays = [],
+    isLoading: isAttendanceLoading,
+    isError: isAttendanceError,
+    refetch: refetchAttendance,
+  } = useQuery({
+    queryKey: ['attendance-calendar', employeeId, calendarRange.start, calendarRange.end],
+    queryFn: () => attendanceApi.getCalendar(Number(employeeId), calendarRange.start, calendarRange.end),
+    enabled: Boolean(employeeId && calendarRange.start && calendarRange.end),
+  });
+
+  const attendanceByDate = useMemo( () => new Map(attendanceDays.map(record => [record.work_date, record])), [attendanceDays]);
 
   const completedReportDates = useMemo(() =>
       new Set(
@@ -382,6 +413,16 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
       </PageHeader>
 
       <CalendarCard>
+        {isAttendanceError ? (
+          <AttendanceMessage role="alert">
+            출퇴근 기록을 불러오지 못했습니다.
+            <button type="button" onClick={() => refetchAttendance()}>다시 불러오기</button>
+          </AttendanceMessage>
+        ) : isAttendanceLoading ? (
+          <AttendanceMessage role="status">출퇴근 기록을 불러오는 중입니다.</AttendanceMessage>
+        ) : attendanceDays.length === 0 ? (
+          <AttendanceMessage>표시 기간에 저장된 출퇴근 기록이 없습니다.</AttendanceMessage>
+        ) : null}
         <CalendarScroll>
           <CalendarContainer>
             <FullCalendar
@@ -456,14 +497,23 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
                 }
 
                 const dayStatus = getDayStatus(dateKey);
+                const attendance = isAttendanceError ? undefined : attendanceByDate.get(dateKey);
 
                 return (
                   <DayCellContent>
                     <DayNumber>{info.date.getDate()}</DayNumber>
 
-                    <StatusBadge $status={dayStatus.status}>
-                      {dayStatus.label}
-                    </StatusBadge>
+                    {(holidayName || !isWeekend) && (
+                      <StatusBadge $status={dayStatus.status}>
+                        {dayStatus.label}
+                      </StatusBadge>
+                    )}
+                    {attendance && (
+                      <AttendanceTimes>
+                        <span>[출근] {attendance.check_in.slice(0, 5)}</span>
+                        <span>[퇴근] {attendance.check_out.slice(0, 5)}</span>
+                      </AttendanceTimes>
+                    )}
                   </DayCellContent>
                 );
               }}

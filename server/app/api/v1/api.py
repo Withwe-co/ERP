@@ -13,10 +13,12 @@ from app.api.v1.endpoints import (
     employees,
     leaves,
     reports,
+    attendance,
 )
 
 
 api_router = APIRouter()
+api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 
 # 재고 관리 엔드포인트
 api_router.include_router(
