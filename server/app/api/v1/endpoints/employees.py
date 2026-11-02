@@ -1,10 +1,11 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response,Request
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.schemas.employees import (UpdateEmployee,EmployeesList,EmployeeInDB)
+from app.schemas.employees import (UpdateEmployee,EmployeesList,EmployeeInDB,normalize_caps_user_id,normalize_department)
 
 from app.models.employees import Employees as DBEmployee
 
@@ -104,8 +105,18 @@ def create_employee(*, request: Request, db:Session=Depends(get_db), background_
         if int(request_in['used_leave']) > int(request_in['total_leave']):
             raise HTTPException(status_code=422, detail="사용한 휴가일수는 총 휴가일수를 초과할 수 없습니다.")
 
+        try:
+            caps_user_id = normalize_caps_user_id(request_in.get('caps_user_id'))
+            department = normalize_department(request_in.get('department'))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        if caps_user_id and db.query(DBEmployee).filter(DBEmployee.caps_user_id == caps_user_id).first():
+            raise HTTPException(status_code=409, detail='이미 다른 직원에게 등록된 캡스 사용자 ID입니다.')
+
         # 데이터 생성
         safe_data = {
+            'caps_user_id': caps_user_id,
+            'department': department,
             'name': str(request_in['name']).strip(),
             'position': str(request_in['position']).strip(),
             'total_leave': int(request_in['total_leave']),
@@ -138,6 +149,10 @@ def create_employee(*, request: Request, db:Session=Depends(get_db), background_
 
     except HTTPException:
         raise
+
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail='이미 등록된 직원 정보 또는 캡스 사용자 ID입니다.') from exc
 
     except Exception as e:
         db.rollback()
@@ -178,6 +193,10 @@ def update_employee(employee_id: int,request_in: UpdateEmployee,db:Session=Depen
         # 실제로 전달된 항목만 추출
         update_data = request_in.model_dump(exclude_unset=True)
 
+        caps_user_id = update_data.get('caps_user_id')
+        if caps_user_id and db.query(DBEmployee).filter(DBEmployee.caps_user_id == caps_user_id, DBEmployee.id != employee_id).first():
+            raise HTTPException(status_code=409, detail='이미 다른 직원에게 등록된 캡스 사용자 ID입니다.')
+
         # 실제로 변경된 부분 확인
         changed_data = {
             field: value
@@ -206,6 +225,10 @@ def update_employee(employee_id: int,request_in: UpdateEmployee,db:Session=Depen
     except HTTPException:
             raise
     
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail='이미 등록된 직원 정보 또는 캡스 사용자 ID입니다.') from exc
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"팀원 수정 중 오류가 발생했습니다: {str(e)}")

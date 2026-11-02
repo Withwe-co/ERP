@@ -20,6 +20,8 @@ import queryClient from '@/hooks/queryClient';
 
 interface EmployeeList {
     id: number;
+    department?: string | null;
+    caps_user_id?: string | null;
     name: string;
     position: string;
     total_leave: number;
@@ -142,6 +144,24 @@ const EmployeesPage: React.FC = () => {
           <div>{value}</div>
         </div>
       )
+    },
+    {
+      key: 'department',
+      label: '부서',
+      width: '160px',
+      align: 'center',
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
+          <div>{value || '미지정'}</div>
+        </div>
+      )
+    },
+    {
+      key: 'caps_user_id',
+      label: '캡스 사용자 ID',
+      width: '150px',
+      align: 'center',
+      render: value => value || '미등록',
     },
     {
       key: 'position',
