@@ -6,3 +6,26 @@ data
 *.jpeg
 *.gif
 *.log
+/dist
+/client/dist
+/client/logs/nginx/access.log
+
+# Python local environment
+server/.venv/
+server/.pytest_cache/
+/client/dist/index.html
+/logs/nginx/access.log
+/logs/nginx/error.log
+
+.env
+.env.*
+!.env.example
+
+package-lock.json
+package.json
+
+uploads/report_attachments
+
+
+/tools
+/server/tests/

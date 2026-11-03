@@ -1,0 +1,82 @@
+import {TaskCreateData,TaskResponse,} from "../../../types/task";
+
+// 태스크 등록 데이터를 검증하고,
+// 문제가 있으면 사용자에게 표시할 오류 메시지를 반환
+export function validateTaskCreateData(
+  task: TaskCreateData,
+  projectStartDate?: string,
+  projectDueDate?: string,
+): string | null {
+
+    // 태스크명은 필수이며 공백만 입력하는 것도 허용하지 않음
+    if (!task.task_name.trim()) {return "태스크명을 입력해주세요.";}
+
+    // WBS명은 반드시 선택해야 함
+    if (!task.wbs_code.trim()) {return "WBS명을 선택해주세요.";}
+
+    // 담당 부서는 반드시 선택해야 함
+    if (!task.department.trim()) {return "담당 부서명을 선택해주세요.";}
+
+    // 담당자명은 필수이며 공백만 입력하는 것도 허용하지 않음
+    if (!task.assignee_name.trim()) {return "담당자명을 입력해주세요.";}
+
+    // 우선순위는 반드시 선택해야 함
+    if (!task.priority) {return "우선순위를 선택해주세요.";}
+
+    // 상태는 반드시 선택해야 함
+    if (!task.status) {return "상태를 선택해주세요.";}
+
+    // 시작예정일은 반드시 선택해야 함
+    if (!task.planned_start_date) {return "시작예정일을 선택해주세요.";}
+
+    // 완료예정일은 반드시 선택해야 함
+    if (!task.planned_end_date) {return "완료예정일을 선택해주세요.";}
+
+    // 프로젝트 기간이 전달된 경우 기간 밖 날짜는 허용하지 않음
+    if (
+      projectStartDate &&
+      projectDueDate &&
+      (
+        task.planned_start_date < projectStartDate ||
+        task.planned_start_date > projectDueDate ||
+        task.planned_end_date < projectStartDate ||
+        task.planned_end_date > projectDueDate
+      )
+    ) {
+      return (
+        `프로젝트 기간(${projectStartDate} ~ ${projectDueDate})을 ` +
+        "벗어난 날짜는 선택할 수 없습니다."
+      );
+    }
+
+    // 완료 예정일은 시작 예정일보다 빠를 수 없음
+    if (task.planned_start_date > task.planned_end_date) {return "완료 예정일은 시작 예정일보다 빠를 수 없습니다.";}
+
+    // 검증을 모두 통과하면 오류 없음
+    return null;
+}
+
+// 수정 전 태스크와 현재 입력값을 비교하여
+// 실제 변경된 값이 있는지 확인
+export function hasTaskChanges(originalTask: TaskResponse, currentTask: TaskCreateData,): boolean {
+  const fields: (keyof TaskCreateData)[] = [
+    "project_id",
+    "wbs_code",
+    "task_name",
+    "assignee_name",
+    "department",
+    "priority",
+    "status",
+    "planned_start_date",
+    "planned_end_date",
+    "description",
+    "note",
+  ];
+
+  return fields.some((field) => {
+    const originalValue = originalTask[field] ?? "";
+    const currentValue = currentTask[field] ?? "";
+    
+    return originalValue !== currentValue;
+  });
+}

@@ -14,7 +14,7 @@ interface PurchaseRequestFiltersProps {
   onFilter: (filters: SearchFilters) => void;
 }
 
-// 🎨 깔끔한 한줄 필터 스타일 (높이 통일, 줄바꿈 방지)
+// 깔끔한 한줄 필터 스타일 (높이 통일, 줄바꿈 방지)
 const FilterContainer = styled.div`
   display: flex;
   gap: 12px;

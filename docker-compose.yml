@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8'
 
 services:
   # PostgreSQL 데이터베이스
@@ -40,7 +40,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: inventory-api
+    container_name: api-server
     restart: unless-stopped
     user: "0:0"
     ports:
@@ -59,6 +59,14 @@ services:
       - WATCHFILES_FORCE_POLLING=true  # 파일 변경 감지 강제
       # 데이터베이스 설정
       - DATABASE_URL=postgresql://inventory_user:inventory_password@postgres:5432/inventory_db
+      - ERP_PUBLIC_BASE_URL=${ERP_PUBLIC_BASE_URL}
+      
+      # 슬랙 연동
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_TASK_CHANNEL_ID=${SLACK_TASK_CHANNEL_ID}
+
+      # 공휴일 연동 키값
+      - KOREA_HOLIDAY_SERVICE_KEY=${KOREA_HOLIDAY_SERVICE_KEY}
     
       
       # CORS 설정
@@ -107,9 +115,9 @@ services:
     environment:
       # - VITE_API_URL=http://localhost:8000/api/v1
       # - VITE_API_URL=http://211.44.183.165:8000/api/v1
-      - VITE_API_URL=http://211.197.16.248:8000/api/v1
+      # - VITE_API_URL=http://211.197.16.248:8000/api/v1
       # - VITE_API_URL=http://192.168.0.16:8000/api/v1
-      - VITE_APP_TITLE=Inventory Management System
+       - VITE_APP_TITLE=Inventory Management System
     depends_on:
       api-server:
         condition: service_healthy

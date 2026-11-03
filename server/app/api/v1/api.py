@@ -1,26 +1,43 @@
+"""API v1에서 사용하는 엔드포인트 라우터를 통합하는 모듈"""
 from fastapi import APIRouter
-from app.api.v1.endpoints import inventory, dashboard, upload, purchase_request
+from app.api.v1.endpoints import (
+    dashboard,
+    email_notifications,
+    inventory,
+    purchase_request,
+    upload,
+    wbs,
+    tasks,
+    projectwbs,
+    holidays,
+    employees,
+    leaves,
+    reports,
+    attendance,
+)
+
 
 api_router = APIRouter()
+api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 
 # 재고 관리 엔드포인트
 api_router.include_router(
-    inventory.router, 
-    prefix="/inventory", 
+    inventory.router,
+    prefix="/inventory",
     tags=["inventory"]
 )
 
 # 대시보드 엔드포인트
 api_router.include_router(
-    dashboard.router, 
-    prefix="/dashboard", 
+    dashboard.router,
+    prefix="/dashboard",
     tags=["dashboard"]
 )
 
 # 파일 업로드 엔드포인트
 api_router.include_router(
-    upload.router, 
-    prefix="/upload", 
+    upload.router,
+    prefix="/upload",
     tags=["upload"]
 )
 
@@ -29,4 +46,59 @@ api_router.include_router(
     purchase_request.router,
     prefix="/purchase-requests",
     tags=["purchase-requests"]
+)
+
+# 이메일 발송 엔드포인트
+api_router.include_router(
+    email_notifications.router,
+    prefix="/email-notifications",
+    tags=["email-notifications"],
+)
+
+# wbs페이지 엔드포인트
+api_router.include_router(
+    wbs.router,
+    prefix="/wbs",
+    tags=["wbs"],
+)
+
+# 태스크 관리 엔드포인트
+api_router.include_router(
+    tasks.router,
+    prefix="/tasks",
+    tags=["tasks"],
+)
+
+# projectwbs 관리 엔드포인트
+api_router.include_router(
+    projectwbs.router,
+    prefix="/projectwbs",
+    tags=["projectwbs"],
+)
+
+# holidays 공휴일 조회 엔드포인트
+api_router.include_router(
+    holidays.router,
+    prefix="/holidays",
+    tags=["holidays"],
+)
+
+# employees 팀원 관리 엔드포인트
+api_router.include_router(
+    employees.router,
+    prefix="/employees",
+    tags=["employees"],
+)
+
+# leaves 휴가 일정 관리 엔드포인트
+api_router.include_router(
+    leaves.router,
+    prefix="/leaves",
+    tags=["leaves"],
+)
+# reports 엔드포인트
+api_router.include_router(
+    reports.router,
+    prefix="/reports",
+    tags=["reports"],
 )

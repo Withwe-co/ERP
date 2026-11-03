@@ -12,8 +12,16 @@ import DashboardPage from './components/dashboard/DashboardPage';  // pages가 �
 import InventoryPage from './components/inventory/InventoryPage';
 import ReceiptPage from './components/receipt/ReceiptPage';
 import PurchaseRequestPage from './components/purshase/PurchaseRequestPage';  // purshase (오타) 폴더명 그대로
-// import KakaoPage from './components/kakao/KakaoPage';
+import KakaoPage from './components/kakao/KakaoPage';
 import UploadPage from './components/upload/UploadPage';
+import WbsPage from './components/wbs/WbsPage';
+import EmployeesPage from './components/employees/EmployeesPage';
+import LeavessPage from './components/leaves/LeavesPage';
+import ReportEmployeesPage from './components/reports/ReportEmployeesPage';
+import AttendanceUploadPage from './components/reports/AttendanceUploadPage';
+import ReportManagementPage from './components/reports/ReportManagementPage';
+import AdminReportPage from './components/reports/AdminReportPage';
+import ProjectPage from './components/wbs/ProjectPage';
 import StatisticsPage from './components/statistics/StatisticsPage';
 import LogsPage from './components/logs/LogsPage';
 
@@ -36,7 +44,15 @@ const App: React.FC = () => {
                 <Route path="inventory" element={<InventoryPage />} />
                 <Route path="receipts" element={<ReceiptPage />} />
                 <Route path="purchase-requests" element={<PurchaseRequestPage />} />
-                {/* <Route path="kakao" element={<KakaoPage />} /> */}
+                <Route path="/wbs" element={<WbsPage />} />
+                <Route path="/wbs/project-page" element={<ProjectPage />} />
+                <Route path="/employees" element={<EmployeesPage />} />
+                <Route path="/leaves" element={<LeavessPage />} />
+                <Route path="reports" element={<ReportEmployeesPage />} />
+                <Route path="attendance-upload" element={<AttendanceUploadPage />} />
+                <Route path="reports/admin" element={<AdminReportPage />} />
+                <Route path="reports/:employeeId" element={<ReportManagementPage />} />
+                <Route path="kakao" element={<KakaoPage />} />
                 <Route path="upload" element={<UploadPage />} />
                 {/* <Route path="statistics" element={<StatisticsPage />} /> */}
                 {/* <Route path="logs" element={<LogsPage />} /> */}

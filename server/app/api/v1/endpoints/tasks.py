@@ -1,0 +1,589 @@
+"""태스크 관리 API 엔드포인트를 정의하는 모듈"""
+import json
+import os
+import uuid
+from datetime import datetime
+from typing import List, Optional
+from zoneinfo import ZoneInfo
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status as http_status,
+)
+from pydantic import ValidationError
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.models.projects import Project
+from app.models.tasks import Task
+from app.schemas.tasks import (
+    TaskCreate,
+    TaskUpdate,
+    TaskResponse,
+    TaskCreateResponse,
+    TaskUpdateResponse,
+    TaskKanbanOrderUpdate,
+)
+
+# FastAPI에서 API endpoint들을 하나의 Router로 묶는 객체
+router = APIRouter()
+
+# 태스크 첨부 이미지 전체 최대 용량
+MAX_TASK_IMAGE_SIZE = 10 * 1024 * 1024
+
+
+# 태스크 등록
+@router.post(
+    "/",
+    response_model=TaskCreateResponse,
+    status_code=http_status.HTTP_201_CREATED,
+)
+async def create_task(
+    task_data: str = Form(...),
+    images: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+):
+    """이미지를 포함한 새로운 태스크를 등록한다."""
+
+    # Form으로 전달된 JSON 문자열을 TaskCreate로 변환
+    try:
+        task_in = TaskCreate.model_validate_json(task_data)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="태스크 등록 정보가 올바르지 않습니다.",
+        ) from exc
+
+    # 태스크가 속한 프로젝트 조회
+    project = (
+        db.query(Project)
+        .filter(Project.id == task_in.project_id)
+        .first()
+    )
+
+    # 프로젝트가 존재하는 경우 프로젝트 기간 검증
+    if project is not None:
+        project_start = project.start_date.date()
+        project_due = project.due_date.date()
+
+        if (
+            task_in.planned_start_date < project_start
+            or task_in.planned_end_date > project_due
+        ):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "태스크 일정은 프로젝트 기간 내에서만 "
+                    "설정할 수 있습니다."
+                ),
+            )
+
+    # 이미지 형식과 전체 용량을 태스크 생성 전에 검증
+    image_contents: list[tuple[UploadFile, bytes]] = []
+    total_size = 0
+
+    for image in images or []:
+        if (
+            not image.content_type
+            or not image.content_type.startswith("image/")
+        ):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="이미지 파일만 첨부할 수 있습니다.",
+            )
+
+        contents = await image.read()
+        total_size += len(contents)
+
+        if total_size > MAX_TASK_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "첨부 이미지 전체 용량은 "
+                    "10MB를 초과할 수 없습니다."
+                ),
+            )
+
+        image_contents.append((image, contents))
+
+    # 같은 프로젝트와 상태에서 현재 마지막 칸반 순서 조회
+    last_task = (
+        db.query(Task)
+        .filter(
+            Task.project_id == task_in.project_id,
+            Task.status == task_in.status,
+            Task.is_archived.is_(False),
+        )
+        .order_by(Task.kanban_order.desc())
+        .first()
+    )
+
+    kanban_order = (
+        last_task.kanban_order + 1
+        if last_task is not None
+        else 0
+    )
+
+    # 이미지 검증이 모두 끝난 후 태스크 생성 준비
+    task = Task(
+        **task_in.model_dump(),
+        kanban_order=kanban_order,
+        image_urls=[],
+    )
+
+    image_urls: list[str] = []
+    saved_file_paths: list[str] = []
+
+    try:
+        db.add(task)
+
+        # 첨부 이미지가 있는 경우에만 저장 폴더 생성
+        if image_contents:
+            upload_dir = os.path.join(
+                os.getcwd(),
+                "uploads",
+                "task_images",
+            )
+            os.makedirs(upload_dir, exist_ok=True)
+
+            for image, contents in image_contents:
+                extension = os.path.splitext(
+                    image.filename or "",
+                )[1]
+
+                unique_filename = f"{uuid.uuid4()}{extension}"
+
+                file_path = os.path.join(
+                    upload_dir,
+                    unique_filename,
+                )
+
+                with open(file_path, "wb") as file:
+                    file.write(contents)
+
+                saved_file_paths.append(file_path)
+
+                image_urls.append(
+                    f"/uploads/task_images/{unique_filename}"
+                )
+
+        task.image_urls = image_urls
+
+        # 태스크와 이미지가 모두 성공한 경우에만 DB 저장
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+
+        # 등록 과정에서 실패하면 이미 저장된 이미지 파일도 제거
+        for file_path in saved_file_paths:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+        # 이미지 파일 저장 자체에서 발생한 오류
+        if isinstance(exc, OSError):
+            detail = "이미지 저장 중 오류가 발생했습니다."
+        else:
+            detail = "태스크 등록 중 오류가 발생했습니다."
+
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=detail,
+        ) from exc
+
+    db.refresh(task)
+
+    return {
+        "status_code": http_status.HTTP_201_CREATED,
+        "message": "태스크가 성공적으로 등록되었습니다.",
+        "data": task,
+    }
+
+@router.put("/{task_id}/images")
+async def update_task_images(
+    task_id: int,
+    keep_image_urls: str = Form("[]"),
+    images: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+):
+    """태스크의 기존 이미지와 새 첨부 이미지를 저장한다."""
+
+    task = (
+        db.query(Task)
+        .filter(Task.id == task_id)
+        .first()
+    )
+
+    if task is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="태스크를 찾을 수 없습니다.",
+        )
+
+    try:
+        kept_urls = json.loads(keep_image_urls)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="이미지 목록 형식이 올바르지 않습니다.",
+        ) from exc
+
+    if (
+        not isinstance(kept_urls, list)
+        or not all(
+            isinstance(image_url, str)
+            for image_url in kept_urls
+        )
+    ):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="이미지 목록 형식이 올바르지 않습니다.",
+        )
+
+    upload_dir = os.path.join(os.getcwd(), "uploads", "task_images",)
+    os.makedirs(upload_dir, exist_ok=True)
+
+    existing_urls = task.image_urls or []
+
+    # 현재 태스크에 실제로 등록된 이미지만 유지할 수 있음
+    if any(
+        image_url not in existing_urls
+        for image_url in kept_urls
+    ):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="유지할 이미지 목록이 올바르지 않습니다.",
+        )
+
+    new_image_urls: list[str] = []
+    image_contents: list[tuple[UploadFile, bytes]] = []
+
+    # 유지할 기존 이미지들의 실제 파일 크기부터 계산
+    total_size = 0
+
+    for image_url in kept_urls:
+        filename = os.path.basename(image_url)
+
+        file_path = os.path.join(
+            upload_dir,
+            filename,
+        )
+
+        if os.path.isfile(file_path):
+            total_size += os.path.getsize(file_path)
+
+    # 새 이미지의 형식과 전체 용량을 먼저 검증
+    for image in images or []:
+        if (
+            not image.content_type
+            or not image.content_type.startswith("image/")
+        ):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="이미지 파일만 첨부할 수 있습니다.",
+            )
+
+        contents = await image.read()
+
+        total_size += len(contents)
+
+        if total_size > MAX_TASK_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "첨부 이미지 전체 용량은 "
+                    "10MB를 초과할 수 없습니다."
+                ),
+            )
+
+        image_contents.append(
+            (image, contents),
+        )
+
+    # 검증이 완료된 경우에만 실제 파일 저장
+    for image, contents in image_contents:
+        extension = os.path.splitext(
+            image.filename or "",
+        )[1]
+
+        unique_filename = (f"{uuid.uuid4()}{extension}")
+
+        file_path = os.path.join(upload_dir, unique_filename,)
+
+        with open(file_path, "wb") as file:
+            file.write(contents)
+
+        new_image_urls.append(f"/uploads/task_images/{unique_filename}")
+
+
+    # 기존 이미지 중 사용자가 유지하지 않은 이미지 확인
+    removed_urls = [
+        image_url
+        for image_url in existing_urls
+        if image_url not in kept_urls
+    ]
+
+    # 제외된 이미지의 실제 파일 삭제
+    for image_url in removed_urls:
+        filename = os.path.basename(image_url)
+
+        file_path = os.path.join(upload_dir, filename,)
+
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+    # 유지할 기존 이미지와 새로 업로드한 이미지를 최종 저장
+    task.image_urls = [*kept_urls, *new_image_urls,]
+
+    db.commit()
+    db.refresh(task)
+
+    return {"image_urls": task.image_urls,}
+
+# 태스크 목록 조회
+@router.get("/", response_model=List[TaskResponse])
+def get_tasks(
+    project_id: Optional[int] = None,
+    search: Optional[str] = None,
+    wbs_code: Optional[str] = None,
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    assignee_name: Optional[str] = None,
+    department: Optional[str] = None,
+    is_archived: bool = False,
+    db: Session = Depends(get_db),
+):
+    """검색 및 필터 조건에 맞는 태스크 목록을 조회"""
+
+    # Task 테이블을 대상으로 조회 쿼리를 생성
+    # 아직 실제 데이터를 가져오는 단계는 아님 (실제 DB 조회 실행되지 않음)
+    query = db.query(Task)
+
+    # 기본 조회는 일반 태스크, is_archived=true이면 보류 태스크만 조회
+    query = query.filter(Task.is_archived == is_archived)
+
+    # project_id가 전달되면 해당 프로젝트의 태스크만 조회
+    if project_id is not None:
+        query = query.filter(Task.project_id == project_id)
+
+    # 태스크면 부분 일치 검색
+    if search:
+        query = query.filter(Task.task_name.ilike(f"%{search}%"))
+
+    # 존재하는 WBS 코드 중에서 고른 WBS 코드와 정확히 일치하는 태스크만 조회
+    if wbs_code:
+        query = query.filter(Task.wbs_code == wbs_code)
+
+    if status:
+        query = query.filter(Task.status == status)
+
+    if priority:
+        query = query.filter(Task.priority == priority)
+
+    # 담당자명 부분 일치 검색 - 담당자명에 검색어가 포함된 태스크만 조회
+    if assignee_name:
+        query = query.filter(Task.assignee_name.ilike(f"%{assignee_name}%"))
+
+    # 부서명 부분 일치 검색
+    if department:
+        query = query.filter(Task.department.ilike(f"%{department}%"))
+
+    # 보류 태스크는 최근 보류된 순서대로 조회
+    if is_archived:
+        return query.order_by(Task.archived_at.desc(), Task.id.desc(),).all()
+
+    # 일반 태스크는 저장된 칸반 순서대로 조회
+    return query.order_by(Task.kanban_order.asc(), Task.id.asc(),).all()
+
+# 칸반 카드 순서 저장
+@router.patch("/kanban/order")
+def update_kanban_order(order_in: TaskKanbanOrderUpdate, db: Session = Depends(get_db),):
+    """칸반 카드의 상태와 순서를 저장"""
+
+    order_data = order_in.model_dump()
+
+    for task_status, task_ids in order_data.items():
+        for kanban_order, task_id in enumerate(task_ids):
+            task = db.query(Task).filter(Task.id == task_id).first()
+
+            if task is None:
+                continue
+
+            task.status = task_status
+            task.kanban_order = kanban_order
+
+    db.commit()
+
+    return {"message": "칸반 순서가 저장되었습니다.",}
+
+# 태스크 단건 조회
+@router.get("/{task_id}", response_model=TaskResponse,)
+def get_task(task_id: int, db: Session = Depends(get_db),):
+    '''태스크 ID를 기준으로 태스크 한 건을 조회'''
+
+    # 특정 ID를 찾고 없으면 404 Not Found 반환
+    task = db.query(Task).filter(Task.id == task_id).first()
+
+    if task is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="태스크를 찾을 수 없습니다.",
+        )
+
+    return task
+
+# 태스크 수정
+@router.put("/{task_id}", response_model=TaskUpdateResponse,)
+def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db),):
+    """태스크 ID를 기준으로 전달된 필드만 수정"""
+
+    # 수정할 태스크 조회
+    task = db.query(Task).filter(Task.id == task_id).first()
+
+    # 해당 태스크가 존재하지 않으면 404 반환
+    if task is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="태스크를 찾을 수 없습니다.",
+        )
+
+    # 요청에서 실제로 전달된 필드만 수정 대상으로 추출
+    update_data = task_in.model_dump(exclude_unset=True)
+
+    # 전달되지 않은 필드는 기존 값을 사용하여 수정 후 일정을 계산
+    project_id = update_data.get("project_id", task.project_id,)
+
+    planned_start_date = update_data.get("planned_start_date", task.planned_start_date,)
+
+    planned_end_date = update_data.get("planned_end_date", task.planned_end_date,)
+
+    project = (
+        db.query(Project)
+        .filter(Project.id == project_id)
+        .first()
+    )
+
+    # 수정 결과가 프로젝트 기간을 벗어나는지 검증
+    if project is not None:
+        project_start = project.start_date.date()
+        project_due = project.due_date.date()
+
+        if (planned_start_date < project_start or planned_end_date > project_due):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "태스크 일정은 프로젝트 기간 내에서만 "
+                    "설정할 수 있습니다."
+                ),
+            )
+
+    # 검증이 완료된 필드만 기존 Task 객체에 반영
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
+    db.commit()
+    db.refresh(task)
+
+    return {
+        "status_code": http_status.HTTP_200_OK,
+        "message": "태스크가 성공적으로 수정되었습니다.",
+        "data": task,
+    }
+
+# 태스크 보류
+@router.patch("/{task_id}/archive", response_model=TaskUpdateResponse,)
+def archive_task(task_id: int, db: Session = Depends(get_db),):
+    """태스크를 보류함으로 이동"""
+
+    task = (
+        db.query(Task)
+        .filter(Task.id == task_id)
+        .first()
+    )
+
+    if task is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="태스크를 찾을 수 없습니다.",
+        )
+
+    task.is_archived = True
+    task.archived_at = datetime.now(ZoneInfo("Asia/Seoul"))
+
+    db.commit()
+    db.refresh(task)
+
+    return {
+        "status_code": http_status.HTTP_200_OK,
+        "message": "태스크가 보류되었습니다.",
+        "data": task,
+    }
+
+# 보류 태스크 다시 진행(복원)
+@router.patch("/{task_id}/restore", response_model=TaskUpdateResponse,)
+def restore_task(task_id: int, db: Session = Depends(get_db),):
+    """보류 태스크를 전체 태스크로 복원"""
+
+    task = (
+        db.query(Task)
+        .filter(Task.id == task_id)
+        .first()
+    )
+
+    if task is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="태스크를 찾을 수 없습니다.",
+        )
+
+    task.is_archived = False
+    task.archived_at = None
+
+    db.commit()
+    db.refresh(task)
+
+    return {
+        "status_code": http_status.HTTP_200_OK,
+        "message": "태스크가 다시 진행됩니다.",
+        "data": task,
+    }
+
+@router.delete("/{task_id}")
+def delete_task(task_id: int,db: Session = Depends(get_db)):
+    """
+        summary : Task 삭제 함수
+
+        arg : 
+            - id(int) : 해당 Task의 ID
+            - db(Session) : 데이터베이스
+        
+        desc :
+            - 해당 ID에 맞는 Task 조회
+            - 조회 실패 시 -> 404에러
+            - db에서 task삭제
+            - 삭제 실패 시 -> 500에러
+    """
+    # 해당 ID에 맞는 wbs 조회
+    task = db.query(Task).filter(Task.id==task_id).first()
+
+    # 조회 실패 시 -> 404에러
+    if task is None:
+        raise HTTPException(status_code=404, detail="태스크를 찾을 수 없습니다.")
+
+    try:
+        # db에서 task삭제
+        db.delete(task)
+        db.commit()
+    except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"태스크 삭제 중 오류가 발생했습니다: {str(e)}")
+
+    return {
+        "success": 204,
+        "message": "태스크가 삭제되었습니다.",
+    }

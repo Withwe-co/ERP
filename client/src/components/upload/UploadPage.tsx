@@ -1,15 +1,24 @@
 // client/src/components/upload/UploadPage.tsx
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { Upload, FileText, Download, AlertCircle, CheckCircle } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
+import Modal from '../common/Modal';
 import { uploadApi } from '../../services/api';
 
 const Container = styled.div`
   padding: 20px;
+`;
+
+const TabBar = styled.div`
+  display: none;
+`;
+
+const TabButton = styled.button<{ active: boolean }>`
+  display: none;
 `;
 
 const PageTitle = styled.h1`
@@ -26,23 +35,11 @@ const PageSubtitle = styled.p`
 `;
 
 const UploadArea = styled.div<{ isDragOver: boolean; disabled?: boolean }>`
-  border: 2px dashed ${props => 
-    props.disabled 
-      ? props.theme.colors.border 
-      : props.isDragOver 
-        ? props.theme.colors.primary 
-        : props.theme.colors.border
-  };
+  border: 2px dashed ${props => props.disabled ? props.theme.colors.border : props.isDragOver ? props.theme.colors.primary : props.theme.colors.border};
   border-radius: ${props => props.theme.borderRadius.lg};
   padding: 60px 20px;
   text-align: center;
-  background: ${props => 
-    props.disabled
-      ? props.theme.colors.background
-      : props.isDragOver 
-        ? props.theme.colors.primary + '05' 
-        : props.theme.colors.surface
-  };
+  background: ${props => props.disabled ? props.theme.colors.background : props.isDragOver ? props.theme.colors.primary + '05' : props.theme.colors.surface};
   transition: all 0.3s ease;
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   opacity: ${props => props.disabled ? 0.6 : 1};
@@ -73,8 +70,117 @@ const HiddenInput = styled.input`
   display: none;
 `;
 
+const UploaderForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  label {
+    color: ${props => props.theme.colors.text};
+    font-weight: 500;
+  }
+
+  input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid ${props => props.theme.colors.border};
+    border-radius: ${props => props.theme.borderRadius.md};
+    font: inherit;
+  }
+
+  .selected-file {
+    margin: 0;
+    color: ${props => props.theme.colors.textSecondary};
+    word-break: break-all;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+`;
+
 const ResultSection = styled.div`
   margin-top: 30px;
+`;
+
+const HistorySection = styled(Card)`
+  margin-top: 24px;
+`;
+
+const HistoryHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0;
+    color: ${props => props.theme.colors.text};
+  }
+`;
+
+const HistoryList = styled.div`
+  max-height: 480px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+`;
+
+const HistoryCard = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+  cursor: pointer;
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: ${props => props.theme.borderRadius.md};
+  background: ${props => props.theme.colors.surface};
+
+  .file-name {
+    color: ${props => props.theme.colors.text};
+    font-weight: 600;
+    margin-bottom: 8px;
+    word-break: break-all;
+  }
+
+  .metadata {
+    color: ${props => props.theme.colors.textSecondary};
+    font-size: 0.9rem;
+  }
+`;
+
+const ItemPreviewList = styled.div`
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+`;
+
+const ItemPreviewCard = styled.div`
+  padding: 12px;
+  border-radius: ${props => props.theme.borderRadius.md};
+  background: ${props => props.theme.colors.background};
+  border: 1px solid ${props => props.theme.colors.border};
+
+  .item-field {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+  }
+
+  .item-field:last-child { margin-bottom: 0; }
+  .item-label { color: ${props => props.theme.colors.textSecondary}; white-space: nowrap; }
+  .item-value { color: ${props => props.theme.colors.text}; text-align: right; word-break: break-word; }
 `;
 
 const InfoSection = styled(Card)`
@@ -175,9 +281,17 @@ interface UploadProgress {
 
 const UploadPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const uploadSectionRef = useRef<HTMLDivElement>(null);
+  const historySectionRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploader, setUploader] = useState('');
+  const [isUploaderModalOpen, setIsUploaderModalOpen] = useState(false);
+  const [downloadingHistoryId, setDownloadingHistoryId] = useState<number | null>(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'upload' | 'history'>('upload');
 
   // 업로드 정보 조회
   const { data: uploadInfo } = useQuery({
@@ -191,13 +305,24 @@ const UploadPage: React.FC = () => {
     queryFn: uploadApi.getTemplate,
   });
 
+  const { data: uploadHistory = [] } = useQuery({
+    queryKey: ['excel-upload-history'],
+    queryFn: uploadApi.getHistory,
+  });
+
   const uploadMutation = useMutation({
     mutationFn: uploadApi.uploadExcel,
     onSuccess: (data) => {
       setUploadResult(data);
       setUploadProgress(null);
+      setSelectedFile(null);
+      setUploader('');
+      setIsUploaderModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['inventory-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['unified-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['unified-inventory-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['excel-upload-history'] });
       toast.success(`Excel 파일이 업로드되었습니다. ${data.data?.itemCount || 0}개 항목이 처리되었습니다.`);
     },
     onError: (error: any) => {
@@ -226,9 +351,47 @@ const UploadPage: React.FC = () => {
     
     // 업로드 시작
     setUploadResult(null);
-    setUploadProgress({ loaded: 0, total: file.size, percentage: 0 });
-    
-    uploadMutation.mutate(file);
+    setSelectedFile(file);
+    setUploader('');
+    setIsUploaderModalOpen(true);
+  };
+
+  const handleUploaderSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmedUploader = uploader.trim();
+
+    if (!selectedFile) return;
+    if (!trimmedUploader) {
+      toast.error('업로더명을 입력해주세요.');
+      return;
+    }
+
+    setUploadProgress({ loaded: 0, total: selectedFile.size, percentage: 0 });
+    uploadMutation.mutate({ file: selectedFile, uploader: trimmedUploader });
+  };
+
+  const closeUploaderModal = () => {
+    if (uploadMutation.isPending) return;
+    setSelectedFile(null);
+    setUploader('');
+    setIsUploaderModalOpen(false);
+  };
+
+  const downloadHistoryFile = async (historyId: number, filename: string) => {
+    try {
+      setDownloadingHistoryId(historyId);
+      await uploadApi.downloadHistoryFile(historyId, filename);
+    } catch (error) {
+      toast.error('파일 다운로드에 실패했습니다.');
+    } finally {
+      setDownloadingHistoryId(null);
+    }
+  };
+
+  const scrollToSection = (section: 'upload' | 'history') => {
+    setActiveTab(section);
+    const target = section === 'upload' ? uploadSectionRef.current : historySectionRef.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -274,7 +437,16 @@ const UploadPage: React.FC = () => {
       <PageSubtitle>Excel 파일을 업로드하여 품목 데이터를 일괄 등록할 수 있습니다.</PageSubtitle>
 
       {/* 업로드 정보 */}
-      <InfoSection>
+      <TabBar>
+        <TabButton active={activeTab === 'upload'} onClick={() => scrollToSection('upload')}>
+          Excel 업로드
+        </TabButton>
+        <TabButton active={activeTab === 'history'} onClick={() => scrollToSection('history')}>
+          업로드 이력
+        </TabButton>
+      </TabBar>
+
+      <InfoSection ref={uploadSectionRef}>
         <div className="info-header">
           <FileText size={24} />
           <h3>업로드 정보</h3>
@@ -404,6 +576,87 @@ const UploadPage: React.FC = () => {
           </ResultSection>
         )}
       </Card>
+
+      <HistorySection ref={historySectionRef}>
+        <HistoryHeader>
+          <h3>업로드 이력</h3>
+          <span>{uploadHistory.length}건</span>
+        </HistoryHeader>
+        <HistoryList>
+          {uploadHistory.length === 0 ? (
+            <div>아직 업로드 이력이 없습니다.</div>
+          ) : (
+            uploadHistory.map((history) => (
+              <HistoryCard
+                key={history.id}
+                onClick={() => setExpandedHistoryId((currentId) => currentId === history.id ? null : history.id)}
+              >
+                <div>
+                  <div className="file-name">{history.file_name}</div>
+                  <div className="metadata">
+                    업로드 날짜: {history.upload_date || '-'} · 업로더: {history.uploader}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => downloadHistoryFile(history.id, history.file_name)}
+                  disabled={downloadingHistoryId === history.id}
+                  loading={downloadingHistoryId === history.id}
+                >
+                  <Download size={16} /> 다운로드
+                </Button>
+                {expandedHistoryId === history.id && history.preview_error && (
+                  <div className="metadata">{history.preview_error}</div>
+                )}
+                {expandedHistoryId === history.id && history.preview_items.length > 0 && (
+                  <ItemPreviewList>
+                    {history.preview_items.map((item, itemIndex) => (
+                      <ItemPreviewCard key={`${history.id}-${itemIndex}`}>
+                        {Object.entries(item).map(([label, value]) => (
+                          <div className="item-field" key={label}>
+                            <span className="item-label">{label}</span>
+                            <span className="item-value">{value || '-'}</span>
+                          </div>
+                        ))}
+                      </ItemPreviewCard>
+                    ))}
+                  </ItemPreviewList>
+                )}
+              </HistoryCard>
+            ))
+          )}
+        </HistoryList>
+      </HistorySection>
+
+      <Modal
+        isOpen={isUploaderModalOpen}
+        onClose={closeUploaderModal}
+        title="업로드 정보 입력"
+        size="sm"
+        closable={!uploadMutation.isPending}
+      >
+        <UploaderForm onSubmit={handleUploaderSubmit}>
+          <p className="selected-file">선택한 파일: {selectedFile?.name}</p>
+          <label htmlFor="uploader-name">업로더명</label>
+          <input
+            id="uploader-name"
+            value={uploader}
+            onChange={(event) => setUploader(event.target.value)}
+            placeholder="업로더명을 입력하세요"
+            maxLength={100}
+            autoFocus
+            disabled={uploadMutation.isPending}
+          />
+          <div className="actions">
+            <Button type="button" variant="outline" onClick={closeUploaderModal} disabled={uploadMutation.isPending}>
+              취소
+            </Button>
+            <Button type="submit" disabled={uploadMutation.isPending} loading={uploadMutation.isPending}>
+              업로드
+            </Button>
+          </div>
+        </UploaderForm>
+      </Modal>
     </Container>
   );
 };

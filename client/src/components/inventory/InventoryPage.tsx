@@ -26,6 +26,7 @@ import { UnifiedInventoryItem as InventoryItem } from '../../services/api';
 
 // Types
 import { TableColumn, SearchFilters } from '../../types';
+import { normalizeInventoryName } from '../../utils/inventoryGrouping';
 
 interface InventoryItem {
   id: number;
@@ -73,10 +74,18 @@ interface ReceiptHistory {
   image_urls?: string[];
 }
 
+type DisplayInventoryItem = InventoryItem & {
+  hasReceipts: boolean;
+};
+
+const hasReceipts = (item: InventoryItem): boolean => {
+  return Boolean( item.receipt_history?.length || item.last_received_date || item.last_received_by || item.total_received > 0);
+};
+
 const Container = styled.div`
   padding: 20px;
   
-  /* 🔥 테이블 세로 가운데 정렬 강제 적용 */
+  /* 테이블 세로 가운데 정렬 강제 적용 */
   table {
     td, th {
       vertical-align: middle !important;
@@ -145,7 +154,7 @@ const StatCard = styled(Card)<{ color?: string }>`
   }
 `;
 
-// 🔥 수정: 수령 상태 표시를 위한 새로운 컴포넌트
+// 수정: 수령 상태 표시를 위한 새로운 컴포넌트
 const ReceiptStatusBadge = styled.span<{ hasReceipts: boolean }>`
   display: inline-flex;
   align-items: center;
@@ -209,7 +218,7 @@ const QuantityInfo = styled.div`
   }
 `;
 
-// 🔥 새로운: 이미지 미리보기 컴포넌트
+// 새로운: 이미지 미리보기 컴포넌트
 const ImagePreviewGrid = styled.div`
   display: flex;
   gap: 4px;
@@ -454,6 +463,9 @@ const InventoryPage: React.FC = () => {
   const [selectedItemForTransaction, setSelectedItemForTransaction] = useState<UnifiedInventoryItem  | null>(null);
   const [selectedTransactionUrl, setSelectedTransactionUrl] = useState<string | null>(null);
   const [selectedTransactionName, setSelectedTransactionName] = useState<string>('');
+  const [pendingInventoryFormData, setPendingInventoryFormData] = useState<any | null>(null);
+  const [similarInventoryItems, setSimilarInventoryItems] = useState<any[]>([]);
+  const [isCheckingSimilarItems, setIsCheckingSimilarItems] = useState(false);
 
   // 재고 목록 조회
   const { 
@@ -480,45 +492,13 @@ const InventoryPage: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 🔥 수정: 수령 완료 처리 (이미지 포함) - FormData 방식으로 변경
+  // 수정: 수령 완료 처리 (이미지 포함) - FormData 방식으로 변경
   const addReceiptWithImagesMutation = useMutation({
     mutationFn: async ({ itemId, receiptData, images }: { 
       itemId: number; 
       receiptData: any; 
       images: File[] 
-    }) => {
-      const formData = new FormData();
-      
-      // 수령 데이터를 FormData에 추가
-      formData.append('received_quantity', receiptData.received_quantity.toString());
-      formData.append('receiver_name', receiptData.receiver_name);
-      if (receiptData.receiver_email) formData.append('receiver_email', receiptData.receiver_email);
-      formData.append('department', receiptData.department);
-      formData.append('received_date', receiptData.received_date);
-      if (receiptData.location) formData.append('location', receiptData.location);
-      formData.append('condition', receiptData.condition || 'good');
-      if (receiptData.notes) formData.append('notes', receiptData.notes);
-      
-      // 이미지 파일들 추가
-      images.forEach((image, index) => {
-        formData.append('images', image);
-      });
-      
-      // API 호출
-      const response = await fetch(`http://211.197.16.248:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
-      // const response = await fetch(`http://211.44.183.165:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
-      // const response = await fetch(`http://192.168.0.16:8000/api/v1/inventory/${itemId}/complete-receipt-with-images`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || '수령 처리 중 오류가 발생했습니다.');
-      }
-      
-      return response.json();
-    },
+    }) => api.inventory.completeReceiptWithImages(itemId, receiptData, images),
     onSuccess: (responseData, variables) => {
       console.log('수령 완료 성공:', responseData);
       
@@ -531,13 +511,13 @@ const InventoryPage: React.FC = () => {
       }
       
       refetch();
-      toast.success('🎉 수령이 완료되고 이미지가 업로드되었습니다!');
+      toast.success(' 수령이 완료되고 이미지가 업로드되었습니다!');
       setIsReceiptWithImagesModalOpen(false);
       setSelectedItemForReceipt(null);
     },
     onError: (error: any) => {
       console.error('수령 처리 오류:', error);
-      toast.error(error.message || '수령 처리 중 오류가 발생했습니다.');
+      toast.error(error.response?.data?.detail || error.message || '수령 처리 중 오류가 발생했습니다.');
     },
   });
 
@@ -548,6 +528,8 @@ const InventoryPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['unified-inventory'] });
       queryClient.invalidateQueries({ queryKey: ['unified-inventory-stats'] });
       toast.success('품목이 등록되었습니다.');
+      setPendingInventoryFormData(null);
+      setSimilarInventoryItems([]);
       handleFormModalClose();
     },
     onError: (error: any) => {
@@ -566,6 +548,32 @@ const InventoryPage: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || '품목 수정 중 오류가 발생했습니다.');
+    },
+  });
+
+  const mergeFormItemMutation = useMutation({
+    mutationFn: ({ existingItem, data }: { existingItem: any; data: any }) => {
+      return api.inventory.createItem({
+        ...data,
+        item_code: existingItem.item_code,
+        reuse_item_code: true,
+        notes: [
+          data.notes,
+          `수령관리 묶음 기준 품목: ${existingItem.item_code}`,
+        ].filter(Boolean).join('\n'),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unified-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['unified-inventory-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['receipt-inventory-items'] });
+      toast.success('새 품목으로 등록했습니다. 수령관리에서는 선택한 동일 품목과 합산됩니다.');
+      setPendingInventoryFormData(null);
+      setSimilarInventoryItems([]);
+      handleFormModalClose();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || '새 품목을 등록하지 못했습니다.');
     },
   });
 
@@ -635,35 +643,6 @@ const InventoryPage: React.FC = () => {
     },
   });
 
-  // 🔥 수정: 수령 상태 판단 함수
-  const hasReceipts = (item: InventoryItem): boolean => {
-    // 1. receipt_history 배열 확인
-    const hasReceiptHistory = item.receipt_history && item.receipt_history.length > 0;
-    
-    // 2. last_received_date 확인
-    const hasLastReceived = Boolean(item.last_received_date);
-    
-    // 3. last_received_by 확인
-    const hasReceivedBy = Boolean(item.last_received_by);
-    
-    // 4. 총 수령량 확인
-    const hasTotalReceived = item.total_received && item.total_received > 0;
-    
-    // 어느 하나라도 있으면 수령 완료로 판단
-    const result = hasReceiptHistory || hasLastReceived || hasReceivedBy || hasTotalReceived;
-    
-    console.log(`품목 ${item.id} 수령 상태 확인:`, {
-      hasReceiptHistory,
-      hasLastReceived,
-      hasReceivedBy,
-      hasTotalReceived,
-      result,
-      receipt_history_length: item.receipt_history?.length || 0
-    });
-    
-    return result;
-  };
-
   // 재고 수준 계산
   const getStockLevel = (current: number, minimum: number): 'high' | 'medium' | 'low' | 'out' => {
     const currentNum = Number(current) || 0;
@@ -686,25 +665,23 @@ const InventoryPage: React.FC = () => {
       default: return '#6B7280';
     }
   };
-  const getFullImageUrl = (imageUrl) => {
-    console.log('🔍 getFullImageUrl 입력:', JSON.stringify(imageUrl));
-    
-    if (!imageUrl) return null;
-    
-    // 이미 전체 URL인 경우
-    if (imageUrl.startsWith('http')) {
-      console.log('🔍 이미 완전한 URL:', imageUrl);
-      return imageUrl;
+  const getFullImageUrl = (imageUrl?: string): string => {
+    if (!imageUrl) return '';
+    if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) return imageUrl;
+
+    try {
+      const parsedUrl = new URL(imageUrl, window.location.origin);
+
+      // 업로드 파일은 현재 웹 서버의 /uploads 프록시를 이용한다.
+      // 기존 localhost/외부 IP 형태로 저장된 URL도 같은 방식으로 정규화한다.
+      if (parsedUrl.pathname.startsWith('/uploads/')) {
+        return `${parsedUrl.pathname}${parsedUrl.search}`;
+      }
+
+      return parsedUrl.toString();
+    } catch {
+      return imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
     }
-    
-    // URL 정리 - 불필요한 슬래시 제거
-    const cleanUrl = imageUrl.replace(/^\/+/, ''); // 앞의 모든 슬래시 제거
-    const fullUrl = `http://211.197.16.248:8000/${cleanUrl}`;
-    // const fullUrl = `http://211.44.183.165:8000/${cleanUrl}`;
-    // const fullUrl = `http://192.168.0.16:8000/${cleanUrl}`;
-    
-    console.log('🔍 생성된 URL:', fullUrl);
-    return fullUrl;
   };
   const handleImageClick = (imageUrl: string, itemName: string, imageIndex: number) => {
     setSelectedImageUrl(getFullImageUrl(imageUrl));
@@ -803,14 +780,15 @@ const InventoryPage: React.FC = () => {
   }, [selectedImageUrl]);
 
   const handleTransactionDocumentUpload = (item: InventoryItem) => {
-    console.log('🔍 거래명세서 업로드 버튼 클릭됨:', item);
-    console.log('🔍 API 베이스 URL:', 'http://211.197.16.248:8000');
-    // console.log('🔍 API 베이스 URL:', 'http://211.44.183.165:8000');
+    console.log('거래명세서 업로드 버튼 클릭됨:', item);
+    console.log('API 베이스 URL:', window.location.origin);
+    //console.log('API 베이스 URL:', 'http://211.197.16.248:8000');
+    // console.log('API 베이스 URL:', 'http://211.44.183.165:8000');
     
     setSelectedItemForTransaction(item);
     setIsTransactionUploadModalOpen(true);
     
-    console.log('🔍 모달 상태 변경 완료');
+    console.log('모달 상태 변경 완료');
   };
 
   const handleTransactionDocumentSubmit = (file: File) => {
@@ -831,21 +809,17 @@ const InventoryPage: React.FC = () => {
     setSelectedTransactionName('');
   };
 
-  // 🔥 수정: 테이블 컬럼 정의 - 상태 표시 로직 변경
+  // 수정: 테이블 컬럼 정의 - 상태 표시 로직 변경
   // const columns: TableColumn<InventoryItem>[] = useMemo(() => [
-  const columns: TableColumn<UnifiedInventoryItem>[] = useMemo(() => [
+  const columns: TableColumn<DisplayInventoryItem>[] = useMemo(() => [
     {
       key: 'item_code',
       label: '품목코드',
-      sortable: true,
       width: '160px',
+      align: 'center',
       style: { verticalAlign: 'middle' },
-      // render: (value) => (
-      //   <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
-      //     {value}
-      //   </span>
       render: (value) => (
-        <span style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
+        <span style={{fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: '500' }}>
           {value}
           {/* 정렬 표시 아이콘 */}
           {sortBy === 'item_code' && (
@@ -859,7 +833,7 @@ const InventoryPage: React.FC = () => {
     {
       key: 'item_name',
       label: '품목명',
-      sortable: true,
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (value, item) => (
         <div>
@@ -875,7 +849,7 @@ const InventoryPage: React.FC = () => {
     {
       key: 'current_quantity',
       label: '재고 현황',
-      sortable: true,
+      align: 'center',
       width: '140px',
       style: { verticalAlign: 'middle' },
       render: (value, item) => (
@@ -895,9 +869,8 @@ const InventoryPage: React.FC = () => {
     {
       key: 'unit_price',
       label: '단가',
-      sortable: true,
       width: '160px',
-      align: 'right',
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (value, item) => {
         if (!value || value === 0) return '-';
@@ -909,6 +882,7 @@ const InventoryPage: React.FC = () => {
       key: 'last_received_date',
       label: '최근수령일',
       width: '130px',
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (value) => value ? new Date(value).toLocaleDateString('ko-KR') : '-',
     },
@@ -916,7 +890,8 @@ const InventoryPage: React.FC = () => {
       key: 'image_urls',
       label: '이미지',
       width: '150px',
-      style: { verticalAlign: 'middle' },
+      align: 'center',
+      style: { verticalAlign: 'middle', textAlign: 'center' },
       render: (value, item) => {
         const allImageUrls = [];
         
@@ -950,8 +925,8 @@ const InventoryPage: React.FC = () => {
                 src={getFullImageUrl(url)}
                 alt={`${item.item_name} ${index + 1}`}
                 className="thumbnail"
-                style={{ cursor: 'pointer' }} // 🔥 추가: 클릭 가능 표시
-                onClick={() => handleImageClick(url, item.item_name, index)} // 🔥 추가: 클릭 이벤트
+                style={{ cursor: 'pointer' }} // 추가: 클릭 가능 표시
+                onClick={() => handleImageClick(url, item.item_name, index)} // 추가: 클릭 이벤트
                 onError={(e) => {
                   console.error('이미지 로딩 실패:', url);
                   (e.target as HTMLImageElement).style.display = 'none';
@@ -969,6 +944,7 @@ const InventoryPage: React.FC = () => {
       key: 'transaction_document',
       label: '거래명세서',
       width: '140px',
+      align: 'center',
       style: { verticalAlign: 'middle' },
       render: (_, item) => {
         const hasDocument = Boolean(item.transaction_document_url);
@@ -1049,24 +1025,26 @@ const InventoryPage: React.FC = () => {
       key: 'receipt_status',
       label: '수령 상태',
       width: '120px',
-      style: { verticalAlign: 'middle' },
-      render: (_, item) => (
-        <ReceiptStatusBadge hasReceipts={hasReceipts(item)}>
-          {hasReceipts(item) ? '수령 완료' : '수령 대기'}
-        </ReceiptStatusBadge>
-      ),
+      align: 'center',
+      style: { verticalAlign: 'middle', textAlign: 'center' },
+      render: (_, item) => {
+          <ReceiptStatusBadge hasReceipts={item.hasReceipts}>
+            {item.hasReceipts ? '수령 완료' : '수령 대기'}
+          </ReceiptStatusBadge>
+      }
     },
     {
       key: 'actions',
       label: '관리',
       width: '180px',
-      style: { verticalAlign: 'middle' },
+      align: 'center',
+      style: { verticalAlign: 'middle'},
       render: (_, item) => {
-        const itemHasReceipts = hasReceipts(item);
+        const itemHasReceipts = item.hasReceipts;
         
         return (
           <ActionButtonGroup>
-            {/* 🔥 수정: !!를 사용하여 Boolean 변환 또는 && 대신 ? : 사용 */}
+            {/* 수정: !!를 사용하여 Boolean 변환 또는 && 대신 ? : 사용 */}
             {!itemHasReceipts ? (
               <Button
                 size="sm"
@@ -1171,13 +1149,49 @@ const InventoryPage: React.FC = () => {
   const handleFormModalClose = () => {
     setIsFormModalOpen(false);
     setEditingItem(null);
+    setPendingInventoryFormData(null);
+    setSimilarInventoryItems([]);
   };
 
-  const handleFormSubmit = (formData: any) => {
+  const handleFormSubmit = async (formData: any) => {
     if (editingItem) {
       updateItemMutation.mutate({ id: editingItem.id, data: formData });
-    } else {
+      return;
+    }
+
+    try {
+      setIsCheckingSimilarItems(true);
+      const response = await api.inventory.getItems(1, 1000, {}, {
+        sort_by: 'item_name',
+        sort_order: 'asc',
+      });
+      const allInventoryItems = response?.data?.items || [];
+      const matchingItems = allInventoryItems.filter((inventoryItem: any) =>
+        Boolean(normalizeInventoryName(formData.item_name))
+        && normalizeInventoryName(inventoryItem.item_name) === normalizeInventoryName(formData.item_name)
+      );
+      const candidates = Array.from(matchingItems.reduce((byCode: Map<string, any>, inventoryItem: any) => {
+        const code = (inventoryItem.item_code || '').trim().toLocaleUpperCase('en-US');
+        const existing = byCode.get(code);
+        if (!existing) byCode.set(code, { ...inventoryItem });
+        else {
+          existing.current_quantity = (Number(existing.current_quantity) || 0) + (Number(inventoryItem.current_quantity) || 0);
+          existing.total_received = (Number(existing.total_received) || 0) + (Number(inventoryItem.total_received) || 0);
+        }
+        return byCode;
+      }, new Map<string, any>()).values());
+
+      if (candidates.length > 0) {
+        setPendingInventoryFormData(formData);
+        setSimilarInventoryItems(candidates);
+        return;
+      }
+
       createItemMutation.mutate(formData);
+    } catch (error) {
+      toast.error('기존 품목을 확인하지 못했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsCheckingSimilarItems(false);
     }
   };
 
@@ -1198,9 +1212,12 @@ const InventoryPage: React.FC = () => {
   
   
   // 데이터 추출
-  const items = inventoryData?.data?.items || [];
+  const rawItems = inventoryData?.data?.items || [];
   const totalPages = inventoryData?.data?.pages || 0;
   const stats = statsData?.data || {};
+  const items = useMemo<DisplayInventoryItem[]>( () => (rawItems ?? []).map((item) => ({
+    ...item,hasReceipts: hasReceipts(item),
+  })),[rawItems]);
 
   if (isLoading) {
     return <LoadingSpinner text="재고 데이터를 불러오는 중..." />;
@@ -1232,7 +1249,7 @@ const InventoryPage: React.FC = () => {
           <p>전체 품목</p>
         </StatCard>
         <StatCard color="#10B981">
-          <h3>{items.filter(item => hasReceipts(item)).length}</h3>
+          <h3>{items.filter(item => item.hasReceipts).length}</h3>
           <p>수령 완료</p>
         </StatCard>
         <StatCard color="#F59E0B">
@@ -1272,7 +1289,7 @@ const InventoryPage: React.FC = () => {
               <Plus size={16} />
               품목 추가
             </Button>
-            {/* 🔥 새로 추가: Excel 업로드 버튼 */}
+            {/* 새로 추가: Excel 업로드 버튼 */}
             {/* <Button
               variant="outline"
               onClick={() => setIsExcelUploadModalOpen(true)}
@@ -1321,11 +1338,76 @@ const InventoryPage: React.FC = () => {
           item={editingItem}
           onSubmit={handleFormSubmit}
           onCancel={handleFormModalClose}
-          loading={createItemMutation.isPending || updateItemMutation.isPending}
+          loading={createItemMutation.isPending || updateItemMutation.isPending || isCheckingSimilarItems}
         />
       </Modal>
 
-      {/* 🔥 수령완료 모달 (이미지 포함) */}
+      <Modal
+        isOpen={Boolean(pendingInventoryFormData)}
+        onClose={() => {
+          setPendingInventoryFormData(null);
+          setSimilarInventoryItems([]);
+        }}
+        title="동일 품목 확인"
+        size="lg"
+      >
+        <div style={{ marginBottom: '18px', color: '#4b5563', lineHeight: 1.6 }}>
+          같은 품목명으로 등록된 품목코드 목록입니다. 수령관리에서 재고를 합산할 품목코드를 선택하세요.
+          선택하면 품목관리에도 해당 품목코드로 새 등록 기록이 추가됩니다.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {similarInventoryItems.map(item => (
+            <div key={item.id} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px',
+              padding: '16px', border: '2px solid #3b82f6', borderRadius: '8px', background: '#eff6ff'
+            }}>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: '6px' }}>
+                  {item.item_name} <span style={{ color: '#2563eb', fontSize: '0.8rem' }}>(선택 가능)</span>
+                </div>
+                <div style={{ color: '#6b7280', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                  코드: {item.item_code} · 브랜드: {item.brand || '-'}<br />
+                  카테고리: {item.category || '-'}<br />
+                  규격/모델: {item.specifications || '-'} · 단위: {item.unit || '개'}<br />
+                  현재 재고: {(item.current_quantity || 0).toLocaleString()}
+                </div>
+              </div>
+              <Button
+                onClick={() => pendingInventoryFormData && mergeFormItemMutation.mutate({
+                  existingItem: item,
+                  data: pendingInventoryFormData,
+                })}
+                loading={mergeFormItemMutation.isPending}
+                disabled={mergeFormItemMutation.isPending || createItemMutation.isPending}
+              >
+                이 품목코드로 등록
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setPendingInventoryFormData(null);
+              setSimilarInventoryItems([]);
+            }}
+            disabled={mergeFormItemMutation.isPending || createItemMutation.isPending}
+          >
+            입력 화면으로 돌아가기
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => pendingInventoryFormData && createItemMutation.mutate(pendingInventoryFormData)}
+            loading={createItemMutation.isPending}
+            disabled={mergeFormItemMutation.isPending || createItemMutation.isPending}
+          >
+            새 품목으로 등록
+          </Button>
+        </div>
+      </Modal>
+
+      {/* 수령완료 모달 (이미지 포함) */}
       {isReceiptWithImagesModalOpen && selectedItemForReceipt && (
         <Modal
           isOpen={isReceiptWithImagesModalOpen}
@@ -1366,7 +1448,7 @@ const InventoryPage: React.FC = () => {
           />
         </Modal>
       )}
-      {/* 🔥 이미지 뷰어 모달 */}
+      {/* 이미지 뷰어 모달 */}
       {selectedImageUrl && (
         <ImageViewerModal onClick={handleCloseImageViewer}>
           <ImageViewerContainer onClick={(e) => e.stopPropagation()}>

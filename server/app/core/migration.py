@@ -20,7 +20,7 @@ def migrate_database():
     """데이터베이스 마이그레이션 실행"""
     db = SessionLocal()
     try:
-        logger.info("🚀 데이터베이스 마이그레이션 시작...")
+        logger.info(" 데이터베이스 마이그레이션 시작...")
         create_new_tables()
         add_receipt_columns(db)
         migrate_inventory_data(db)
@@ -29,10 +29,10 @@ def migrate_database():
         # Receipt 테이블 삭제
         db.execute(text("DROP TABLE IF EXISTS receipts"))
         db.commit()
-        logger.info("✅ Receipt 테이블 삭제 완료")
-        logger.info("✅ 데이터베이스 마이그레이션 완료!")
+        logger.info("Receipt 테이블 삭제 완료")
+        logger.info("데이터베이스 마이그레이션 완료!")
     except Exception as e:
-        logger.error(f"❌ 마이그레이션 실패: {e}")
+        logger.error(f"마이그레이션 실패: {e}")
         db.rollback()
         raise
     finally:
@@ -46,7 +46,7 @@ def create_new_tables():
     UnifiedInventory.__table__.create(bind=engine, checkfirst=True)
     InventoryImage.__table__.create(bind=engine, checkfirst=True)
     
-    logger.info("✅ 새 테이블 생성 완료")
+    logger.info("새 테이블 생성 완료")
 
 def add_receipt_columns(db: Session):
     """Receipt 테이블에 새 컬럼 추가"""
@@ -65,7 +65,7 @@ def add_receipt_columns(db: Session):
         """))
         
         db.commit()
-        logger.info("✅ Receipt 테이블 컬럼 추가 완료")
+        logger.info("Receipt 테이블 컬럼 추가 완료")
         
     except Exception as e:
         # SQLite의 경우 IF NOT EXISTS가 지원되지 않을 수 있음
@@ -104,7 +104,7 @@ def migrate_inventory_data(db: Session):
         db.add(unified_item)
     
     db.commit()
-    logger.info(f"✅ {len(inventories)}개의 Inventory 데이터 마이그레이션 완료")
+    logger.info(f"{len(inventories)}개의 Inventory 데이터 마이그레이션 완료")
 
 def link_receipt_data(db: Session):
     """Receipt 데이터를 UnifiedInventory와 연결"""
@@ -124,7 +124,7 @@ def link_receipt_data(db: Session):
         receipt.unified_inventory_id = unified_item.id
     
     db.commit()
-    logger.info(f"✅ {len(receipts)}개의 Receipt 데이터 연결 완료")
+    logger.info(f"{len(receipts)}개의 Receipt 데이터 연결 완료")
 
 def create_unified_item_from_receipt(db: Session, receipt: Receipt) -> UnifiedInventory:
     """Receipt 정보로부터 새로운 UnifiedInventory 생성"""
@@ -227,7 +227,7 @@ def update_unified_inventory_from_receipts(db: Session):
                 item.location = latest_receipt.location
     
     db.commit()
-    logger.info("✅ UnifiedInventory 정보 및 receipt_history 업데이트 완료")
+    logger.info("UnifiedInventory 정보 및 receipt_history 업데이트 완료")
     
 def generate_item_code(db: Session, item_name: str) -> str:
     """품목명 기반으로 고유한 품목 코드 생성"""
@@ -313,9 +313,9 @@ def rollback_migration(db: Session):
         db.execute(text("DROP TABLE IF EXISTS unified_inventory"))
         
         db.commit()
-        logger.info("✅ 마이그레이션 롤백 완료")
+        logger.info("마이그레이션 롤백 완료")
     except Exception as e:
-        logger.error(f"❌ 롤백 실패: {e}")
+        logger.error(f"롤백 실패: {e}")
         db.rollback()
         raise
 

@@ -15,6 +15,7 @@ interface TableProps<T> {
   onSort?: (field: string, direction: 'asc' | 'desc') => void;
   sortField?: string;
   sortDirection?: 'asc' | 'desc';
+  onRowClick?: (item: T) => void;
 }
 
 const TableContainer = styled.div`
@@ -154,7 +155,8 @@ function Table<T extends Record<string, any>>({
   onSelectItems,
   onSort,
   sortField,
-  sortDirection
+  sortDirection,
+  onRowClick
 }: TableProps<T>) {
   const handleSelectAll = (checked: boolean) => {
     if (onSelectItems) {
@@ -253,7 +255,12 @@ function Table<T extends Record<string, any>>({
               const isSelected = selectedItems.includes(item);
               
               return (
-                <TableRow key={index} selected={isSelected}>
+                <TableRow
+                  key={index}
+                  selected={isSelected}
+                  onClick={() => onRowClick?.(item)}
+                  style={{ cursor: onRowClick ? 'pointer' : undefined }}
+                >
                   {selectable && (
                     <TableCell>
                       <Checkbox
@@ -266,7 +273,7 @@ function Table<T extends Record<string, any>>({
                   {columns.map((column) => {
                     const value = item[column.key];
                     const displayValue = column.render 
-                      ? column.render(value, item) 
+                      ? column.render(value, item, index) 
                       : value;
                     
                     return (

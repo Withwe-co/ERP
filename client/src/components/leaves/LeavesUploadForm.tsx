@@ -1,0 +1,405 @@
+import React, {useState,useEffect} from 'react';
+import styled from 'styled-components';
+import {useMutation, useQuery,useQueryClient} from '@tanstack/react-query';
+import {toast} from 'react-toastify';
+import {Package,AlertCircle} from 'lucide-react';
+import Input from '../common/Input';
+import Select from '../common/Select';
+import Button from '../common/Button';
+import Card from '../common/Card';
+import { EmployeeApi, LeavesApi} from '../../services/api';
+
+interface LeavesUploadFormData {
+    employee_id: number;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    total_days: number;
+}
+
+interface Leaves {
+    id: number;
+    employee_id: number;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    total_days: number;
+}
+
+interface LeavesUploadFormProps {
+    onSuccess: () => void;
+    onCancel: () => void;
+    initialData?: Leaves;
+    isEdit?: boolean;
+}
+
+// 직원 선탭 옵션 조회용
+interface EmployeeOptionItem {
+  id: number;
+  name: string;
+  position: string;
+}
+
+const FormContainer = styled.div`
+  max-width: 800px;
+  margin: 0 auto;
+`;
+
+const FormSection = styled(Card)`
+  margin-bottom: 24px;
+  
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: ${props => props.theme.colors.text};
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .section-icon {
+      color: ${props => props.theme.colors.primary};
+    }
+  }
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid ${props => props.theme.colors.border};
+`;
+
+const LeavesUploadForm: React.FC<LeavesUploadFormProps> =({
+    onSuccess,
+    onCancel,
+    initialData,
+    isEdit = false
+})=>{
+    const [errors,setErrors] = useState<Record<string,string>>({});
+    
+    const leavetypeOption =[
+        {value: '연차', label: '연차'},
+        {value: '오전 반차', label: '오전 반차'},
+        {value: '오후 반차', label: '오후 반차'},
+        {value: '병가', label: '병가'}
+    ];
+    // 반차 유형 체크
+    const HALF_DAY_TYPES = ['오전 반차', '오후 반차'];
+
+    const {data: employees = [],isLoading: isEmployeesLoading,isError: isEmployeesError,} = useQuery<EmployeeOptionItem[]>({
+        queryKey: ['employees'],
+        queryFn: async () => {
+            const response = await EmployeeApi.getEmployeeList();
+            return response.data?.items ?? [];
+        },
+        staleTime: 0,
+        refetchOnMount: 'always',
+    });
+    const employeeOptions = employees.map((employee) => ({
+        value: employee.id,
+        label: `${employee.name} (${employee.position})`,
+    }));
+
+    const getInitialFormData = (): LeavesUploadFormData => {
+        if (!initialData) {
+            return {
+                employee_id: 0,
+                leave_type: '',
+                start_date: new Date().toISOString().slice(0, 10),
+                end_date: new Date().toISOString().slice(0, 10),
+                total_days: 0
+            };
+        }
+
+            // 수정모드
+            return {
+            employee_id: initialData.employee_id || 0,
+            leave_type: initialData.leave_type || '',
+            start_date: initialData.start_date || new Date().toISOString().slice(0, 10),
+            end_date: initialData.end_date || new Date().toISOString().slice(0, 10),
+            total_days: initialData.total_days || 0
+            };
+    };
+
+    const queryClient = useQueryClient();
+    const createMutation = useMutation({
+            mutationFn: LeavesApi.createLeave,
+            onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: ['leaves'] });
+              queryClient.invalidateQueries({ queryKey: ['employees'] });
+              toast.success('휴가가 등록되었습니다.');
+              onSuccess();
+            },
+            onError: (error: any) => {
+              console.error('=== 휴가 등록 실패 ===');
+              console.error('전체 에러 객체:', error);
+              console.error('HTTP 상태 코드:', error.response?.status);
+              console.error('에러 응답 데이터:', error.response?.data);
+              
+              toast.error(error.response?.data?.detail || '처리 중 오류가 발생했습니다.');
+            },
+    });
+    
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }: { id: number; data: any }) => LeavesApi.updateLeave(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['leaves'] });
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+            toast.success('휴가 정보가 수정되었습니다.');
+            onSuccess();
+        },
+        onError: (error: any) => {
+            console.error('휴가 정보 수정 실패:', error);
+            toast.error(error.response?.data?.detail || '수정 중 오류가 발생했습니다.');
+        },
+    });
+
+    //휴가 일정 삭제
+    const deleteItemMutation = useMutation({
+        mutationFn: LeavesApi.deleteLeave,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['leaves'] });
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+            toast.success('휴가 일정이 철회되었습니다.');
+            onSuccess();
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || '휴가 일정 철회 중 오류가 발생했습니다.');
+        },
+    });
+
+    const isLoading = createMutation.isPending || updateMutation.isPending;
+
+    const [formData, setFormData] = useState<LeavesUploadFormData>(getInitialFormData());
+    useEffect(() => {
+        const { start_date, end_date } = formData;
+
+        if (!start_date || !end_date || end_date < start_date) {
+            setFormData((prev) => ({ ...prev, total_days: 0 }));
+            return;
+        }
+
+        const start = new Date(`${start_date}T00:00:00`);
+        const end = new Date(`${end_date}T00:00:00`);
+
+        const diffInMilliseconds = end.getTime() - start.getTime();
+        const totalDays = Math.floor(diffInMilliseconds / (1000 * 60 * 60 * 24)) + 1;
+
+        setFormData((prev) => ({
+            ...prev,
+            total_days: totalDays,
+        }));
+    }, [formData.start_date, formData.end_date]);
+
+    useEffect(() => {
+        const { start_date, end_date, leave_type } = formData;
+        const isHalfDay = HALF_DAY_TYPES.includes(leave_type);
+
+        if (!start_date) {
+            return;
+        }
+
+        // 오전/오후 반차: 시작일과 종료일을 같게, 사용 일수는 0.5일로 고정
+        if (isHalfDay) {
+            setFormData((prev) => ({...prev,end_date: prev.start_date,total_days: 0.5,}));
+            return;
+        }
+
+        // 일반 휴가
+        if (!end_date || end_date < start_date) {
+            setFormData((prev) => ({...prev,total_days: 0,}));
+            return;
+        }
+
+        const start = new Date(`${start_date}T00:00:00`);
+        const end = new Date(`${end_date}T00:00:00`);
+
+        const totalDays =
+            Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        setFormData((prev) => ({
+            ...prev,
+            total_days: totalDays,
+        }));
+    }, [formData.start_date, formData.end_date, formData.leave_type]);
+
+    const validateForm = (): boolean => {
+       const newErrors: Record<string, string> = {};
+    
+        if (formData.employee_id <= 0) {
+            newErrors.employee_id = '직원을 선택해주세요.';
+        }
+
+        if (!formData.leave_type) {
+          newErrors.leave_type = '휴가 유형을 선택해주세요.';
+        }
+
+        if (!formData.start_date) {
+          newErrors.start_date = '휴가 시작일을 선택해주세요.';
+        }
+
+        if (!formData.end_date) {
+          newErrors.end_date = '휴가 종료일을 선택해주세요.';
+        }
+
+        if (formData.total_days <= 0) {
+            newErrors.total_days = '휴가 일수는 0보다 커야 합니다.';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!validateForm()) {
+            toast.error('등록 정보를 확인해주세요.');
+            return;
+        }
+    
+        const submitData = {
+            employee_id: formData.employee_id,
+            leave_type: formData.leave_type,
+            start_date: formData.start_date,
+            end_date: formData.end_date,
+            total_days: formData.total_days,
+        };
+        console.log('submitData:', JSON.stringify(submitData, null, 2));
+        
+        // 수정 모드면 업데이트, 아니면 생성
+        if (isEdit && initialData?.id) {
+            updateMutation.mutate({ id: initialData.id, data: submitData });
+        } else {
+            createMutation.mutate(submitData);
+        }
+    };
+    
+         
+    const handleChange = (field: keyof LeavesUploadFormData, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        
+        // 에러 제거
+        if (errors[field]) {
+        setErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[field];
+            return newErrors;
+        });
+        }
+    };
+
+    // 휴가 삭제
+    const handleDelete = async (itemId: number) => {
+        if (window.confirm('정말로 이 휴가 일정을 철회하시겠습니까?')) {
+            deleteItemMutation.mutate(itemId);
+        }
+    };
+
+    return (
+        <FormContainer>
+            <form onSubmit={handleSubmit}>
+                <FormSection>
+                    <div className="section-title">
+                    <Package className="section-icon" size={20} />
+                    휴가 등록
+                    </div>
+
+                    <FormGrid>
+                        <Select
+                            label="팀원"
+                            value={formData.employee_id || ''}
+                            options={employeeOptions}
+                            onChange={(value) => handleChange('employee_id', Number(value))}
+                            placeholder={
+                                isEmployeesLoading
+                                ? '팀원 목록을 불러오는 중입니다...'
+                                : '팀원을 선택하세요'
+                            }
+                            disabled={isEmployeesLoading || isEmployeesError}
+                            required
+                        />
+                        {isEmployeesError && (
+                            <div style={{ color: '#dc2626', fontSize: '12px' }}>
+                                팀원 목록을 불러오지 못했습니다.
+                            </div>
+                        )}
+
+                        <Select
+                            label={'\u00A0\u00A0휴가 형태\u00A0'}
+                            value={formData.leave_type}
+                            options={leavetypeOption}
+                            onChange={(value) => handleChange('leave_type', value)}
+                            placeholder="휴가 형태를 선택하세요"
+                            required
+                        />
+
+                        <Input
+                            label={'\u00A0\u00A0휴가 시작일\u00A0'}
+                            type="date"
+                            value={formData.start_date}
+                            onChange={(e) => handleChange('start_date', e.target.value)}
+                            required
+                        />
+
+                        <Input
+                            label={'\u00A0\u00A0휴가 종료일\u00A0'}
+                            type="date"
+                            value={formData.end_date}
+                            onChange={(e) => handleChange('end_date', e.target.value)}
+                            min={formData.start_date||undefined}
+                            max={HALF_DAY_TYPES.includes(formData.leave_type)  ? formData.start_date  : undefined}
+                            disabled={HALF_DAY_TYPES.includes(formData.leave_type)}
+                            required
+                        />
+
+                        <Input
+                            label={'\u00A0\u00A0총 사용 휴가\u00A0'}
+                            value={formData.total_days}
+                            placeholder="시작일과 종료일을 선택하면 자동 계산됩니다."
+                            type="number"
+                            disabled
+                            required
+                        />
+                    </FormGrid>
+                </FormSection>
+                <ButtonGroup>
+                    {isEdit && initialData && (
+                        <Button 
+                            type="button" 
+                            variant="danger" 
+                            onClick={()=>handleDelete(initialData.id)}
+                        >
+                            철회
+                        </Button>
+                    )}
+                    <Button type="button" variant="outline" onClick={onCancel}>
+                        취소
+                    </Button>
+                    <Button 
+                        type="submit" 
+                        loading={isLoading}
+                        disabled={isLoading}
+                    >
+                        {isEdit ? '수정' : '등록'}
+                    </Button>
+                </ButtonGroup>
+            </form>
+        </FormContainer>
+    )
+};
+
+export default LeavesUploadForm;

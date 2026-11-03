@@ -1,6 +1,7 @@
 import os
 from typing import List, Optional
 from pydantic_settings import BaseSettings
+from pathlib import Path
 
 class Settings(BaseSettings):
     # 앱 설정
@@ -9,6 +10,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    WATCHFILES_FORCE_POLLING: bool = False
     
     # API 설정
     API_V1_STR: str = "/api/v1"
@@ -31,9 +33,40 @@ class Settings(BaseSettings):
     
     # 카카오 API 설정 (필요시)
     KAKAO_API_KEY: Optional[str] = None
+
+    # NHN Cloud KakaoTalk Bizmessage Alimtalk
+    NOTIFICATION_ENABLED: bool = False
+    ERP_PUBLIC_BASE_URL: str = ""
+    KAKAO_ALIMTALK_APP_KEY: str = ""
+    KAKAO_ALIMTALK_SECRET_KEY: str = ""
+    KAKAO_ALIMTALK_SENDER_KEY: str = ""
+    KAKAO_ALIMTALK_TEMPLATE_CODE: str = ""
+    KAKAO_ALIMTALK_RECIPIENTS: str = ""
+
+    # SMTP email notification
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_RECIPIENTS: str = ""
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
+
+    # Slack
+    SLACK_BOT_TOKEN: str = ""
+    SLACK_TASK_CHANNEL_ID: str = ""
+
+    # 한국천문연구원 특일 정보 API 일반 키
+    KOREA_HOLIDAY_SERVICE_KEY: str = ""
     
+    #class Config:
+    #    env_file = ".env"
+    #    case_sensitive = True
+
     class Config:
-        env_file = ".env"
+        env_file = Path(__file__).resolve().parents[2] / ".env"
         case_sensitive = True
 
 # 환경변수에서 설정 로드

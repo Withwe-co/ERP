@@ -18,9 +18,10 @@ import {
   CreditCard,
   Bell,
   ChevronLeft,
-  ChevronRight
+  Network,
+  Plane,
+  FileText
 } from 'lucide-react';
-import { purchaseApi } from '../../services/api';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -54,10 +55,11 @@ const SidebarHeader = styled.div<{ isOpen: boolean }>`
   position: relative;
 `;
 
-const Logo = styled.div<{ isOpen: boolean }>`
+const Logo = styled.div<{ isOpen: boolean; $clickable?: boolean}>`
   display: flex;
   align-items: center;
   gap: ${props => props.isOpen ? '8px' : '0'};
+  cursor: ${props => (props.$clickable ? 'pointer' : 'default')};
   
   .logo-icon {
     min-width: 28px;
@@ -209,7 +211,7 @@ const NavLinkStyled = styled(NavLink)<{ isOpen: boolean }>`
   }
 `;
 
-// 🔥 동적 알림 배지 컴포넌트
+// 동적 알림 배지 컴포넌트
 const NavBadge = styled.span<{ isOpen: boolean; count: number }>`
   margin-left: auto;
   background: linear-gradient(135deg, #e74c3c, #c0392b);
@@ -243,7 +245,7 @@ const NavBadge = styled.span<{ isOpen: boolean; count: number }>`
   }
 `;
 
-// 🔥 축소 상태에서의 알림 점
+// 축소 상태에서의 알림 점
 const CompactNotification = styled.div<{ show: boolean }>`
   position: absolute;
   top: 8px;
@@ -306,7 +308,7 @@ const NavItemWithTooltip = styled.div`
   }
 `;
 
-// 🔥 API 연결 상태 표시 컴포넌트
+// API 연결 상태 표시 컴포넌트
 const ConnectionStatus = styled.div<{ connected: boolean }>`
   position: absolute;
   bottom: 4px;
@@ -319,70 +321,29 @@ const ConnectionStatus = styled.div<{ connected: boolean }>`
   transition: all 0.3s ease;
 `;
 
-// 🔥 안전한 구매 요청 개수 조회 훅
-const usePurchaseRequestCount = () => {
-  const [apiConnected, setApiConnected] = useState(false);
-  
-  const { data: pendingRequestsData, isError } = useQuery({
-    queryKey: ['purchase-requests-pending-count'],
-    queryFn: async () => {
-      try {
-        console.log('🔍 구매 요청 개수 조회 시도...');
-        
-        const response = await purchaseApi.getRequests({
-          page: 1,
-          limit: 100, // 개수만 확인하므로 적게
-        });
-        
-        console.log('✅ API 연결 성공:', response);
-        setApiConnected(true);
-        
-        // 완료되지 않은 요청만 필터링
-        const pendingRequests = response.data.items.filter(
-          request => request.status !== 'COMPLETED' && request.status !== 'CANCELLED'
-        );
-        
-        return pendingRequests.length;
-      } catch (error) {
-        console.warn('⚠️ API 연결 실패, 샘플 모드로 전환:', error.message);
-        setApiConnected(false);
-        
-        // 🔥 샘플 데이터 반환 (데모용)
-        return 3; // 샘플: 3개의 미완료 요청
-      }
-    },
-    refetchInterval: apiConnected ? 30000 : 300000, // 연결 시 30초, 미연결 시 5분
-    staleTime: 15000, // 15초 캐시
-    retry: 1, // 1회만 재시도
-    retryDelay: 3000, // 3초 후 재시도
-  });
-
-  return {
-    pendingCount: pendingRequestsData || 0,
-    apiConnected,
-    hasError: isError
-  };
-};
-
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
-  const { pendingCount, apiConnected } = usePurchaseRequestCount();
 
-  // 🔥 메뉴 아이템들 (동적 배지 포함)
+  // 메뉴 아이템들 (동적 배지 포함)
   const mainMenuItems = [
     { path: '/dashboard', label: '대시보드', icon: LayoutDashboard },
     { 
       path: '/purchase-requests', 
       label: '구매 요청', 
       icon: ShoppingCart, 
-      dynamicBadge: pendingCount // 동적 배지
+      // dynamicBadge: pendingCount // 동적 배지 (보류)
     },
     { path: '/inventory', label: '품목 관리', icon: Package },
     { path: '/receipts', label: '수령 관리', icon: ClipboardCheck },
-    { path: '/kakao', label: '카톡 처리', icon: MessageSquare },
+    { path: '/wbs', label: 'WBS', icon: Network},
+    { path: '/employees', label: '팀원 관리', icon: Users },
+    { path: '/leaves', label: '휴가 관리', icon: Plane },
+    { path: '/reports', label: '업무 보고', icon: FileText },
+    { path: '/kakao', label: '이메일 발송 이력', icon: MessageSquare },
   ];
 
   const dataMenuItems = [
+    { path: '/attendance-upload', label: '출퇴근 기록 업로드', icon: Upload },
     { path: '/upload', label: '파일 관리', icon: Upload },
     { path: '/statistics', label: '통계 분석', icon: BarChart3 },
     { path: '/logs', label: '시스템 로그', icon: History },
@@ -413,25 +374,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             <Icon className="nav-icon" size={18} />
             <span className="nav-text">{item.label}</span>
             
-            {/* 🔥 동적 알림 배지 (사이드바 열린 상태) */}
+            {/* 동적 알림 배지 (사이드바 열린 상태) */}
             {showBadge && isOpen && (
               <NavBadge isOpen={isOpen} count={badgeCount}>
                 {badgeCount > 99 ? '99+' : badgeCount}
               </NavBadge>
             )}
             
-            {/* 🔥 축소 상태 알림 점 */}
+            {/* 축소 상태 알림 점 */}
             {showBadge && !isOpen && (
               <CompactNotification show={!isOpen} />
             )}
           </NavLinkStyled>
           
-          {/* 🔥 툴팁 (축소 상태에서만) */}
+          {/* 툴팁 (축소 상태에서만) */}
           {!isOpen && (
             <Tooltip show={!isOpen} className="tooltip">
               {item.label}
               {showBadge && ` (${badgeCount})`}
-              {item.path === '/purchase-requests' && !apiConnected && ' [샘플]'}
             </Tooltip>
           )}
         </NavItemWithTooltip>
@@ -442,18 +402,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   return (
     <SidebarContainer isOpen={isOpen}>
       <SidebarHeader isOpen={isOpen}>
-        <Logo isOpen={isOpen}>
+        <Logo isOpen={isOpen} $clickable={!isOpen} onClick={!isOpen ? onToggle : undefined}>
           <div className="logo-icon">
             <Package size={16} />
           </div>
           <h1 className="logo-text">ERP 시스템</h1>
         </Logo>
-        <ToggleButton isOpen={isOpen} onClick={onToggle}>
-          {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-        </ToggleButton>
+        {isOpen && (
+          <ToggleButton isOpen={isOpen} onClick={onToggle}>
+            <ChevronLeft size={14} />
+          </ToggleButton>
+        )}
         
-        {/* 🔥 API 연결 상태 표시 */}
-        <ConnectionStatus connected={apiConnected} title={apiConnected ? 'API 연결됨' : 'API 미연결 (샘플 모드)'} />
+        {/* API 연결 상태 표시 */}
+        {/*<ConnectionStatus connected={apiConnected} title={apiConnected ? 'API 연결됨' : 'API 미연결 (샘플 모드)'} />*/}
       </SidebarHeader>
 
       <Navigation>

@@ -1,10 +1,12 @@
 // client/src/components/inventory/InventoryForm.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Select from '../common/Select';
+import { inventoryApi } from '../../services/api';
+import { INVENTORY_CATEGORY_OPTIONS } from '../../constants/inventoryOptions';
 
 const FormContainer = styled.div`
   background: white;
@@ -47,10 +49,15 @@ const SectionTitle = styled.h4`
   border-bottom: 1px solid #e5e7eb;
   padding-bottom: 8px;
 `;
+const ValidationError = styled.div`
+  margin-top: 10px; padding: 10px 12px; border-radius: 6px;
+  color: #b91c1c; background: #fef2f2; font-size: 0.9rem;
+`;
 
 interface UnifiedInventoryItem {
   id?: number;
-  item_code: string;
+  item_code?: string;
+  initial_received_quantity?: number;
   item_name: string;
   category?: string;
   brand?: string;
@@ -78,31 +85,34 @@ interface InventoryFormProps {
   onSubmit: (item: UnifiedInventoryItem) => void;
   onCancel: () => void;
   loading?: boolean;
+  showReceiptQuantity?: boolean;
 }
 
 const InventoryForm: React.FC<InventoryFormProps> = ({ 
   item, 
   onSubmit, 
   onCancel,
-  loading = false
+  loading = false,
+  showReceiptQuantity = false,
 }) => {
   const [formData, setFormData] = useState<UnifiedInventoryItem>({
     item_code: item?.item_code || '',
+    initial_received_quantity: showReceiptQuantity ? Math.max(1, item?.initial_received_quantity ?? 1) : undefined,
     item_name: item?.item_name || '',
     category: item?.category || '',
     brand: item?.brand || '',
     specifications: item?.specifications || '',
     unit: item?.unit || '개',
-    unit_price: item?.unit_price || undefined,
+    unit_price: item?.unit_price !== undefined ? Math.max(0, item.unit_price) : undefined,
     currency: item?.currency || 'KRW',
     location: item?.location || '',
     warehouse: item?.warehouse || '',
     storage_section: item?.storage_section || '',
     supplier_name: item?.supplier_name || '',
     supplier_contact: item?.supplier_contact || '',
-    minimum_stock: item?.minimum_stock || 0,
-    maximum_stock: item?.maximum_stock || undefined,
-    reorder_point: item?.reorder_point || undefined,
+    minimum_stock: Math.max(0, item?.minimum_stock ?? 0),
+    maximum_stock: item?.maximum_stock !== undefined ? Math.max(0, item.maximum_stock) : undefined,
+    reorder_point: item?.reorder_point !== undefined ? Math.max(0, item.reorder_point) : undefined,
     is_consumable: item?.is_consumable || false,
     requires_approval: item?.requires_approval || false,
     description: item?.description || '',
@@ -111,9 +121,40 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
   });
 
   const [tagsInput, setTagsInput] = useState(formData.tags.join(', '));
+  const [isLoadingItemCode, setIsLoadingItemCode] = useState(!item);
+  const [validationError, setValidationError] = useState('');
+
+  useEffect(() => {
+    if (item) return;
+
+    let cancelled = false;
+    setIsLoadingItemCode(true);
+    inventoryApi.getNextItemCode()
+      .then(itemCode => {
+        if (!cancelled) {
+          setFormData(previous => ({ ...previous, item_code: itemCode }));
+        }
+      })
+      .catch(error => console.error('다음 품목코드 조회 실패:', error))
+      .finally(() => {
+        if (!cancelled) setIsLoadingItemCode(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [item]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.maximum_stock !== undefined && formData.maximum_stock < formData.minimum_stock) {
+      setValidationError('최대 재고는 최소 재고보다 크거나 같아야 합니다.');
+      return;
+    }
+    if (showReceiptQuantity && (!Number.isInteger(formData.initial_received_quantity) || (formData.initial_received_quantity || 0) < 1)) {
+      setValidationError('수령 수량은 1 이상의 정수여야 합니다.');
+      return;
+    }
+    setValidationError('');
     
     // 태그 처리
     const tags = tagsInput
@@ -144,15 +185,32 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const categoryOptions = [
-    { value: '', label: '카테고리 선택' },
-    { value: 'IT 관련 장비', label: 'IT 관련 장비' },
-    { value: '사무 용품', label: '사무 용품' },
-    { value: '제조 장비', label: '제조 장비' },
-    { value: '소모품', label: '소모품' },
-    { value: '아이템', label: '아이템' },
-    { value: '기타', label: '기타' },
-  ];
+  const handleNonNegativeNumber = (
+    field: 'unit_price' | 'minimum_stock' | 'maximum_stock' | 'reorder_point' | 'initial_received_quantity',
+    rawValue: string,
+    integer = true,
+    required = false,
+  ) => {
+    if (rawValue === '') {
+      handleChange(field, required ? 0 : undefined);
+      return;
+    }
+    const parsed = integer ? parseInt(rawValue, 10) : parseFloat(rawValue);
+    handleChange(field, Number.isFinite(parsed) ? Math.max(0, parsed) : (required ? 0 : undefined));
+    setValidationError('');
+  };
+
+  const preventNegativeInput = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === '-') event.preventDefault();
+  };
+
+  const isMaximumStockInvalid = formData.maximum_stock !== undefined
+    && formData.maximum_stock < formData.minimum_stock;
+  const maximumStockError = isMaximumStockInvalid
+    ? '최대 재고는 최소 재고보다 크거나 같아야 합니다.'
+    : '';
+
+  const categoryOptions = [...INVENTORY_CATEGORY_OPTIONS];
 
   const unitOptions = [
     { value: '개', label: '개' },
@@ -184,11 +242,10 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
             <Input
               label="품목 코드 *"
               type="text"
-              value={formData.item_code}
-              onChange={(e) => handleChange('item_code', e.target.value)}
-              placeholder="품목 코드를 입력하세요"
+              value={isLoadingItemCode ? '자동 생성 중...' : (formData.item_code || '')}
+              placeholder="기존 규칙에 따라 자동 생성됩니다"
               required
-              disabled={!!item} // 수정 시 품목 코드 변경 불가
+              disabled
             />
           </FormGroup>
 
@@ -237,6 +294,22 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
         {/* 수량 및 가격 정보 */}
         <SectionTitle>수량 및 가격 정보</SectionTitle>
         <FormGrid>
+          {showReceiptQuantity && (
+            <FormGroup>
+              <Input
+                label="수령 수량 *"
+                type="number"
+                value={formData.initial_received_quantity ?? 1}
+                onChange={(e) => handleNonNegativeNumber('initial_received_quantity', e.target.value, true, true)}
+                placeholder="수령한 수량을 입력하세요"
+                required
+                min="1"
+                step="1"
+                onKeyDown={preventNegativeInput}
+              />
+            </FormGroup>
+          )}
+
           <FormGroup>
             <Select
               label="단위 *"
@@ -251,11 +324,12 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
             <Input
               label="단가"
               type="number"
-              value={formData.unit_price || ''}
-              onChange={(e) => handleChange('unit_price', e.target.value ? parseFloat(e.target.value) : undefined)}
+              value={formData.unit_price ?? ''}
+              onChange={(e) => handleNonNegativeNumber('unit_price', e.target.value, false)}
               placeholder="단가를 입력하세요"
               min="0"
               step="0.01"
+              onKeyDown={preventNegativeInput}
             />
           </FormGroup>
 
@@ -277,10 +351,11 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
               label="최소 재고 *"
               type="number"
               value={formData.minimum_stock}
-              onChange={(e) => handleChange('minimum_stock', parseInt(e.target.value) || 0)}
+              onChange={(e) => handleNonNegativeNumber('minimum_stock', e.target.value, true, true)}
               placeholder="최소 재고 수량"
               required
               min="0"
+              onKeyDown={preventNegativeInput}
             />
           </FormGroup>
 
@@ -288,10 +363,11 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
             <Input
               label="최대 재고"
               type="number"
-              value={formData.maximum_stock || ''}
-              onChange={(e) => handleChange('maximum_stock', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={formData.maximum_stock ?? ''}
+              onChange={(e) => handleNonNegativeNumber('maximum_stock', e.target.value)}
               placeholder="최대 재고 수량"
-              min="0"
+              min={formData.minimum_stock}
+              onKeyDown={preventNegativeInput}
             />
           </FormGroup>
 
@@ -299,10 +375,11 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
             <Input
               label="재주문 포인트"
               type="number"
-              value={formData.reorder_point || ''}
-              onChange={(e) => handleChange('reorder_point', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={formData.reorder_point ?? ''}
+              onChange={(e) => handleNonNegativeNumber('reorder_point', e.target.value)}
               placeholder="재주문 시점"
               min="0"
+              onKeyDown={preventNegativeInput}
             />
           </FormGroup>
         </FormGrid>
@@ -425,6 +502,10 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
           />
         </FormGroup>
 
+        {(maximumStockError || validationError) && (
+          <ValidationError role="alert">{maximumStockError || validationError}</ValidationError>
+        )}
+
         <ButtonGroup>
           <Button 
             type="button" 
@@ -437,8 +518,8 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
           <Button 
             type="submit" 
             variant="primary"
-            loading={loading}
-            disabled={loading}
+            loading={loading || isLoadingItemCode}
+            disabled={loading || isLoadingItemCode || !formData.item_code || isMaximumStockInvalid}
           >
             {item ? '수정' : '추가'}
           </Button>

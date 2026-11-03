@@ -254,7 +254,7 @@ class PurchaseRequestResponse(BaseModel):
                 actual_approval_time=int(getattr(obj, 'actual_approval_time', 0) or 0),
             )
         except Exception as e:
-            print(f"⚠️ from_orm 변환 실패: {e}")
+            print(f" from_orm 변환 실패: {e}")
             # 최소한의 안전한 객체 반환
             return cls(
                 id=getattr(obj, 'id', 0),

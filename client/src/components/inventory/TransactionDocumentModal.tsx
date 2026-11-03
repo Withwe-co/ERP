@@ -345,11 +345,13 @@ const TransactionDocumentModal: React.FC<TransactionDocumentModalProps> = ({
 
   const handleViewCurrent = () => {
     if (item.transaction_document_url) {
-      const fullUrl = item.transaction_document_url.startsWith('http') 
+       window.open(item.transaction_document_url, '_blank');
+      /*const fullUrl = item.transaction_document_url.startsWith('http') 
         ? item.transaction_document_url 
         // : `http://192.168.0.16:8000${item.transaction_document_url}`;
         : `http://221.44.183.165:8000${item.transaction_document_url}`;
-      window.open(fullUrl, '_blank');
+      window.open(fullUrl, '_blank');*/
+
     }
   };
 
@@ -364,7 +366,7 @@ const TransactionDocumentModal: React.FC<TransactionDocumentModalProps> = ({
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +  + sizes[i];
   };
 
   const getFileTypeIcon = (type: string) => {

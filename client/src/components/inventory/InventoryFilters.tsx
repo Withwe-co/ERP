@@ -4,11 +4,12 @@ import styled from 'styled-components';
 import { Search, Filter, X } from 'lucide-react';
 import Button from '../common/Button';
 import { SearchFilters } from '../../types';
+import { INVENTORY_CATEGORY_OPTIONS } from '../../constants/inventoryOptions';
 
 const FilterContainer = styled.div`
   display: flex;
   gap: 16px;
-  margin-bottom: 20px;
+  // margin-bottom: 20px;
   align-items: center;
   flex-wrap: wrap;
 `;
@@ -68,7 +69,10 @@ const ActiveFilters = styled.div`
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  // margin-top: 10px;
+  justify-content: center;
+  align-items: center;
+  margin-left: 8px;
 `;
 
 const FilterTag = styled.div`
@@ -93,9 +97,10 @@ const FilterTag = styled.div`
 
 interface InventoryFiltersProps {
   onFilter: (filters: SearchFilters) => void;
+  variant?: 'inventory' | 'receipt';
 }
 
-const InventoryFilters: React.FC<InventoryFiltersProps> = ({ onFilter }) => {
+const InventoryFilters: React.FC<InventoryFiltersProps> = ({ onFilter, variant = 'inventory' }) => {
   const [filters, setFilters] = useState<SearchFilters>({});
 
   const handleFilterChange = (key: keyof SearchFilters, value: string) => {
@@ -130,11 +135,21 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({ onFilter }) => {
       search: '검색',
       category: '카테고리',
       is_active: '상태',
+      stock_status: '재고상태',
     };
     
     if (key === 'is_active') {
-      return `${names[key]}: ${value === 'true' ? '활성' : '비활성'}`;
+      return `${names[key]}: ${value === 'true' ? '사용중' : '사용 중지'}`;
     }
+
+    /*if (key === 'stock_status') {
+      const labels: Record<string, string> = {
+        normal: '정상',
+        low_stock: '부족',
+        out_of_stock: '없음',
+      };
+      return `${names[key]}: ${labels[value] || value}`;
+    }*/
     
     return `${names[key] || key}: ${value}`;
   };
@@ -142,36 +157,58 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({ onFilter }) => {
   return (
     <>
       <FilterContainer>
-        <SearchGroup>
-          <SearchIcon />
-          <SearchInput
-            type="text"
-            placeholder="품목명, 품목코드로 검색..."
-            value={filters.search || ''}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-          />
-        </SearchGroup>
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
+          <SearchGroup> 
+              <SearchIcon />
+              <SearchInput
+                type="text"
+                placeholder="품목명, 품목코드로 검색..."
+                value={filters.search || ''}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+              />
+          </SearchGroup>
+        </div>
 
         <FilterSelect
           value={filters.category || ''}
           onChange={(e) => handleFilterChange('category', e.target.value)}
         >
           <option value="">전체 카테고리</option>
-          <option value="IT 관련 장비">IT 관련 장비</option>
-          <option value="사무 용품">사무 용품</option>
-          <option value="제조 장비">제조 장비</option>
-          <option value="소모품">소모품</option>
-          <option value="아이템">아이템</option>
-          <option value="기타">기타</option>
+          {variant === 'receipt' ? (
+            INVENTORY_CATEGORY_OPTIONS.map(category => (
+              <option key={category.value} value={category.value}>{category.label}</option>
+            ))
+          ) : (
+            <>
+              <option value="IT 관련 장비">IT 관련 장비</option>
+              <option value="사무 용품">사무 용품</option>
+              <option value="제조 장비">제조 장비</option>
+              <option value="소모품">소모품</option>
+              <option value="아이템">아이템</option>
+              <option value="기타">기타</option>
+            </>
+          )}
         </FilterSelect>
+
+        {/*{variant === 'receipt' && (
+          <FilterSelect
+            value={filters.stock_status || ''}
+            onChange={(e) => handleFilterChange('stock_status', e.target.value)}
+          >
+            <option value="">전체 재고상태</option>
+            <option value="normal">정상</option>
+            <option value="low_stock">부족</option>
+            <option value="out_of_stock">없음</option>
+          </FilterSelect>
+        )}*/}
 
         <FilterSelect
           value={filters.is_active || ''}
           onChange={(e) => handleFilterChange('is_active', e.target.value)}
         >
           <option value="">전체 상태</option>
-          <option value="true">활성</option>
-          <option value="false">비활성</option>
+          <option value="true">사용중</option>
+          <option value="false">사용중지</option>
         </FilterSelect>
 
         <FilterButton 
@@ -185,20 +222,20 @@ const InventoryFilters: React.FC<InventoryFiltersProps> = ({ onFilter }) => {
       </FilterContainer>
 
       {/* 활성 필터 표시 */}
-      {hasActiveFilters && (
-        <ActiveFilters>
-          {Object.entries(filters).map(([key, value]) => (
-            <FilterTag key={key}>
-              <span>{getFilterDisplayName(key, value as string)}</span>
-              <X 
-                size={12} 
-                className="remove-filter"
-                onClick={() => removeFilter(key as keyof SearchFilters)}
-              />
-            </FilterTag>
-          ))}
-        </ActiveFilters>
-      )}
+        {hasActiveFilters && (
+          <ActiveFilters>
+            {Object.entries(filters).map(([key, value]) => (
+              <FilterTag key={key}>
+                <span>{getFilterDisplayName(key, value as string)}</span>
+                <X 
+                  size={12} 
+                  className="remove-filter"
+                  onClick={() => removeFilter(key as keyof SearchFilters)}
+                />
+              </FilterTag>
+            ))}
+          </ActiveFilters>
+        )}
     </>
   );
 };

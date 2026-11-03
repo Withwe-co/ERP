@@ -12,6 +12,7 @@ interface ButtonProps {
   type?: 'button' | 'submit' | 'reset';
   className?: string;
   title?: string;
+  style?: React.CSSProperties;
 }
 
 interface StyledButtonProps {
@@ -164,6 +165,7 @@ const Button: React.FC<ButtonProps> = ({
   type = 'button',
   className,
   title,
+  style,
 }) => {
   return (
     <ButtonContainer
@@ -176,6 +178,7 @@ const Button: React.FC<ButtonProps> = ({
       className={className}
       disabled={disabled || loading}
       title={title}
+      style={style}
     >
       {loading && <LoadingSpinner />}
       {children}
