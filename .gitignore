@@ -9,6 +9,7 @@ data
 /dist
 /client/dist
 /client/logs/nginx/access.log
+
 # Python local environment
 server/.venv/
 server/.pytest_cache/
@@ -24,3 +25,7 @@ package-lock.json
 package.json
 
 uploads/report_attachments
+
+
+/tools
+/server/tests/

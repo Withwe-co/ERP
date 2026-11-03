@@ -434,6 +434,8 @@ export interface KoreanHoliday {
 
 export interface Employee {
   id: number;
+  department?: string | null;
+  caps_user_id?: string | null;
   name: string;
   position: string;
   total_leave: number;
@@ -441,6 +443,8 @@ export interface Employee {
 }
 
 export interface EmployeeUploadFormData {
+  department?: string | null;
+  caps_user_id?: string | null;
   name: string;
   position: string;
   total_leave: number;
@@ -2254,6 +2258,39 @@ export const LeavesApi = {
   // Leaves 조회
   getLeaves: async () => {
     return apiRequest.get('/leaves/');
+  },
+};
+
+export interface AttendanceDay {
+  work_date: string;
+  check_in: string;
+  check_out: string;
+  imported_at: string;
+}
+
+export interface AttendanceImportResult {
+  total: number;
+  imported: number;
+  skipped_existing: number;
+  skipped_unregistered: number;
+  skipped_empty: number;
+  skipped_not_due: number;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+export const attendanceApi = {
+  getCalendar: async (employeeId: number, startDate: string, endDate: string): Promise<AttendanceDay[]> =>
+    apiRequest.get('/attendance/calendar', { 
+      employee_id: employeeId, start_date: startDate, end_date: endDate,
+    }),
+  importFile: async (file: File): Promise<AttendanceImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/attendance/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
   },
 };
 

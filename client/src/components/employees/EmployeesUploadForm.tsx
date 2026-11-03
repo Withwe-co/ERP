@@ -10,6 +10,8 @@ import Card from '../common/Card';
 import { EmployeeApi} from '../../services/api';
 
 interface EmployeesUploadFormData {
+    department: string;
+    caps_user_id: string;
     name: string;
     position: string;
     total_leave: number;
@@ -17,6 +19,8 @@ interface EmployeesUploadFormData {
 }
 
 interface Employee {
+    department?: string | null;
+    caps_user_id?: string | null;
     id: number;
     name: string;
     position: string;
@@ -94,6 +98,14 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
 })=>{
     const [errors,setErrors] = useState<Record<string,string>>({});
     
+    const departmentOption =[
+        {value: 'S/W 개발팀', label: 'S/W 개발팀'},
+        {value: '하드웨어팀', label: '하드웨어팀'},
+        {value: '전장제어팀', label: '전장제어팀'},
+        {value: 'R&D팀', label: 'R&D팀'},
+        {value: '경영지원팀', label: '경영지원팀'},
+    ].sort((a, b) => a.label.localeCompare(b.label, 'ko'));
+
     const positionOption =[
         {value: '수석 연구원', label: '수석 연구원'},
         {value: '책임 연구원', label: '책임 연구원'},
@@ -105,6 +117,8 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
     const getInitialFormData = (): EmployeesUploadFormData => {
         if (!initialData) {
             return {
+                department: '',
+                caps_user_id: '',
                 name: '',
                 position: '',
                 total_leave: 0,
@@ -114,6 +128,8 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
 
         // 수정모드
             return {
+            department: initialData.department || '',
+            caps_user_id: initialData.caps_user_id || '',
             name: initialData.name || '',
             position: initialData.position || '',
             total_leave: initialData.total_leave || 0,
@@ -152,13 +168,17 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
         },
     });
 
-    const isLoading = createMutation.isPending || updateMutation.isPending;
+    const isLoading = createMutation.isLoading || updateMutation.isLoading;
     const [formData, setFormData] = useState<EmployeesUploadFormData>(getInitialFormData());
     const validateForm = (): boolean => {
        const newErrors: Record<string, string> = {};
     
         if (!formData.name.trim()) {
           newErrors.name = '이름을 입력해주세요.';
+        }
+
+        if (!formData.department) {
+          newErrors.department = '부서를 선택해주세요.';
         }
 
         if (!formData.position) {
@@ -171,6 +191,9 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
 
         if (formData.used_leave < 0) {
             newErrors.used_leave = '사용 연가는 0 이상이어야 합니다.';
+        }
+        if (formData.caps_user_id.trim().length > 50) {
+            newErrors.caps_user_id = '캡스 사용자 ID는 50자 이하여야 합니다.';
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -185,6 +208,8 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
         }
     
         const submitData = {
+            department: formData.department,
+            caps_user_id: formData.caps_user_id.trim() || null,
             name: formData.name,
             position: formData.position,
             total_leave: formData.total_leave,
@@ -220,7 +245,7 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
                 <FormSection>
                     <div className="section-title">
                     <Package className="section-icon" size={20} />
-                    프로젝트 정보
+                    직원 정보
                     </div>
 
                     <FormGrid>
@@ -237,6 +262,15 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
                             {errors.project_name}
                         </ErrorMessage>
                         )}
+                        
+                        <Input
+                            label="캡스 사용자 ID"
+                            type="text"
+                            value={formData.caps_user_id}
+                            onChange={e => handleChange('caps_user_id', e.target.value)}
+                            placeholder="예: 0001 (앞자리 0 포함)"
+                        />
+                        {errors.caps_user_id && <ErrorMessage>{errors.caps_user_id}</ErrorMessage>}
 
                         <Select
                             label={'\u00A0\u00A0직위\u00A0'}
@@ -246,6 +280,23 @@ const EmployeesUploadForm: React.FC<EmployeesUploadFormProps> =({
                             placeholder="직위를 선택하세요"
                             required
                         />
+
+                        <div>
+                            <Select
+                                label={'\u00A0\u00A0부서\u00A0'}
+                                value={formData.department}
+                                options={departmentOption}
+                                onChange={(value) => handleChange('department', value)}
+                                placeholder="부서를 선택하세요"
+                                required
+                            />
+                            {errors.department && (
+                                <ErrorMessage>
+                                    <AlertCircle size={12} />
+                                    {errors.department}
+                                </ErrorMessage>
+                            )}
+                        </div>
 
                         <Input
                             label={'\u00A0\u00A0총 연가\u00A0'}

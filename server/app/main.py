@@ -13,6 +13,14 @@ from sqlalchemy import text
 
 import os
 
+# 기존 직원 데이터에 캡스 ID 열과 근태 테이블을 추가한다.
+from app.core.attendance_schema import ensure_attendance_schema
+ensure_attendance_schema(engine)
+
+# 기존 직원 데이터에 부서 열을 추가한다.
+from app.core.employee_schema import ensure_employee_schema
+ensure_employee_schema(engine)
+
 # 데이터베이스 테이블 생성
 try:
     Base.metadata.create_all(bind=engine)

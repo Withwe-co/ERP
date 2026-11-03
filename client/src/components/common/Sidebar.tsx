@@ -343,6 +343,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   ];
 
   const dataMenuItems = [
+    { path: '/attendance-upload', label: '출퇴근 기록 업로드', icon: Upload },
     { path: '/upload', label: '파일 관리', icon: Upload },
     { path: '/statistics', label: '통계 분석', icon: BarChart3 },
     { path: '/logs', label: '시스템 로그', icon: History },
