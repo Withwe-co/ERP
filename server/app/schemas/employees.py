@@ -2,7 +2,7 @@ from typing import List
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
-EMPLOYEE_DEPARTMENTS = ("S/W 개발팀", "하드웨어팀", "전장제어팀", "R&D팀", "경원지원팀")
+EMPLOYEE_DEPARTMENTS = ("S/W 개발팀", "하드웨어팀", "전장제어팀", "R&D팀", "경영지원팀")
 
 
 def normalize_department(value):
