@@ -359,6 +359,7 @@ const WeeklyReportPage: React.FC<WeeklyReportPageProps> = ({ employeeId }) => {
         onClose={closeForm}
         title={formMode === 'create' ? '주간 보고서 등록' : '주간 보고서 수정'}
         size="xl"
+        closeOnOverlayClick={false}
       >
         <CreateReportForm
           key={`${formMode}-${formMode === 'edit' ? weeklyReport?.id : 'new'}`}

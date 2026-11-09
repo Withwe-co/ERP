@@ -525,12 +525,9 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={closeCreateModal}
-        title={
-          selectedDate
-            ? `${selectedDate} 일일 업무 보고 작성`
-            : '일일 업무 보고 작성'
-        }
+        title={selectedDate ? `${selectedDate} 일일 업무 보고 작성` : '일일 업무 보고 작성'}
         size="xl"
+        closeOnOverlayClick={false}
       >
         {selectedDate && (
           <CreateReportForm
@@ -563,12 +560,9 @@ const DailyReportPage = ({employeeId,}: DailyReportPageProps) => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={closeEditModal}
-        title={
-          selectedDate
-            ? `${selectedDate} 일일 업무 보고 수정`
-            : '일일 업무 보고 수정'
-        }
+        title={selectedDate  ? `${selectedDate} 일일 업무 보고 수정` : '일일 업무 보고 수정'}
         size="xl"
+        closeOnOverlayClick={false}
       >
         {selectedReport && (
           <CreateReportForm
