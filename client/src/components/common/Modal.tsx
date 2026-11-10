@@ -111,7 +111,8 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children,
   size = 'md',
-  closable = true
+  closable = true,
+  closeOnOverlayClick = true
 }) => {
   // ESC 키로 모달 닫기
   useEffect(() => {
@@ -134,7 +135,7 @@ const Modal: React.FC<ModalProps> = ({
 
   // 오버레이 클릭으로 모달 닫기
   const handleOverlayClick = (event: React.MouseEvent) => {
-    if (event.target === event.currentTarget && closable) {
+    if (event.target === event.currentTarget && closable && closeOnOverlayClick) {
       onClose();
     }
   };

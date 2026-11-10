@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import styled from 'styled-components';
 import { Search, Filter, X } from 'lucide-react';
 import Button from '../common/Button';
-import { SearchFilters } from '../../types';
+import type { SearchFilters as CommonSearchFilters } from '../../types';
+
+type SearchFilters = Pick<CommonSearchFilters,'search' | 'status' | 'department'>;
 
 const FilterContainer = styled.div`
   display: flex;
@@ -96,34 +98,30 @@ const FilterTag = styled.div`
 `;
 
 interface WbsFiltersProps {
+  filters: SearchFilters;
   onFilter: (filters: SearchFilters) => void;
 }
 
-const WbsFilters: React.FC<WbsFiltersProps> = ({ onFilter }) => {
-  const [filters, setFilters] = useState<SearchFilters>({});
-
+const WbsFilters: React.FC<WbsFiltersProps> = ({filters, onFilter}) => {
   const handleFilterChange = (key: keyof SearchFilters, value: string) => {
     const newFilters = { ...filters };
-    
+
     if (value) {
       newFilters[key] = value;
     } else {
       delete newFilters[key];
     }
-    
-    setFilters(newFilters);
+  
     onFilter(newFilters);
   };
 
   const removeFilter = (key: keyof SearchFilters) => {
     const newFilters = { ...filters };
     delete newFilters[key];
-    setFilters(newFilters);
     onFilter(newFilters);
   };
 
   const clearAllFilters = () => {
-    setFilters({});
     onFilter({});
   };
 

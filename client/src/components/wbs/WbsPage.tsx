@@ -1,4 +1,4 @@
-import React, {useState,useMemo} from 'react';
+import React, {useState, useMemo, useEffect} from 'react';
 import styled from 'styled-components';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {toast} from 'react-toastify';
@@ -53,6 +53,8 @@ interface SearchFilters {
   status?: string;
   department?: string;
 }
+
+const WBS_FILTERS_KEY = 'wbs.filters';
 
 const Container = styled.div`
   padding: 20px;
@@ -152,13 +154,52 @@ const ActionButtonGroup = styled.div`
 
 const WbsPage: React.FC = () => {
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<SearchFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingProject, setEditingProejct] = useState<ProjectList | null>(null);
   type projectViewMode = 'all' | 'on_hold';
   const [projectView, setProjectView] = useState<projectViewMode>('all');
+
+  const [filters, setFilters] = useState<SearchFilters>(() => {
+    try {
+      const raw = window.sessionStorage.getItem(WBS_FILTERS_KEY);
+      if (!raw) return {};
+
+      const parsed: unknown = JSON.parse(raw);
+
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+      const saved = parsed as Record<string, unknown>;
+      const restored: SearchFilters = {};
+
+      // WBS에서 사용하는 문자열 필터만 복원
+      for (const key of ['search', 'status', 'department'] as const) {
+        const value = saved[key];
+
+        if (typeof value === 'string' && value !== '') {
+          restored[key] = value;
+        }
+      }
+
+      return restored;
+    } catch {
+      return {};
+    }
+  });
+
+  // 필터 변경 시 저장하고, 전체 초기화 시 저장값도 삭제
+  useEffect(() => {
+    try {
+      if (Object.keys(filters).length === 0) {
+        window.sessionStorage.removeItem(WBS_FILTERS_KEY);
+      } else {
+        window.sessionStorage.setItem(WBS_FILTERS_KEY, JSON.stringify(filters));
+      }
+    } catch (error) {
+      console.warn('WBS 필터 저장 실패:', error);
+    }
+  }, [filters]);
 
   const storeProjectMutation = useMutation({
       mutationFn: api.wbs.storeProject,
@@ -389,7 +430,7 @@ const WbsPage: React.FC = () => {
       <PageSubtitle>프로젝트를 등록하고 관리하세요.</PageSubtitle>
       <Card>
         <FilterContainer>
-          <WbsFilters onFilter={handleSearch} />
+          <WbsFilters filters={filters} onFilter={handleSearch} />
           <ActionButtons>
             <Button
               variant={projectView === 'all' ? 'primary' : 'outline'}

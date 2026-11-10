@@ -339,6 +339,7 @@ export interface ModalProps {
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   closable?: boolean;
+  closeOnOverlayClick?: boolean;
   className?: string;
 }
 

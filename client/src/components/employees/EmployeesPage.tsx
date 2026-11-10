@@ -158,10 +158,14 @@ const EmployeesPage: React.FC = () => {
     },
     {
       key: 'caps_user_id',
-      label: '캡스 사용자 ID',
+      label: '캡스 ID',
       width: '150px',
       align: 'center',
-      render: value => value || '미등록',
+      render: (value) => (
+        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
+          <div>{value || '미등록'}</div>
+        </div>
+      )
     },
     {
       key: 'position',
