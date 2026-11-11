@@ -75,7 +75,19 @@ const ReportBody = styled.div`
   .ProseMirror h1 { font-size: 1.8rem; }
   .ProseMirror h2 { font-size: 1.5rem; }
   .ProseMirror h3 { font-size: 1.25rem; }
-  .ProseMirror ul, .ProseMirror ol { padding-left: 24px; }
+  
+  .ProseMirror ul {padding-left: 24px;}
+  .ProseMirror ol {padding-left: 32px; list-style: none; counter-reset: item;}
+  .ProseMirror ol > li {position: relative; counter-increment: item;}
+  .ProseMirror ol > li::before {
+    content: counters(item, '-') '. ';
+    position: absolute;
+    right: 100%;
+    margin-right: 6px;
+    white-space: nowrap;
+  }
+  .ProseMirror ol ol {padding-left: 40px; margin-top: 4px;}
+
   .ProseMirror blockquote {
     margin: 1rem 0;
     padding-left: 12px;
