@@ -58,6 +58,10 @@ const WBS_FILTERS_KEY = 'wbs.filters';
 
 const Container = styled.div`
   padding: 20px;
+
+  tbody td {
+    vertical-align: middle;
+  }
 `;
 
 const ContentCard = styled(Card)`
@@ -280,7 +284,7 @@ const WbsPage: React.FC = () => {
           'CANCELLED': '취소됨',
           'PLANNED': '진행예정'
         };
-        return <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}><StatusBadge $status={value}>{statusMap[value]||value}</StatusBadge></div>;
+        return <StatusBadge $status={value}>{statusMap[value]||value}</StatusBadge>;
       }
     },
     {
@@ -289,8 +293,8 @@ const WbsPage: React.FC = () => {
       sortable: true,
       width: '100px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
-          <div>{value}</div>
+        <div>
+          {value}
         </div>
       )
     },
@@ -318,8 +322,8 @@ const WbsPage: React.FC = () => {
       sortable: true,
       width: '340px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
-          <div style={{ fontWeight: 'bold',marginBottom: '4px'}}>{value || '프로젝트명 없음'}</div>
+        <div style={{fontWeight: 'bold'}}>
+          {value || '프로젝트명 없음'}
         </div>
       )
     },
@@ -329,8 +333,8 @@ const WbsPage: React.FC = () => {
       sortable: true,
       width: '150px',
       render: (value) =>  (
-       <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
-          <div >{new Date(value).toLocaleDateString('ko-KR') || '-'}</div>
+        <div>
+          {new Date(value).toLocaleDateString('ko-KR') || '-'}
         </div>
       )
     },
@@ -340,8 +344,8 @@ const WbsPage: React.FC = () => {
       sortable: true,
       width: '150px',
       render: (value) =>  (
-       <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',}}>
-          <div >{new Date(value).toLocaleDateString('ko-KR') || '-'}</div>
+        <div>
+          {new Date(value).toLocaleDateString('ko-KR') || '-'}
         </div>
       )
     },
@@ -350,8 +354,8 @@ const WbsPage: React.FC = () => {
       label: '진행률',
       width: '80px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
-          <div>{value ?? 0} %</div>
+        <div>
+          {value ?? 0} %
         </div>
       )
       
@@ -361,8 +365,8 @@ const WbsPage: React.FC = () => {
       label: '전체 태스크',
       width: '80px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
-          <div>{value ?? 0}</div>
+        <div>
+          {value ?? 0}
         </div>
       )
     },
@@ -371,8 +375,8 @@ const WbsPage: React.FC = () => {
       label: '지연 태스크',
       width: '80px',
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
-          <div>{value ?? 0}</div>
+        <div>
+          {value ?? 0}
         </div>
       )
     },
@@ -380,10 +384,9 @@ const WbsPage: React.FC = () => {
       key: 'complete_task',
       label: '완료 태스크',
       width: '80px',
-      style: { verticalAlign: 'middle' },
       render: (value) => (
-        <div style={{minHeight: '40px',display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
-          <div>{value ?? 0}</div>
+        <div>
+          {value ?? 0}
         </div>
       )
     },
@@ -391,9 +394,6 @@ const WbsPage: React.FC = () => {
       key: 'actions',
       label: '관리',
       width: '180px',
-      align: 'center',
-      verticalAlign: 'middle',
-      style: { verticalAlign: 'middle' },
       render: (_, item) => {
         
         return (
