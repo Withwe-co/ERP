@@ -135,7 +135,6 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({filters, onFilter}) => {
     };
     if (key === 'status') {
       const labels: Record<string, string> = {
-        COMPLETED: '완료',
         IN_PROGRESS: '진행중',
         CANCELLED: '취소됨',
         PLANNED: '진행예정',
@@ -176,7 +175,6 @@ const WbsFilters: React.FC<WbsFiltersProps> = ({filters, onFilter}) => {
           onChange={(e) => handleFilterChange('status', e.target.value)}
         >
           <option value="">전체 상태</option>
-          <option value="COMPLETED">완료</option>
           <option value="PLANNED">진행예정</option>
           <option value="IN_PROGRESS">진행중</option>
           <option value="CANCELLED">취소됨</option>

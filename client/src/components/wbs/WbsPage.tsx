@@ -162,7 +162,7 @@ const WbsPage: React.FC = () => {
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingProject, setEditingProejct] = useState<ProjectList | null>(null);
-  type projectViewMode = 'all' | 'on_hold';
+  type projectViewMode = 'all' | 'on_hold' | 'complete';
   const [projectView, setProjectView] = useState<projectViewMode>('all');
 
   const [filters, setFilters] = useState<SearchFilters>(() => {
@@ -260,8 +260,16 @@ const WbsPage: React.FC = () => {
     queryKey:['wbs',projectView,currentPage,filters],
     queryFn: () => {
       const params = {page: currentPage,limit: 20,... filters};
-
-      return projectView === 'on_hold'?projectApi.getOnHoldProjects(params):projectApi.getRequests(params)},
+      
+      if (projectView === 'all') {
+        return projectApi.getRequests(params);
+      }
+      else if (projectView === 'on_hold') {
+        return projectApi.getOnHoldProjects(params);
+      }
+      else if (projectView === 'complete') {
+        return projectApi.getCompleteProjects(params);
+      }},
     keepPreviousData: true,
     staleTime: 0,
     refetchOnMount: 'always',
@@ -437,6 +445,13 @@ const WbsPage: React.FC = () => {
               onClick={() => { setCurrentPage(1); setProjectView('all'); }}
             >
               전체 프로젝트
+            </Button>
+            <Button
+              variant={projectView === 'complete' ? 'primary' : 'outline'}
+              onClick={() => { setCurrentPage(1); setProjectView('complete'); }}       
+              title="완료 프로젝트 목록"
+            >
+              완료 프로젝트
             </Button>
             <Button
               variant={projectView === 'on_hold' ? 'primary' : 'outline'}
