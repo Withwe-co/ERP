@@ -2087,6 +2087,42 @@ export const projectApi = {
     }
   },
 
+  // 완료(Status==COMPLETE)인 프로젝트 목록 조회
+  getCompleteProjects: async (params: {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+    department?: string;
+    [key: string]: any;
+  }): Promise<{
+    data: {
+      items: Project[];
+      total: number;
+      pages: number;
+      page: number;
+      size: number;
+    };
+  }> => {
+    const { page, limit, ...filters } = params;
+    
+    try {
+      const queryParams = {
+        skip: (page - 1) * limit,
+        limit,
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+        )
+      };
+      
+      const response = await apiRequest.get('/wbs/complete', queryParams);
+      return { data: response };
+    } catch (error) {
+      console.error('프로젝트 목록 조회 실패:', error);
+      throw error;
+    }
+  },
+
   getNextProjectCode: async (): Promise<string> => {
     const response = await apiRequest.get('/wbs/next-code');
     return response.project_code;

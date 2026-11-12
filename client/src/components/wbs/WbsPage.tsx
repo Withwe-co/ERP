@@ -156,13 +156,16 @@ const ActionButtonGroup = styled.div`
   min-height: 40px;
 `;
 
+// metric 컬럼의 고정 너비를 상수로 정의
+const WBS_METRIC_COLUMN_WIDTH = '80px';    
+
 const WbsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate(); // 페이지 이동을 위한 훅 선언
   const [isFormModalOpen, setIsFormModalOpen] = useState(false); // 등록 Form Open
   const [editingProject, setEditingProejct] = useState<ProjectList | null>(null);
-  type projectViewMode = 'all' | 'on_hold';
+  type projectViewMode = 'all' | 'on_hold' | 'complete';
   const [projectView, setProjectView] = useState<projectViewMode>('all');
 
   const [filters, setFilters] = useState<SearchFilters>(() => {
@@ -260,8 +263,16 @@ const WbsPage: React.FC = () => {
     queryKey:['wbs',projectView,currentPage,filters],
     queryFn: () => {
       const params = {page: currentPage,limit: 20,... filters};
-
-      return projectView === 'on_hold'?projectApi.getOnHoldProjects(params):projectApi.getRequests(params)},
+      
+      if (projectView === 'all') {
+        return projectApi.getRequests(params);
+      }
+      else if (projectView === 'on_hold') {
+        return projectApi.getOnHoldProjects(params);
+      }
+      else if (projectView === 'complete') {
+        return projectApi.getCompleteProjects(params);
+      }},
     keepPreviousData: true,
     staleTime: 0,
     refetchOnMount: 'always',
@@ -352,9 +363,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'progress_rate',
       label: '진행률',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0} %
         </div>
       )
@@ -363,9 +374,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'total_task',
       label: '전체 태스크',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0}
         </div>
       )
@@ -373,9 +384,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'delayed_task',
       label: '지연 태스크',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0}
         </div>
       )
@@ -383,9 +394,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'complete_task',
       label: '완료 태스크',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0}
         </div>
       )
@@ -437,6 +448,13 @@ const WbsPage: React.FC = () => {
               onClick={() => { setCurrentPage(1); setProjectView('all'); }}
             >
               전체 프로젝트
+            </Button>
+            <Button
+              variant={projectView === 'complete' ? 'primary' : 'outline'}
+              onClick={() => { setCurrentPage(1); setProjectView('complete'); }}       
+              title="완료 프로젝트 목록"
+            >
+              완료 프로젝트
             </Button>
             <Button
               variant={projectView === 'on_hold' ? 'primary' : 'outline'}
