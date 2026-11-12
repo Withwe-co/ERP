@@ -156,6 +156,9 @@ const ActionButtonGroup = styled.div`
   min-height: 40px;
 `;
 
+// metric 컬럼의 고정 너비를 상수로 정의
+const WBS_METRIC_COLUMN_WIDTH = '80px';    
+
 const WbsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
@@ -360,9 +363,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'progress_rate',
       label: '진행률',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0} %
         </div>
       )
@@ -371,9 +374,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'total_task',
       label: '전체 태스크',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0}
         </div>
       )
@@ -381,9 +384,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'delayed_task',
       label: '지연 태스크',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0}
         </div>
       )
@@ -391,9 +394,9 @@ const WbsPage: React.FC = () => {
     {
       key: 'complete_task',
       label: '완료 태스크',
-      width: '80px',
+      width: WBS_METRIC_COLUMN_WIDTH,
       render: (value) => (
-        <div>
+        <div style={{display: 'flex',alignItems: 'center',justifyContent: 'center',}}>
           {value ?? 0}
         </div>
       )
